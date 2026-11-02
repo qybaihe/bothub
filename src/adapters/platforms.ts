@@ -9,10 +9,10 @@ export const PLATFORMS: readonly PlatformDescriptor[] = [
   {
     id: 'meta-muse',
     name: 'Meta Muse',
-    description: 'Chat with Muse assistants using one or more Meta accounts.',
+    description: 'Personal agent on muse.ai — chat, connectors, and Sentinel approvals.',
     availability: 'available',
-    monogram: 'M'
-    // homeUrl: set when the real web session integration lands.
+    monogram: 'M',
+    homeUrl: 'https://muse.ai'
   },
   {
     id: 'grok',

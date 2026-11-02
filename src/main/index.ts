@@ -34,6 +34,10 @@ function createMainWindow(): BrowserWindow {
     return { action: 'deny' }
   })
 
+  // The app is a single page: block navigations (e.g. a file dropped onto the
+  // window) that would replace the UI. Reloads are not affected.
+  win.webContents.on('will-navigate', (event) => event.preventDefault())
+
   const devUrl = process.env['ELECTRON_RENDERER_URL']
   if (!app.isPackaged && devUrl) {
     void win.loadURL(devUrl)

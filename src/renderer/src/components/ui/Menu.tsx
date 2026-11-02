@@ -26,7 +26,7 @@ export function MenuContent({ className, sideOffset = 6, ...props }: ComponentPr
       <DropdownMenu.Content
         sideOffset={sideOffset}
         className={cn(
-          'z-50 min-w-56 animate-pop-in rounded-xl border border-line bg-surface p-1 shadow-pop outline-none',
+          'no-drag z-50 min-w-56 animate-pop-in rounded-xl border border-line bg-surface p-1 shadow-pop outline-none',
           className
         )}
         {...props}

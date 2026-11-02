@@ -8,6 +8,11 @@ import App from './App'
 // Adapters must be registered before the store talks to them.
 registerBuiltInAdapters()
 
+// Files dropped outside a drop zone must not navigate away from the app.
+for (const type of ['dragover', 'drop'] as const) {
+  window.addEventListener(type, (event) => event.preventDefault())
+}
+
 const container = document.getElementById('root')
 if (!container) throw new Error('Root element #root not found')
 

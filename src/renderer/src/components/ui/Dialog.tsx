@@ -21,10 +21,10 @@ export function Dialog({ open, onOpenChange, title, description, children, foote
   return (
     <RadixDialog.Root open={open} onOpenChange={onOpenChange}>
       <RadixDialog.Portal>
-        <RadixDialog.Overlay className="fixed inset-0 z-40 animate-fade-in bg-ink/15 backdrop-blur-[2px]" />
+        <RadixDialog.Overlay className="no-drag fixed inset-0 z-40 animate-fade-in bg-ink/15 backdrop-blur-[2px]" />
         <RadixDialog.Content
           className={cn(
-            'fixed top-1/2 left-1/2 z-50 flex max-h-[min(88vh,760px)] w-[min(92vw,580px)] -translate-x-1/2 -translate-y-1/2 flex-col',
+            'no-drag fixed top-1/2 left-1/2 z-50 flex max-h-[min(88vh,760px)] w-[min(92vw,580px)] -translate-x-1/2 -translate-y-1/2 flex-col',
             'animate-pop-in rounded-2xl border border-line bg-surface shadow-pop outline-none',
             className
           )}

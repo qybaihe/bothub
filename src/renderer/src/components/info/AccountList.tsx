@@ -52,15 +52,16 @@ export function AccountList({ bot, accounts }: AccountListProps) {
             {account.pending ? (
               <Loader2 className="size-4 animate-spin text-ink-muted" aria-label="Updating" />
             ) : (
-              <StatusBadge status={account.status} className="group-hover:hidden" />
+              <StatusBadge status={account.status} />
             )}
 
             <Menu>
               <MenuTrigger
                 aria-label={`Actions for ${account.displayName}`}
+                disabled={account.pending}
                 className={cn(
-                  'grid size-6 place-items-center rounded-md text-ink-muted hover:bg-sunken hover:text-ink data-[state=open]:grid data-[state=open]:bg-sunken',
-                  account.pending ? 'hidden' : 'hidden group-hover:grid'
+                  'grid size-6 shrink-0 place-items-center rounded-md text-ink-muted transition-opacity hover:bg-sunken hover:text-ink',
+                  'opacity-0 group-hover:opacity-100 focus-visible:opacity-100 data-[state=open]:bg-sunken data-[state=open]:opacity-100'
                 )}
               >
                 <MoreHorizontal className="size-4" />

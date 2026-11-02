@@ -59,3 +59,21 @@ src/
 ## Status
 
 UI and mock data only. Nothing is saved: bots, messages, memory and notes live in memory and reset on reload.
+
+
+## Meta Muse (muse.ai)
+
+BotHub embeds https://muse.ai in an Electron WebContentsView (one persist partition per account) and calls the page gateway sendRequest when the hook finds it. If the hook only reaches DOM mode, chat falls back to typing into the page composer.
+
+### Exercise the Muse flow
+
+1. `npm run dev` (Electron — required for real Muse; `dev:web` has no WebContentsView).
+2. Click Add bot → Meta Muse → add an account (name + email) → create.
+3. Select the bot, click the globe to open the web session, sign in at muse.ai (email OTP is fine).
+4. Back in the conversation, send `hi`. Status should move Idle → Running → Idle.
+5. Open Details: refresh Sentinel approvals / Connectors. For a GitHub confirmation card, click Deny.
+6. Add a second account, switch in the header — each keeps its own partition/session.
+
+Mock mode: `BOTHUB_USE_MOCK_MUSE=1 npm run dev`.
+
+Protocol notes: `docs/museai/protocol.md`.

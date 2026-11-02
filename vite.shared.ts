@@ -1,4 +1,5 @@
 import { resolve } from 'node:path'
+import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 import type { PluginOption } from 'vite'
 
@@ -19,5 +20,5 @@ export const sharedAlias = {
 }
 
 export function rendererPlugins(): PluginOption[] {
-  return [react()]
+  return [react(), tailwindcss()]
 }

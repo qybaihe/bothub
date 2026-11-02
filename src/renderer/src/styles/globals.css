@@ -1,0 +1,133 @@
+@import 'tailwindcss';
+
+/*
+ * BotHub design tokens.
+ * Light, quiet UI: soft neutral canvas, white surfaces, hairline borders,
+ * a single iris accent, and semantic status colors.
+ */
+@theme {
+  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, monospace;
+
+  /* Type scale additions (13px UI text, 11px captions) */
+  --text-ui: 0.8125rem;
+  --text-ui--line-height: 1.25rem;
+  --text-caption: 0.6875rem;
+  --text-caption--line-height: 1rem;
+
+  /* Neutrals */
+  --color-canvas: #f7f7f8;
+  --color-surface: #ffffff;
+  --color-surface-hover: #f4f4f6;
+  --color-sunken: #f1f1f4;
+  --color-line: #ebebef;
+  --color-line-strong: #dcdce2;
+  --color-ink: #17171c;
+  --color-ink-secondary: #4a4a56;
+  --color-ink-muted: #85858f;
+  --color-ink-faint: #b3b3bc;
+
+  /* Accent — iris (the only brand color) */
+  --color-accent-50: #f4f4ff;
+  --color-accent-100: #ebebfe;
+  --color-accent-200: #d9d8fd;
+  --color-accent-300: #bbb8fa;
+  --color-accent-400: #9590f4;
+  --color-accent-500: #736cec;
+  --color-accent-600: #5f56df;
+  --color-accent-700: #4f46c4;
+
+  /* Status */
+  --color-status-online: #23a26d;
+  --color-status-busy: #e09b12;
+  --color-status-offline: #a5a5af;
+  --color-status-error: #e5484d;
+
+  /* Elevation */
+  --shadow-hairline: 0 0 0 1px rgb(23 23 28 / 0.04);
+  --shadow-soft: 0 1px 2px rgb(23 23 28 / 0.04), 0 1px 1px rgb(23 23 28 / 0.02);
+  --shadow-card: 0 1px 2px rgb(23 23 28 / 0.04), 0 6px 16px -6px rgb(23 23 28 / 0.08);
+  --shadow-pop: 0 16px 40px -12px rgb(23 23 28 / 0.18), 0 4px 12px -4px rgb(23 23 28 / 0.08);
+
+  /* Motion */
+  --animate-fade-in: fade-in 160ms ease-out;
+  --animate-pop-in: pop-in 180ms cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-typing: typing 1.2s ease-in-out infinite;
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  @keyframes pop-in {
+    from {
+      opacity: 0;
+      transform: translateY(4px) scale(0.98);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+  @keyframes typing {
+    0%,
+    60%,
+    100% {
+      opacity: 0.3;
+      transform: translateY(0);
+    }
+    30% {
+      opacity: 1;
+      transform: translateY(-2px);
+    }
+  }
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-canvas font-sans text-ui text-ink antialiased;
+    overflow: hidden;
+    font-feature-settings: 'cv11', 'ss01', 'ss03';
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background: var(--color-accent-100);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-accent-400);
+    outline-offset: 2px;
+  }
+
+  button {
+    cursor: default;
+  }
+
+  /* Quiet, thin scrollbars */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-line-strong) transparent;
+  }
+}
+
+/* Electron window chrome helpers (no-ops in a regular browser). */
+@utility drag-region {
+  -webkit-app-region: drag;
+  app-region: drag;
+  user-select: none;
+}
+
+@utility no-drag {
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+}

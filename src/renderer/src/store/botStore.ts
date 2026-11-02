@@ -30,7 +30,13 @@ export interface BotHubState {
   receiveMessage: (message: IncomingMessage) => void
   setTyping: (botId: string, isTyping: boolean) => void
 
+  // Bot details
+  updateNotes: (botId: string, notes: string) => void
+  addMemory: (botId: string, text: string) => void
+  removeMemory: (botId: string, memoryId: string) => void
+
   // Accounts
+  removeAccountFromBot: (botId: string, accountId: string) => void
   setActiveAccount: (botId: string, accountId: string) => void
   setAccountStatus: (accountId: string, status: ConnectionStatus, detail?: string) => void
   connectAccount: (accountId: string) => Promise<void>
@@ -51,6 +57,9 @@ export const useBotStore = create<BotHubState>()((set, get) => {
         [botId]: (state.messages[botId] ?? []).map((m) => (m.id === messageId ? { ...m, ...patch } : m))
       }
     }))
+
+  const patchBot = (botId: string, patch: (bot: Bot) => Partial<Bot>) =>
+    set((state) => ({ bots: state.bots.map((b) => (b.id === botId ? { ...b, ...patch(b) } : b)) }))
 
   const patchAccount = (accountId: string, patch: Partial<BotAccount>) =>
     set((state) => {
@@ -162,6 +171,30 @@ export const useBotStore = create<BotHubState>()((set, get) => {
         if (isTyping) typing[botId] = true
         else delete typing[botId]
         return { typing }
+      }),
+
+    updateNotes: (botId, notes) => patchBot(botId, () => ({ notes })),
+
+    addMemory: (botId, text) => {
+      const trimmed = text.trim()
+      if (!trimmed) return
+      patchBot(botId, (bot) => ({
+        memory: [...bot.memory, { id: createId('mem'), text: trimmed, createdAt: Date.now() }]
+      }))
+    },
+
+    removeMemory: (botId, memoryId) =>
+      patchBot(botId, (bot) => ({ memory: bot.memory.filter((m) => m.id !== memoryId) })),
+
+    removeAccountFromBot: (botId, accountId) =>
+      patchBot(botId, (bot) => {
+        // A bot always keeps at least one account.
+        if (bot.accountIds.length <= 1 || !bot.accountIds.includes(accountId)) return {}
+        const accountIds = bot.accountIds.filter((id) => id !== accountId)
+        return {
+          accountIds,
+          activeAccountId: bot.activeAccountId === accountId ? accountIds[0]! : bot.activeAccountId
+        }
       }),
 
     setActiveAccount: (botId, accountId) =>

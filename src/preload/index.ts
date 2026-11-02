@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import type { BotHubBridge } from '@shared/bridge'
-import { WEB_VIEW_CHANNELS } from '@shared/ipc'
+import { MUSE_CHANNELS, WEB_VIEW_CHANNELS, type MuseMainEvent } from '@shared/ipc'
 
 const bridge: BotHubBridge = {
   platform: process.platform,
@@ -15,6 +15,16 @@ const bridge: BotHubBridge = {
     resize: (viewId, bounds) => ipcRenderer.send(WEB_VIEW_CHANNELS.resize, viewId, bounds),
     detach: (viewId) => ipcRenderer.invoke(WEB_VIEW_CHANNELS.detach, viewId),
     destroy: (viewId) => ipcRenderer.invoke(WEB_VIEW_CHANNELS.destroy, viewId)
+  },
+  muse: {
+    ensure: (request) => ipcRenderer.invoke(MUSE_CHANNELS.ensure, request),
+    rpc: (request) => ipcRenderer.invoke(MUSE_CHANNELS.rpc, request),
+    status: (accountId) => ipcRenderer.invoke(MUSE_CHANNELS.status, accountId),
+    onEvent: (listener) => {
+      const handler = (_event: unknown, payload: MuseMainEvent) => listener(payload)
+      ipcRenderer.on(MUSE_CHANNELS.event, handler)
+      return () => ipcRenderer.removeListener(MUSE_CHANNELS.event, handler)
+    }
   }
 }
 

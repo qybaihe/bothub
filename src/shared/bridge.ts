@@ -1,4 +1,12 @@
-import type { CreateWebViewRequest, WebViewBounds, WebViewInfo } from './ipc'
+import type {
+  CreateWebViewRequest,
+  MuseEnsureRequest,
+  MuseMainEvent,
+  MuseRpcRequest,
+  MuseSessionStatus,
+  WebViewBounds,
+  WebViewInfo
+} from './ipc'
 
 /** Controls embedded platform web sessions (Electron WebContentsView). */
 export interface WebViewBridge {
@@ -20,6 +28,13 @@ export interface WebViewBridge {
  * The renderer must treat it as optional: when it runs in a plain browser
  * (`npm run dev:web`) there is no preload and `window.electron` is undefined.
  */
+export interface MuseBridge {
+  ensure(request: MuseEnsureRequest): Promise<MuseSessionStatus>
+  rpc(request: MuseRpcRequest): Promise<unknown>
+  status(accountId: string): Promise<MuseSessionStatus | null>
+  onEvent(listener: (event: MuseMainEvent) => void): () => void
+}
+
 export interface BotHubBridge {
   /** Node-style platform string, e.g. "darwin", "win32", "linux". */
   readonly platform: string
@@ -29,4 +44,5 @@ export interface BotHubBridge {
     readonly node: string
   }
   readonly webViews: WebViewBridge
+  readonly muse: MuseBridge
 }

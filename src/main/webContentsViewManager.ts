@@ -153,6 +153,11 @@ export class WebContentsViewManager {
     if (!managed.view.webContents.isDestroyed()) managed.view.webContents.close()
   }
 
+  /** Return the native view for advanced integrations (e.g. Muse RPC). */
+  getView(viewId: string): WebContentsView | undefined {
+    return this.views.get(viewId)?.view
+  }
+
   destroyAll(): void {
     for (const viewId of [...this.views.keys()]) this.destroy(viewId)
     this.attachedId = null

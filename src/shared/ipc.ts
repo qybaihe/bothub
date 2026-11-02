@@ -38,3 +38,47 @@ export interface WebViewInfo {
   url: string
   attached: boolean
 }
+
+
+export const MUSE_CHANNELS = {
+  ensure: 'bothub:muse:ensure',
+  rpc: 'bothub:muse:rpc',
+  status: 'bothub:muse:status',
+  event: 'bothub:muse:event'
+} as const
+
+export interface MuseEnsureRequest {
+  botId: string
+  accountId: string
+  /** When true, attach/show the view for interactive login. */
+  show?: boolean
+  bounds?: WebViewBounds
+}
+
+export interface MuseRpcRequest {
+  accountId: string
+  method: string
+  params?: unknown
+}
+
+export interface MuseSessionStatus {
+  accountId: string
+  signedIn: boolean
+  ready: boolean
+  hook: 'sendRequest' | 'dom' | 'none'
+  url: string
+  pendingApprovals: number
+}
+
+export type MuseMainEvent =
+  | { type: 'status'; status: MuseSessionStatus }
+  | { type: 'approvals'; accountId: string; pending: unknown[] }
+  | {
+      type: 'stream'
+      accountId: string
+      conversationId?: string
+      messageId: string
+      text: string
+      done: boolean
+    }
+  | { type: 'login'; accountId: string; signedIn: boolean; handle?: string; displayName?: string }

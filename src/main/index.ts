@@ -1,6 +1,7 @@
 import { join } from 'node:path'
 import { app, BrowserWindow, shell } from 'electron'
 import { attachWebViewManager, registerWebViewIpc } from './webViewIpc'
+import { attachMuseSessionManager, registerMuseIpc } from './muse/museIpc'
 
 const isMac = process.platform === 'darwin'
 
@@ -24,7 +25,8 @@ function createMainWindow(): BrowserWindow {
   })
 
   // Embedded platform web sessions (hidden until the renderer attaches one).
-  attachWebViewManager(win)
+  const views = attachWebViewManager(win)
+  attachMuseSessionManager(win, views)
 
   win.once('ready-to-show', () => win.show())
 
@@ -50,6 +52,7 @@ function createMainWindow(): BrowserWindow {
 
 app.whenReady().then(() => {
   registerWebViewIpc()
+  registerMuseIpc()
   createMainWindow()
 
   app.on('activate', () => {

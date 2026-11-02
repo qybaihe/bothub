@@ -1,0 +1,31 @@
+import { adapterRegistry } from '@adapters/registry'
+import type { AdapterEvent } from '@adapters/types'
+import { useBotStore } from '@/store/botStore'
+
+function handleEvent(event: AdapterEvent): void {
+  const store = useBotStore.getState()
+  switch (event.type) {
+    case 'message':
+      // Typing state is driven solely by the adapter's typing events, so a
+      // reply does not hide the indicator while another one is pending.
+      store.receiveMessage(event.message)
+      break
+    case 'typing':
+      store.setTyping(event.conversationId, event.isTyping)
+      break
+    case 'status':
+      store.setAccountStatus(event.accountId, event.status, event.detail)
+      break
+  }
+}
+
+/**
+ * Pipe events from every registered platform adapter into the store.
+ * Returns a cleanup function that unsubscribes all listeners.
+ */
+export function startAdapterBridge(): () => void {
+  const unsubscribers = adapterRegistry.list().map((adapter) => adapter.subscribe(handleEvent))
+  return () => {
+    for (const unsubscribe of unsubscribers) unsubscribe()
+  }
+}

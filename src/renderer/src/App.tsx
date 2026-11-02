@@ -1,35 +1,21 @@
-import { MessagesSquare, PanelRight } from 'lucide-react'
+import { useEffect } from 'react'
+import { ChatArea } from '@/components/chat/ChatArea'
 import { AppShell } from '@/components/layout/AppShell'
 import { PaneHeader } from '@/components/layout/PaneHeader'
 import { Sidebar } from '@/components/sidebar/Sidebar'
-import { IconButton } from '@/components/ui/IconButton'
+import { startAdapterBridge } from '@/services/adapterBridge'
 import { useBotStore } from '@/store/botStore'
 
 export default function App() {
   const infoOpen = useBotStore((s) => s.infoPanelOpen)
-  const toggleInfoPanel = useBotStore((s) => s.toggleInfoPanel)
+
+  useEffect(() => startAdapterBridge(), [])
 
   return (
     <AppShell
       asideOpen={infoOpen}
       sidebar={<Sidebar onAddBot={() => undefined} />}
-      main={
-        <>
-          <PaneHeader>
-            <span className="flex-1 font-medium">Conversation</span>
-            <IconButton
-              label={infoOpen ? 'Hide details' : 'Show details'}
-              active={infoOpen}
-              onClick={toggleInfoPanel}
-            >
-              <PanelRight />
-            </IconButton>
-          </PaneHeader>
-          <div className="grid flex-1 place-items-center text-ink-muted">
-            <MessagesSquare className="size-6" />
-          </div>
-        </>
-      }
+      main={<ChatArea />}
       aside={
         <PaneHeader>
           <span className="font-medium">Details</span>

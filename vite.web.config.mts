@@ -1,6 +1,6 @@
 import { resolve } from 'node:path'
 import { defineConfig } from 'vite'
-import { rendererAlias, rendererPlugins, rendererRoot } from './vite.shared'
+import { rendererAlias, rendererPlugins, rendererRoot } from './vite.shared.mts'
 
 /**
  * Runs only the renderer in a regular browser (no Electron, no preload).

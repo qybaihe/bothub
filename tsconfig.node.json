@@ -1,12 +1,12 @@
 {
   "compilerOptions": {
-    "composite": true,
-    "tsBuildInfoFile": "./node_modules/.cache/tsconfig.node.tsbuildinfo",
     "target": "ES2023",
     "lib": ["ES2023"],
     "module": "ESNext",
     "moduleResolution": "bundler",
     "types": ["node", "electron-vite/node"],
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
@@ -21,8 +21,8 @@
   },
   "include": [
     "electron.vite.config.ts",
-    "vite.web.config.ts",
-    "vite.shared.ts",
+    "vite.web.config.mts",
+    "vite.shared.mts",
     "src/main/**/*",
     "src/preload/**/*",
     "src/shared/**/*"

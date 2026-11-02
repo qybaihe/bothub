@@ -1,5 +1,5 @@
 import { defineConfig } from 'electron-vite'
-import { rendererAlias, rendererPlugins, sharedAlias } from './vite.shared'
+import { rendererAlias, rendererPlugins, sharedAlias } from './vite.shared.mts'
 
 export default defineConfig({
   main: {

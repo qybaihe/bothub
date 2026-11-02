@@ -36,7 +36,7 @@ export function Sidebar({ onAddBot }: SidebarProps) {
   const accounts = useBotStore((s) => s.accounts)
 
   const summary = useMemo(() => {
-    const counts: Record<ConnectionStatus, number> = { online: 0, busy: 0, offline: 0, error: 0 }
+    const counts: Record<ConnectionStatus, number> = { online: 0, busy: 0, attention: 0, offline: 0, error: 0 }
     for (const bot of bots) counts[getBotStatus(bot, accounts)]++
     return SUMMARY_ORDER.filter((status) => counts[status] > 0).map((status) => ({ status, count: counts[status] }))
   }, [bots, accounts])

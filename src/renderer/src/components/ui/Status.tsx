@@ -2,8 +2,9 @@ import type { ConnectionStatus } from '@adapters/types'
 import { cn } from '@/lib/cn'
 
 export const STATUS_LABEL: Record<ConnectionStatus, string> = {
-  online: 'Online',
-  busy: 'Busy',
+  online: 'Idle',
+  busy: 'Running',
+  attention: 'Action required',
   offline: 'Offline',
   error: 'Error'
 }
@@ -11,6 +12,7 @@ export const STATUS_LABEL: Record<ConnectionStatus, string> = {
 const DOT: Record<ConnectionStatus, string> = {
   online: 'bg-status-online',
   busy: 'bg-status-busy',
+  attention: 'bg-status-attention',
   offline: 'bg-status-offline',
   error: 'bg-status-error'
 }
@@ -18,6 +20,7 @@ const DOT: Record<ConnectionStatus, string> = {
 const BADGE: Record<ConnectionStatus, string> = {
   online: 'bg-status-online/10 text-status-online-ink',
   busy: 'bg-status-busy/12 text-status-busy-ink',
+  attention: 'bg-status-attention/12 text-status-attention-ink',
   offline: 'bg-sunken text-status-offline-ink',
   error: 'bg-status-error/10 text-status-error-ink'
 }
@@ -53,7 +56,7 @@ export function StatusBadge({ status, label, className }: StatusBadgeProps) {
         className
       )}
     >
-      <span className={cn('size-1.5 rounded-full', DOT[status], status === 'busy' && 'animate-pulse')} />
+      <span className={cn('size-1.5 rounded-full', DOT[status], (status === 'busy' || status === 'attention') && 'animate-pulse')} />
       {label ?? STATUS_LABEL[status]}
     </span>
   )

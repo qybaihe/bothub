@@ -37,14 +37,16 @@
   --color-accent-600: #5f56df;
   --color-accent-700: #4f46c4;
 
-  /* Status */
+  /* Status — Idle green / Running blue / Action-required orange / Error red */
   --color-status-online: #23a26d;
-  --color-status-busy: #e09b12;
+  --color-status-busy: #3b82f6;
+  --color-status-attention: #e09b12;
   --color-status-offline: #a5a5af;
   --color-status-error: #e5484d;
   /* Darker status inks for text on tinted backgrounds (AA contrast) */
   --color-status-online-ink: #17784f;
-  --color-status-busy-ink: #95620a;
+  --color-status-busy-ink: #1d4ed8;
+  --color-status-attention-ink: #95620a;
   --color-status-offline-ink: #6b6b75;
   --color-status-error-ink: #c32f37;
 

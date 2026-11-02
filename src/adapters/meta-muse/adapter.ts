@@ -250,7 +250,15 @@ export class MuseAdapter implements PlatformAdapter {
   }
 
   async listApprovals(accountId: string): Promise<MuseApproval[]> {
-    const raw = await this.bridge().rpc({ accountId, method: 'egress.approvals', params: {} })
+    const status = this.getStatus(accountId)
+    if (status === 'offline' || status === 'error') return []
+    let raw: unknown
+    try {
+      raw = await this.bridge().rpc({ accountId, method: 'egress.approvals', params: {} })
+    } catch (error) {
+      console.warn('[muse] listApprovals', error)
+      return this.pendingApprovals.get(accountId) ?? []
+    }
     const obj = (raw ?? {}) as Record<string, unknown>
     const list = (obj['pending'] as unknown[]) || (obj['pending_approvals'] as unknown[]) || []
     const pending = (Array.isArray(list) ? list : []).map((item) => mapApproval((item ?? {}) as Record<string, unknown>))
@@ -277,7 +285,15 @@ export class MuseAdapter implements PlatformAdapter {
   }
 
   async listConnectors(accountId: string): Promise<MuseConnector[]> {
-    const raw = await this.bridge().rpc({ accountId, method: 'connectors.list', params: {} })
+    const status = this.getStatus(accountId)
+    if (status === 'offline' || status === 'error') return []
+    let raw: unknown
+    try {
+      raw = await this.bridge().rpc({ accountId, method: 'connectors.list', params: {} })
+    } catch (error) {
+      console.warn('[muse] listConnectors', error)
+      return []
+    }
     if (Array.isArray(raw)) return raw.map(mapConnector)
     if (raw && typeof raw === 'object') {
       const obj = raw as Record<string, unknown>

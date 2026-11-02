@@ -1,27 +1,18 @@
-import { useState } from 'react'
 import { MessagesSquare, PanelRight } from 'lucide-react'
 import { AppShell } from '@/components/layout/AppShell'
 import { PaneHeader } from '@/components/layout/PaneHeader'
+import { Sidebar } from '@/components/sidebar/Sidebar'
 import { IconButton } from '@/components/ui/IconButton'
-import { runtimePlatform } from '@/lib/bridge'
-import { cn } from '@/lib/cn'
+import { useBotStore } from '@/store/botStore'
 
 export default function App() {
-  const [infoOpen, setInfoOpen] = useState(true)
+  const infoOpen = useBotStore((s) => s.infoPanelOpen)
+  const toggleInfoPanel = useBotStore((s) => s.toggleInfoPanel)
 
   return (
     <AppShell
       asideOpen={infoOpen}
-      sidebar={
-        <header
-          className={cn(
-            'drag-region flex h-[60px] shrink-0 items-center px-4 pt-2',
-            runtimePlatform === 'darwin' && 'pl-[84px]'
-          )}
-        >
-          <span className="text-sm font-semibold tracking-tight">BotHub</span>
-        </header>
-      }
+      sidebar={<Sidebar onAddBot={() => undefined} />}
       main={
         <>
           <PaneHeader>
@@ -29,7 +20,7 @@ export default function App() {
             <IconButton
               label={infoOpen ? 'Hide details' : 'Show details'}
               active={infoOpen}
-              onClick={() => setInfoOpen((open) => !open)}
+              onClick={toggleInfoPanel}
             >
               <PanelRight />
             </IconButton>

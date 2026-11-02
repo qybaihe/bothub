@@ -11,6 +11,8 @@ import { formatDate } from '@/lib/format'
 import { getBotAccounts, getBotStatus } from '@/lib/selectors'
 import { useBotStore } from '@/store/botStore'
 import { AccountList } from './AccountList'
+import { ApprovalsSection } from '@/components/muse/ApprovalsSection'
+import { ConnectorsSection } from '@/components/muse/ConnectorsSection'
 import { MemoryEditor } from './MemoryEditor'
 import { DetailRow, Section } from './Section'
 
@@ -75,6 +77,15 @@ export function InfoPanel() {
           <Section title="Connected accounts" count={accounts.length} action={<AddAccountsButton bot={bot} />}>
             <AccountList bot={bot} accounts={accounts} />
           </Section>
+
+          {bot.platformId === 'meta-muse' && bot.activeAccountId && (
+            <Section title="Muse">
+              <div className="flex flex-col gap-4">
+                <ApprovalsSection accountId={bot.activeAccountId} />
+                <ConnectorsSection accountId={bot.activeAccountId} />
+              </div>
+            </Section>
+          )}
 
           <Section title="Memory" count={bot.memory.length}>
             <MemoryEditor bot={bot} />

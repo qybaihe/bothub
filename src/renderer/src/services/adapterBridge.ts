@@ -16,6 +16,15 @@ function handleEvent(event: AdapterEvent): void {
     case 'status':
       store.setAccountStatus(event.accountId, event.status, event.detail)
       break
+    case 'message_delta':
+      store.setTyping(event.conversationId, true)
+      break
+    case 'approvals':
+      if (event.pending.length > 0) store.setAccountStatus(event.accountId, 'attention')
+      break
+    case 'login':
+      store.setAccountStatus(event.accountId, event.signedIn ? 'online' : 'offline')
+      break
   }
 }
 

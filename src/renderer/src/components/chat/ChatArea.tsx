@@ -84,7 +84,10 @@ export function ChatArea() {
     )
   }
 
-  const canSend = activeAccount?.status === 'online' || activeAccount?.status === 'busy'
+  const canSend =
+    activeAccount?.status === 'online' ||
+    activeAccount?.status === 'busy' ||
+    activeAccount?.status === 'attention'
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">

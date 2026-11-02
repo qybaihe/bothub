@@ -7,13 +7,13 @@ function createMainWindow(): BrowserWindow {
   const win = new BrowserWindow({
     width: 1360,
     height: 860,
-    minWidth: 980,
+    minWidth: 1080,
     minHeight: 620,
     show: false,
     title: 'BotHub',
     backgroundColor: '#f7f7f8',
     autoHideMenuBar: true,
-    ...(isMac ? { titleBarStyle: 'hiddenInset' as const, trafficLightPosition: { x: 16, y: 18 } } : {}),
+    ...(isMac ? { titleBarStyle: 'hiddenInset' as const, trafficLightPosition: { x: 18, y: 28 } } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       contextIsolation: true,

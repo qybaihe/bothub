@@ -1,6 +1,7 @@
-import { useMemo, type ReactNode } from 'react'
+import { useMemo } from 'react'
 import { getPlatform } from '@adapters/platforms'
 import { X } from 'lucide-react'
+import { AddAccountsButton } from '@/components/add-bot/AddAccountsDialog'
 import { PaneHeader } from '@/components/layout/PaneHeader'
 import { AccountAvatar, BotAvatar } from '@/components/ui/Avatar'
 import { IconButton } from '@/components/ui/IconButton'
@@ -13,12 +14,7 @@ import { AccountList } from './AccountList'
 import { MemoryEditor } from './MemoryEditor'
 import { DetailRow, Section } from './Section'
 
-interface InfoPanelProps {
-  /** Rendered next to the "Connected accounts" title (e.g. an add button). */
-  accountsAction?: ReactNode
-}
-
-export function InfoPanel({ accountsAction }: InfoPanelProps) {
+export function InfoPanel() {
   const bot = useBotStore((s) => s.bots.find((b) => b.id === s.selectedBotId))
   const accountMap = useBotStore((s) => s.accounts)
   const group = useBotStore((s) => s.groups.find((g) => g.id === bot?.groupId))
@@ -76,7 +72,7 @@ export function InfoPanel({ accountsAction }: InfoPanelProps) {
             </dl>
           </Section>
 
-          <Section title="Connected accounts" count={accounts.length} action={accountsAction}>
+          <Section title="Connected accounts" count={accounts.length} action={<AddAccountsButton bot={bot} />}>
             <AccountList bot={bot} accounts={accounts} />
           </Section>
 

@@ -57,3 +57,24 @@ export interface ChatMessage {
   error?: string
   attachments?: AttachmentMeta[]
 }
+
+/** An account row in the add-bot / add-account forms. */
+export interface AccountDraft {
+  /** Stable key for list rendering. */
+  key: string
+  /** Set when reusing an existing signed-in session from the adapter. */
+  accountId?: string
+  displayName: string
+  handle: string
+}
+
+export type GroupChoice = { kind: 'existing'; groupId: string } | { kind: 'new'; name: string }
+
+export interface NewBotInput {
+  platformId: PlatformId
+  name: string
+  emoji: string
+  description: string
+  group: GroupChoice
+  accounts: AccountDraft[]
+}

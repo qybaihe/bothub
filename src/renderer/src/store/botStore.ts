@@ -1,9 +1,10 @@
 import { create } from 'zustand'
+import { getPlatform } from '@adapters/platforms'
 import { adapterRegistry } from '@adapters/registry'
-import type { AttachmentMeta, ConnectionStatus, IncomingMessage } from '@adapters/types'
+import type { AttachmentMeta, ConnectionStatus, IncomingMessage, PlatformId } from '@adapters/types'
 import { createId } from '@shared/id'
 import { createSeed } from '@/data/seed'
-import type { Bot, BotAccount, BotGroup, ChatMessage } from '@/types'
+import type { AccountDraft, Bot, BotAccount, BotGroup, ChatMessage, NewBotInput } from '@/types'
 
 export interface BotHubState {
   groups: BotGroup[]
@@ -17,12 +18,19 @@ export interface BotHubState {
   search: string
   collapsedGroups: Record<string, boolean>
   infoPanelOpen: boolean
+  addBotOpen: boolean
 
   // Navigation & layout
   selectBot: (botId: string) => void
   setSearch: (query: string) => void
   toggleGroup: (groupId: string) => void
   toggleInfoPanel: () => void
+  setAddBotOpen: (open: boolean) => void
+
+  // Creation
+  /** Create a bot (and any new accounts/group), select it, and connect its accounts. */
+  addBot: (input: NewBotInput) => string
+  addAccountsToBot: (botId: string, drafts: AccountDraft[]) => void
 
   // Conversation
   sendMessage: (botId: string, text: string, attachments?: AttachmentMeta[]) => Promise<void>
@@ -44,6 +52,34 @@ export interface BotHubState {
 }
 
 const seed = createSeed()
+
+/** Turn form drafts into account ids, creating BotAccounts for new ones. */
+function materializeAccounts(
+  platformId: PlatformId,
+  drafts: AccountDraft[],
+  existing: Record<string, BotAccount>
+): { ids: string[]; created: Record<string, BotAccount> } {
+  const ids: string[] = []
+  const created: Record<string, BotAccount> = {}
+  for (const draft of drafts) {
+    const displayName = draft.displayName.trim() || draft.handle.trim()
+    if (!displayName) continue
+    if (draft.accountId && existing[draft.accountId]) {
+      if (!ids.includes(draft.accountId)) ids.push(draft.accountId)
+      continue
+    }
+    const id = draft.accountId ?? createId('acc')
+    created[id] = {
+      id,
+      platformId,
+      displayName,
+      handle: draft.handle.trim() || displayName,
+      status: 'offline'
+    }
+    ids.push(id)
+  }
+  return { ids, created }
+}
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'Something went wrong.'
@@ -101,6 +137,7 @@ export const useBotStore = create<BotHubState>()((set, get) => {
     search: '',
     collapsedGroups: {},
     infoPanelOpen: true,
+    addBotOpen: false,
 
     selectBot: (botId) =>
       set((state) => ({
@@ -116,6 +153,72 @@ export const useBotStore = create<BotHubState>()((set, get) => {
       })),
 
     toggleInfoPanel: () => set((state) => ({ infoPanelOpen: !state.infoPanelOpen })),
+
+    setAddBotOpen: (open) => set({ addBotOpen: open }),
+
+    addBot: (input) => {
+      const state = get()
+      const { ids, created } = materializeAccounts(input.platformId, input.accounts, state.accounts)
+      if (ids.length === 0) throw new Error('A bot needs at least one account.')
+
+      let groups = state.groups
+      let groupId: string
+      if (input.group.kind === 'existing') {
+        groupId = input.group.groupId
+      } else {
+        const name = input.group.name.trim()
+        const match = groups.find((g) => g.name.toLowerCase() === name.toLowerCase())
+        groupId = match?.id ?? createId('grp')
+        if (!match) groups = [...groups, { id: groupId, name }]
+      }
+
+      const bot: Bot = {
+        id: createId('bot'),
+        name: input.name.trim(),
+        emoji: input.emoji,
+        description: input.description.trim() || `${getPlatform(input.platformId).name} bot`,
+        platformId: input.platformId,
+        groupId,
+        accountIds: ids,
+        activeAccountId: ids[0]!,
+        memory: [],
+        notes: '',
+        createdAt: Date.now(),
+        unread: 0
+      }
+
+      set((s) => ({
+        groups,
+        bots: [...s.bots, bot],
+        accounts: { ...s.accounts, ...created },
+        messages: { ...s.messages, [bot.id]: [] },
+        selectedBotId: bot.id,
+        search: '',
+        collapsedGroups: { ...s.collapsedGroups, [groupId]: false },
+        addBotOpen: false
+      }))
+
+      const accounts = get().accounts
+      for (const id of ids) if (accounts[id]?.status === 'offline') void get().connectAccount(id)
+      return bot.id
+    },
+
+    addAccountsToBot: (botId, drafts) => {
+      const state = get()
+      const bot = state.bots.find((b) => b.id === botId)
+      if (!bot) return
+      const { ids, created } = materializeAccounts(bot.platformId, drafts, state.accounts)
+      const newIds = ids.filter((id) => !bot.accountIds.includes(id))
+      if (newIds.length === 0) return
+
+      set((s) => ({
+        accounts: { ...s.accounts, ...created },
+        bots: s.bots.map((b) => (b.id === botId ? { ...b, accountIds: [...b.accountIds, ...newIds] } : b))
+      }))
+
+      const accounts = get().accounts
+      for (const id of newIds) if (accounts[id]?.status === 'offline') void get().connectAccount(id)
+    },
 
     sendMessage: async (botId, text, attachments) => {
       const bot = get().bots.find((b) => b.id === botId)

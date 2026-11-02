@@ -1,0 +1,35 @@
+{
+  "_comment": "Sentinel 卡 UI 文案 → egress.approval.decide.decision（来自 17ze4iivcm-44.js ap()/主按钮；allow 抓包 JS）。",
+  "primary_allow_button": {
+    "ui_labels": ["Allow", "Allow once", "Allow for this task", "Allow for this scheduled task", "Allow for this artifact", "Allow for this space", "Allow all web access for this task"],
+    "rpc_decision": "allow_once",
+    "exception": "若 decision_options 缺失且 spaceReaderGrantEligible=true，则主允许映射为 allow_always（scope=entity）"
+  },
+  "allow_always_button": {
+    "ui_labels": ["Allow always", "Always allow", "Always allow this site", "Allow all {connector} actions", "Request approved permanently …"],
+    "rpc_decision": "allow_always",
+    "always_scope_default": {
+      "ordinary_network_card": "destination_domain",
+      "spaceReader_or_special_connector": "entity"
+    },
+    "label_kind_allow_always_scoped_scopes": ["destination_domain", "connector_all_actions", "entity", "destination", "recipient"]
+  },
+  "deny_button": {
+    "ui_labels": ["Deny", "Deny for this space", "Deny for this artifact", "Deny for this scheduled task"],
+    "rpc_decision": "deny",
+    "exception_space_reader": "deny_always"
+  },
+  "toast_after_decide": {
+    "allow_once": "Request approved",
+    "allow_session": "Request approved for this task",
+    "allow_always": "Request approved permanently for this domain|entity|destination|connector methods|Recipient permission saved",
+    "deny": "Request denied",
+    "deny_always": "Request denied permanently …"
+  },
+  "enums": {
+    "status": ["pending", "approved", "denied", "timed_out"],
+    "decision": ["allow_once", "allow_session", "allow_always", "auto_allow", "deny_always", "deny", "timed_out"],
+    "decision_options_kind": ["allow_once", "allow_session", "allow_always", "deny_always", "deny"],
+    "always_scope": ["destination", "destination_domain", "entity", "connector_all_actions", "recipient"]
+  }
+}

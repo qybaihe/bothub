@@ -1,0 +1,99 @@
+{
+  "_comment": "egress.approvals 响应。前端 tt() 同时兼容 legacy 与 snapshot 两种键名；snapshot 时 source 记为 snapshot。Wire 明文在 Noise 内，本样例由 JS 归一化器还原并脱敏。",
+  "_legacy_shape": {
+    "pending": ["<ApprovalObject flat>"],
+    "recent": ["<ApprovalObject flat>"]
+  },
+  "_snapshot_shape": {
+    "pending_approvals": ["<ApprovalSnapshot>"],
+    "recent_approvals": ["<ApprovalSnapshot>"]
+  },
+  "pending_approvals": [
+    {
+      "approval_id": "<redacted-approval-id>",
+      "requested_at_ms": 1762100000000,
+      "request_expires_at_ms": 1762100300000,
+      "decided_at_ms": null,
+      "status": "pending",
+      "decision": null,
+      "always_scope": null,
+      "decision_reason": null,
+      "approval_type": "connector",
+      "is_exclusive": false,
+      "editable_message_available": false,
+      "message_revision": null,
+      "decision_options": [
+        {
+          "kind": "allow_once",
+          "label": {"kind": "allow_once"},
+          "label_text": "",
+          "opens_url": null
+        },
+        {
+          "kind": "allow_always",
+          "label": {"kind": "allow_always_scoped", "scope": "destination_domain"},
+          "label_text": "",
+          "opens_url": null
+        },
+        {
+          "kind": "deny",
+          "label": {"kind": "deny"},
+          "label_text": "",
+          "opens_url": null
+        }
+      ],
+      "display": {
+        "display_name": "GitHub",
+        "reason": "<short reason shown on card>",
+        "short_explanation": null,
+        "rich_explanation": null,
+        "action_label": "create_repository",
+        "action_description": "<human description>",
+        "purpose_summary": null,
+        "icon_url": null,
+        "permission_question": {
+          "kind": "connector_action",
+          "text": "<question text>",
+          "connector": "github",
+          "action": "create_repository"
+        },
+        "request_preview_document": null
+      },
+      "scope": {
+        "session_scope_id": "<redacted>",
+        "schedule_id": null,
+        "space_slug": null,
+        "display_name": null,
+        "runtime_request_trace": null
+      },
+      "process": {
+        "binary_path": "/usr/bin/<redacted>",
+        "binary_pid": null,
+        "registered_command": null,
+        "observed_command": null,
+        "resolved_peer_binary": null
+      },
+      "payload": {
+        "type": "connector",
+        "network_payload": null,
+        "connector_payload": {
+          "host": "api.github.com",
+          "port": 443,
+          "scheme": "https",
+          "method": "POST",
+          "path": "/user/repos",
+          "payload_preview": {"name": "<repo>", "private": true},
+          "space_reader_grant_eligible": false,
+          "turn_grant_eligible": false,
+          "declared_hosts": ["api.github.com"]
+        },
+        "device_payload": null,
+        "outgoing_media_payload": null,
+        "browser_checkout_payload": null,
+        "shopify_checkout_payload": null,
+        "stripe_link_checkout_payload": null
+      }
+    }
+  ],
+  "recent_approvals": []
+}

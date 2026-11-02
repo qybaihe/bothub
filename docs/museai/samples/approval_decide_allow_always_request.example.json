@@ -1,0 +1,11 @@
+{
+  "_comment": "永久允许：decision=allow_always，always_scope 与 allow_always_scope 同值。默认 P(approval) 在普通网络卡上取 destination_domain；spaceReader / 部分 connector 取 entity。",
+  "approval_id": "<redacted-approval-id>",
+  "decision": "allow_always",
+  "always_scope": "destination_domain",
+  "allow_always_scope": "destination_domain",
+  "reason": null,
+  "expires_at_ms": null,
+  "notification_channel": "ui",
+  "expected_message_revision": null
+}

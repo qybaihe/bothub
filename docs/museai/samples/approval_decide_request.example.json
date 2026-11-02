@@ -1,0 +1,9 @@
+{
+  "_comment": "egress.approval.decide 请求体（td() 组装）。用户点击主按钮 Allow / Allow once 时 decision 固定为 allow_once；UI 通道 notification_channel 固定传 \"ui\"。allow_always/deny_always 才带 always_scope，且仅 allow_always 额外镜像 allow_always_scope。",
+  "approval_id": "<redacted-approval-id>",
+  "decision": "allow_once",
+  "reason": null,
+  "expires_at_ms": null,
+  "notification_channel": "ui",
+  "expected_message_revision": null
+}

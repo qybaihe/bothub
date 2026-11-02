@@ -1,0 +1,6 @@
+{
+  "status": "assigned",
+  "gatewayUrl": "wss://<vmId>.metaaivm.com/",
+  "vmName": "<vmId>",
+  "vmId": "<vmId>"
+}

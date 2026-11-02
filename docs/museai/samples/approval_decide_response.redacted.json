@@ -1,0 +1,20 @@
+{
+  "_comment": "egress.approval.decide 响应：顶层 approval 对象（再经 e3 归一化）。成功后 UI toast 对 allow_once/allow_session 显示 \"Request approved\"。",
+  "approval": {
+    "approval_id": "<redacted-approval-id>",
+    "requested_at_ms": 1762100000000,
+    "decided_at_ms": 1762100005000,
+    "status": "approved",
+    "decision": "allow_once",
+    "always_scope": null,
+    "decision_reason": null,
+    "decided_by": "user",
+    "notification_channel": "ui",
+    "host": "api.github.com",
+    "port": 443,
+    "scheme": "https",
+    "binary_path": "/usr/bin/<redacted>",
+    "reason": "<card reason>",
+    "action_label": "create_repository"
+  }
+}

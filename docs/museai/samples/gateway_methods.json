@@ -1,0 +1,3497 @@
+[
+  {
+    "method": "peers.status",
+    "httpMethod": "GET",
+    "path": "/peers/status",
+    "noiseOnly": true,
+    "service": "daemon",
+    "aliases": [],
+    "rest": ",service:\"daemon\",noiseOnly:!0"
+  },
+  {
+    "method": "peers.list",
+    "httpMethod": "GET",
+    "path": "/peers",
+    "noiseOnly": true,
+    "service": "daemon",
+    "aliases": [],
+    "rest": ",service:\"daemon\",noiseOnly:!0"
+  },
+  {
+    "method": "peers.invites.list",
+    "httpMethod": "GET",
+    "path": "/peers/invites",
+    "noiseOnly": true,
+    "service": "daemon",
+    "aliases": [],
+    "rest": ",service:\"daemon\",noiseOnly:!0"
+  },
+  {
+    "method": "peers.disconnect",
+    "httpMethod": "DELETE",
+    "path": "/peers/{muse_id}?relationship_generation_id={relationship_generation_id}&relationship_revision={relationship_revision}&relationship_started_at_ms={relationship_started_at_ms}&request_expires_at_ms={request_expires_at_ms}",
+    "noiseOnly": true,
+    "service": "daemon",
+    "aliases": [],
+    "rest": ",requestBody:\"empty\",service:\"daemon\",noiseOnly:!0"
+  },
+  {
+    "method": "peers.update",
+    "httpMethod": "PATCH",
+    "path": "/peers/{muse_id}",
+    "noiseOnly": true,
+    "service": "daemon",
+    "aliases": [],
+    "rest": ",service:\"daemon\",noiseOnly:!0"
+  },
+  {
+    "method": "peers.reset_conversation",
+    "httpMethod": "POST",
+    "path": "/peers/{muse_id}/reset_conversation",
+    "noiseOnly": true,
+    "service": "daemon",
+    "aliases": [],
+    "rest": ",service:\"daemon\",noiseOnly:!0"
+  },
+  {
+    "method": "peers.requests.list",
+    "httpMethod": "GET",
+    "path": "/peers/requests",
+    "noiseOnly": true,
+    "service": "daemon",
+    "aliases": [],
+    "rest": ",service:\"daemon\",noiseOnly:!0"
+  },
+  {
+    "method": "peers.invites.create",
+    "httpMethod": "POST",
+    "path": "/peers/invites",
+    "noiseOnly": true,
+    "service": "daemon",
+    "aliases": [],
+    "rest": ",service:\"daemon\",noiseOnly:!0"
+  },
+  {
+    "method": "peers.invites.accept",
+    "httpMethod": "POST",
+    "path": "/peers/invites/accept",
+    "noiseOnly": true,
+    "service": "daemon",
+    "aliases": [],
+    "rest": ",service:\"daemon\",noiseOnly:!0"
+  },
+  {
+    "method": "peers.invites.open",
+    "httpMethod": "POST",
+    "path": "/peers/invites/open",
+    "noiseOnly": true,
+    "service": "daemon",
+    "aliases": [],
+    "rest": ",service:\"daemon\",noiseOnly:!0"
+  },
+  {
+    "method": "peers.inbox.deliver",
+    "httpMethod": "POST",
+    "path": "/peers/inbox/deliver",
+    "noiseOnly": true,
+    "service": "daemon",
+    "aliases": [],
+    "rest": ",service:\"daemon\",noiseOnly:!0"
+  },
+  {
+    "method": "peers.inbox.list",
+    "httpMethod": "GET",
+    "path": "/peers/inbox",
+    "noiseOnly": true,
+    "service": "daemon",
+    "aliases": [],
+    "rest": ",service:\"daemon\",noiseOnly:!0"
+  },
+  {
+    "method": "peers.inbox.decline",
+    "httpMethod": "POST",
+    "path": "/peers/inbox/decline",
+    "noiseOnly": true,
+    "service": "daemon",
+    "aliases": [],
+    "rest": ",service:\"daemon\",noiseOnly:!0"
+  },
+  {
+    "method": "peers.invites.delivery",
+    "httpMethod": "POST",
+    "path": "/peers/invites/{invite_id}/delivery",
+    "noiseOnly": true,
+    "service": "daemon",
+    "aliases": [],
+    "rest": ",service:\"daemon\",noiseOnly:!0"
+  },
+  {
+    "method": "peers.activity.list",
+    "httpMethod": "GET",
+    "path": "/peers/activity",
+    "noiseOnly": true,
+    "service": "daemon",
+    "aliases": [],
+    "rest": ",service:\"daemon\",noiseOnly:!0"
+  },
+  {
+    "method": "peers.activity.dismiss",
+    "httpMethod": "POST",
+    "path": "/peers/activity/{activity_id}/dismiss",
+    "noiseOnly": true,
+    "service": "daemon",
+    "aliases": [],
+    "rest": ",requestBody:\"empty\",service:\"daemon\",noiseOnly:!0"
+  },
+  {
+    "method": "peers.rules.list",
+    "httpMethod": "GET",
+    "path": "/peers/{muse_id}/rules",
+    "noiseOnly": true,
+    "service": "daemon",
+    "aliases": [],
+    "rest": ",service:\"daemon\",noiseOnly:!0"
+  },
+  {
+    "method": "peers.rules.set",
+    "httpMethod": "POST",
+    "path": "/peers/{muse_id}/rules",
+    "noiseOnly": true,
+    "service": "daemon",
+    "aliases": [],
+    "rest": ",service:\"daemon\",noiseOnly:!0"
+  },
+  {
+    "method": "peers.connections.get",
+    "httpMethod": "GET",
+    "path": "/peers/connections/{connection_id}",
+    "noiseOnly": true,
+    "service": "daemon",
+    "aliases": [],
+    "rest": ",service:\"daemon\",noiseOnly:!0"
+  },
+  {
+    "method": "peers.rules.delete",
+    "httpMethod": "DELETE",
+    "path": "/peers/{muse_id}/rules/{rule_id}",
+    "noiseOnly": true,
+    "service": "daemon",
+    "aliases": [],
+    "rest": ",requestBody:\"empty\",service:\"daemon\",noiseOnly:!0"
+  },
+  {
+    "method": "peers.invites.revoke",
+    "httpMethod": "DELETE",
+    "path": "/peers/invites/{invite_id}",
+    "noiseOnly": true,
+    "service": "daemon",
+    "aliases": [],
+    "rest": ",requestBody:\"empty\",service:\"daemon\",noiseOnly:!0"
+  },
+  {
+    "method": "peers.requests.sas",
+    "httpMethod": "GET",
+    "path": "/peers/requests/{relationship_generation_id}/sas",
+    "noiseOnly": true,
+    "service": "daemon",
+    "aliases": [],
+    "rest": ",service:\"daemon\",noiseOnly:!0"
+  },
+  {
+    "method": "peers.requests.sas.confirm",
+    "httpMethod": "POST",
+    "path": "/peers/requests/{relationship_generation_id}/sas/confirm",
+    "noiseOnly": true,
+    "service": "daemon",
+    "aliases": [],
+    "rest": ",service:\"daemon\",noiseOnly:!0"
+  },
+  {
+    "method": "peers.discretion.write",
+    "httpMethod": "POST",
+    "path": "/fs/write",
+    "noiseOnly": true,
+    "service": null,
+    "aliases": [],
+    "rest": ",noiseOnly:!0,requestTimeoutMs:36e4"
+  },
+  {
+    "method": "peers.photo",
+    "httpMethod": "GET",
+    "path": "/peers/{muse_id}/photo/{sha256}",
+    "noiseOnly": true,
+    "service": "daemon",
+    "aliases": [],
+    "rest": ",service:\"daemon\",noiseOnly:!0,responseType:\"binary\",maxResponseBytes:32768,channel:\"media\""
+  },
+  {
+    "method": "peers.avatar",
+    "httpMethod": "GET",
+    "path": "/peers/{muse_id}/avatar/{sha256}",
+    "noiseOnly": true,
+    "service": "daemon",
+    "aliases": [],
+    "rest": ",service:\"daemon\",noiseOnly:!0,responseType:\"binary\",maxResponseBytes:131072,channel:\"media\""
+  },
+  {
+    "method": "peerSpaces.share",
+    "httpMethod": "POST",
+    "path": "/peer-spaces/share",
+    "noiseOnly": true,
+    "service": "daemon",
+    "aliases": [],
+    "rest": ",service:\"daemon\",noiseOnly:!0"
+  },
+  {
+    "method": "peerSpaces.unshare",
+    "httpMethod": "POST",
+    "path": "/peer-spaces/unshare",
+    "noiseOnly": true,
+    "service": "daemon",
+    "aliases": [],
+    "rest": ",service:\"daemon\",noiseOnly:!0"
+  },
+  {
+    "method": "peerSpaces.shares.list",
+    "httpMethod": "GET",
+    "path": "/peer-spaces/shares/{slug}",
+    "noiseOnly": true,
+    "service": "daemon",
+    "aliases": [],
+    "rest": ",service:\"daemon\",noiseOnly:!0"
+  },
+  {
+    "method": "peerSpaces.sharedWithMe.list",
+    "httpMethod": "GET",
+    "path": "/peer-spaces/shared-with-me",
+    "noiseOnly": true,
+    "service": "daemon",
+    "aliases": [],
+    "rest": ",service:\"daemon\",noiseOnly:!0"
+  },
+  {
+    "method": "peerSpaces.document",
+    "httpMethod": "GET",
+    "path": "/peer-spaces/{host_muse}/{slug}/",
+    "noiseOnly": true,
+    "service": "daemon",
+    "aliases": [],
+    "rest": ",service:\"daemon\",noiseOnly:!0,responseType:\"binary\",maxResponseBytes:8388608,channel:\"media\""
+  },
+  {
+    "method": "peerSpaces.asset",
+    "httpMethod": "GET",
+    "path": "/peer-spaces/{host_muse}/{slug}/{*subpath}",
+    "noiseOnly": true,
+    "service": "daemon",
+    "aliases": [],
+    "rest": ",service:\"daemon\",noiseOnly:!0,responseType:\"binary\",maxResponseBytes:8388608,channel:\"media\""
+  },
+  {
+    "method": "peerSpaces.get",
+    "httpMethod": "GET",
+    "path": "/peer-spaces/by-id/{host_muse}/{space_id}/{*subpath}",
+    "noiseOnly": true,
+    "service": "daemon",
+    "aliases": [],
+    "rest": ",service:\"daemon\",noiseOnly:!0,responseType:\"binary\",maxResponseBytes:8388608,channel:\"media\""
+  },
+  {
+    "method": "peerSpaces.post",
+    "httpMethod": "POST",
+    "path": "/peer-spaces/by-id/{host_muse}/{space_id}/{*subpath}",
+    "noiseOnly": true,
+    "service": "daemon",
+    "aliases": [],
+    "rest": ",service:\"daemon\",noiseOnly:!0,responseType:\"binary\",maxResponseBytes:8388608"
+  },
+  {
+    "method": "chat.history",
+    "httpMethod": "GET",
+    "path": "/chat/history",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "professional_consent.resume",
+    "httpMethod": "POST",
+    "path": "/api/professional-consent/resume",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "chat.mark_seen",
+    "httpMethod": "POST",
+    "path": "/api/chat/{thread_id}/seen",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "chat.sxs.select",
+    "httpMethod": "POST",
+    "path": "/api/chat/sxs/select",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "sharing.eligibility",
+    "httpMethod": "GET",
+    "path": "/api/sharing/eligibility",
+    "noiseOnly": true,
+    "service": "daemon",
+    "aliases": [],
+    "rest": ",service:\"daemon\",noiseOnly:!0,requestTimeoutMs:15e3"
+  },
+  {
+    "method": "sharing.attempt",
+    "httpMethod": "POST",
+    "path": "/api/sharing/attempt",
+    "noiseOnly": true,
+    "service": "daemon",
+    "aliases": [],
+    "rest": ",service:\"daemon\",noiseOnly:!0,requestTimeoutMs:35e3"
+  },
+  {
+    "method": "activity.list",
+    "httpMethod": "GET",
+    "path": "/activity",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "activity.get",
+    "httpMethod": "GET",
+    "path": "/activity/{id}",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "tasks.list",
+    "httpMethod": "GET",
+    "path": "/tasks",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "tasks.runs",
+    "httpMethod": "GET",
+    "path": "/tasks/runs",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "tasks.run",
+    "httpMethod": "POST",
+    "path": "/tasks/{job_id}/run",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "tasks.delete",
+    "httpMethod": "DELETE",
+    "path": "/api/tasks/{job_id}",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ",requestBody:\"empty\""
+  },
+  {
+    "method": "sessions.list",
+    "httpMethod": "GET",
+    "path": "/api/session/list",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "sessions.get",
+    "httpMethod": "GET",
+    "path": "/api/session/list/{id}",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "skills.list",
+    "httpMethod": "GET",
+    "path": "/skills",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "skills.disconnect",
+    "httpMethod": "POST",
+    "path": "/skills/disconnect",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "skills.set_disabled",
+    "httpMethod": "POST",
+    "path": "/skills/set-disabled",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "subagents.list",
+    "httpMethod": "GET",
+    "path": "/subagents",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "subagents.status",
+    "httpMethod": "GET",
+    "path": "/subagents/status",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "config.get",
+    "httpMethod": "GET",
+    "path": "/config",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "config.update",
+    "httpMethod": "PATCH",
+    "path": "/config",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "vm.health",
+    "httpMethod": "GET",
+    "path": "/health",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "bug_report_logs.create",
+    "httpMethod": "POST",
+    "path": "/api/debug/bug-report-logs",
+    "noiseOnly": true,
+    "service": null,
+    "aliases": [],
+    "rest": ",noiseOnly:!0,requestTimeoutMs:9e5"
+  },
+  {
+    "method": "bug_report_logs.download",
+    "httpMethod": "GET",
+    "path": "/api/debug/bug-report-logs/{file_id}",
+    "noiseOnly": true,
+    "service": null,
+    "aliases": [],
+    "rest": ",noiseOnly:!0,responseType:\"binary\",maxResponseBytes:7864320,requestTimeoutMs:12e4,channel:\"media\""
+  },
+  {
+    "method": "home_link_bug_reports.collect",
+    "httpMethod": "POST",
+    "path": "/api/debug/home-link-bug-reports",
+    "noiseOnly": true,
+    "service": null,
+    "aliases": [],
+    "rest": ",requestBody:\"empty\",noiseOnly:!0,requestTimeoutMs:35e3"
+  },
+  {
+    "method": "dyi.export",
+    "httpMethod": "POST",
+    "path": "/api/dyi/export",
+    "noiseOnly": true,
+    "service": "daemon",
+    "aliases": [],
+    "rest": ",service:\"daemon\",requestBody:\"empty\",noiseOnly:!0,responseType:\"binary\",maxResponseBytes:1/0,requestTimeoutMs:39e5,resp"
+  },
+  {
+    "method": "product_improvements.get",
+    "httpMethod": "GET",
+    "path": "/api/product-improvements",
+    "noiseOnly": true,
+    "service": "daemon",
+    "aliases": [],
+    "rest": ",service:\"daemon\",noiseOnly:!0"
+  },
+  {
+    "method": "product_improvements.set",
+    "httpMethod": "POST",
+    "path": "/api/product-improvements",
+    "noiseOnly": true,
+    "service": "daemon",
+    "aliases": [],
+    "rest": ",service:\"daemon\",noiseOnly:!0"
+  },
+  {
+    "method": "email.mailbox.get",
+    "httpMethod": "GET",
+    "path": "/api/email/mailbox",
+    "noiseOnly": true,
+    "service": "daemon",
+    "aliases": [],
+    "rest": ",service:\"daemon\",noiseOnly:!0"
+  },
+  {
+    "method": "email.mailbox.setup",
+    "httpMethod": "GET",
+    "path": "/api/email/mailbox/setup",
+    "noiseOnly": true,
+    "service": "daemon",
+    "aliases": [],
+    "rest": ",service:\"daemon\",noiseOnly:!0"
+  },
+  {
+    "method": "email.mailbox.create",
+    "httpMethod": "POST",
+    "path": "/api/email/mailbox",
+    "noiseOnly": true,
+    "service": "daemon",
+    "aliases": [],
+    "rest": ",service:\"daemon\",noiseOnly:!0"
+  },
+  {
+    "method": "email.mailbox.update",
+    "httpMethod": "PATCH",
+    "path": "/api/email/mailbox",
+    "noiseOnly": true,
+    "service": "daemon",
+    "aliases": [],
+    "rest": ",service:\"daemon\",noiseOnly:!0"
+  },
+  {
+    "method": "email.mailbox.address_availability",
+    "httpMethod": "GET",
+    "path": "/api/email/mailbox/address-availability",
+    "noiseOnly": true,
+    "service": "daemon",
+    "aliases": [],
+    "rest": ",service:\"daemon\",noiseOnly:!0"
+  },
+  {
+    "method": "email.mailbox.setup.end",
+    "httpMethod": "POST",
+    "path": "/api/email/mailbox/setup/end",
+    "noiseOnly": true,
+    "service": "daemon",
+    "aliases": [],
+    "rest": ",service:\"daemon\",noiseOnly:!0,requestBody:\"empty\""
+  },
+  {
+    "method": "email.mailbox.delete",
+    "httpMethod": "DELETE",
+    "path": "/api/email/mailbox",
+    "noiseOnly": true,
+    "service": "daemon",
+    "aliases": [],
+    "rest": ",service:\"daemon\",noiseOnly:!0,requestBody:\"empty\""
+  },
+  {
+    "method": "email.messages.get",
+    "httpMethod": "GET",
+    "path": "/api/email/messages/{message_id}",
+    "noiseOnly": true,
+    "service": "daemon",
+    "aliases": [],
+    "rest": ",service:\"daemon\",noiseOnly:!0"
+  },
+  {
+    "method": "email.messages.delete",
+    "httpMethod": "DELETE",
+    "path": "/api/email/messages/{message_id}",
+    "noiseOnly": true,
+    "service": "daemon",
+    "aliases": [],
+    "rest": ",service:\"daemon\",noiseOnly:!0,requestBody:\"empty\""
+  },
+  {
+    "method": "email.attachment.get",
+    "httpMethod": "GET",
+    "path": "/api/email/messages/{message_id}/attachments/{index}",
+    "noiseOnly": true,
+    "service": "daemon",
+    "aliases": [],
+    "rest": ",service:\"daemon\",noiseOnly:!0,maxResponseBytes:0x2400000"
+  },
+  {
+    "method": "email.threads.list",
+    "httpMethod": "GET",
+    "path": "/api/email/threads",
+    "noiseOnly": true,
+    "service": "daemon",
+    "aliases": [],
+    "rest": ",service:\"daemon\",noiseOnly:!0"
+  },
+  {
+    "method": "email.threads.get",
+    "httpMethod": "GET",
+    "path": "/api/email/threads/{thread_id}",
+    "noiseOnly": true,
+    "service": "daemon",
+    "aliases": [],
+    "rest": ",service:\"daemon\",noiseOnly:!0"
+  },
+  {
+    "method": "email.owners.list",
+    "httpMethod": "GET",
+    "path": "/api/email/owners",
+    "noiseOnly": true,
+    "service": "daemon",
+    "aliases": [],
+    "rest": ",service:\"daemon\",noiseOnly:!0"
+  },
+  {
+    "method": "email.owners.revoke",
+    "httpMethod": "DELETE",
+    "path": "/api/email/owners/{owner_id}",
+    "noiseOnly": true,
+    "service": "daemon",
+    "aliases": [],
+    "rest": ",service:\"daemon\",noiseOnly:!0,requestBody:\"empty\""
+  },
+  {
+    "method": "email.owner_challenges.create",
+    "httpMethod": "POST",
+    "path": "/api/email/owners/challenges",
+    "noiseOnly": true,
+    "service": "daemon",
+    "aliases": [],
+    "rest": ",service:\"daemon\",noiseOnly:!0"
+  },
+  {
+    "method": "email.owner_challenges.verify",
+    "httpMethod": "POST",
+    "path": "/api/email/owners/challenges/{challenge_id}/verify",
+    "noiseOnly": true,
+    "service": "daemon",
+    "aliases": [],
+    "rest": ",service:\"daemon\",noiseOnly:!0"
+  },
+  {
+    "method": "email.settings.get",
+    "httpMethod": "GET",
+    "path": "/api/email/settings",
+    "noiseOnly": true,
+    "service": "daemon",
+    "aliases": [],
+    "rest": ",service:\"daemon\",noiseOnly:!0"
+  },
+  {
+    "method": "email.settings.update",
+    "httpMethod": "PATCH",
+    "path": "/api/email/settings",
+    "noiseOnly": true,
+    "service": "daemon",
+    "aliases": [],
+    "rest": ",service:\"daemon\",noiseOnly:!0"
+  },
+  {
+    "method": "email.owner_candidates.list",
+    "httpMethod": "GET",
+    "path": "/api/email/owner-candidates",
+    "noiseOnly": true,
+    "service": "daemon",
+    "aliases": [],
+    "rest": ",service:\"daemon\",noiseOnly:!0"
+  },
+  {
+    "method": "invite.badge.get",
+    "httpMethod": "GET",
+    "path": "/api/invite/badge",
+    "noiseOnly": true,
+    "service": "daemon",
+    "aliases": [],
+    "rest": ",service:\"daemon\",noiseOnly:!0"
+  },
+  {
+    "method": "invite.badge.seen",
+    "httpMethod": "POST",
+    "path": "/api/invite/badge/seen",
+    "noiseOnly": true,
+    "service": "daemon",
+    "aliases": [],
+    "rest": ",service:\"daemon\",noiseOnly:!0"
+  },
+  {
+    "method": "grants.list",
+    "httpMethod": "GET",
+    "path": "/grants",
+    "noiseOnly": true,
+    "service": "daemon",
+    "aliases": [],
+    "rest": ",service:\"daemon\",noiseOnly:!0"
+  },
+  {
+    "method": "vm.enrollment_health",
+    "httpMethod": "GET",
+    "path": "/health/enrollment",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "vault.luks_status",
+    "httpMethod": "GET",
+    "path": "/luks/status",
+    "noiseOnly": true,
+    "service": "vault",
+    "aliases": [],
+    "rest": ",service:\"vault\",noiseOnly:!0"
+  },
+  {
+    "method": "voice.user_speech_started",
+    "httpMethod": "POST",
+    "path": "/api/voice/user-speech-started",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "voice.calls.user_speech",
+    "httpMethod": "POST",
+    "path": "/api/voice/calls/user-speech",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "voice.active_voice",
+    "httpMethod": "GET",
+    "path": "/api/voice/active-voice",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "voice.active_voice.save",
+    "httpMethod": "POST",
+    "path": "/api/voice/active-voice",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "voice.calls.media_endpoint",
+    "httpMethod": "GET",
+    "path": "/api/voice/calls/media-endpoint",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "voice.available_voices",
+    "httpMethod": "GET",
+    "path": "/api/voice/available-voices",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "voice.catalog",
+    "httpMethod": "GET",
+    "path": "/api/voice/catalog",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "voice.catalog_filters",
+    "httpMethod": "GET",
+    "path": "/api/voice/catalog/filters",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "voice.custom_voices.list",
+    "httpMethod": "GET",
+    "path": "/api/voice/custom-voices",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "voice.custom_voices.rename",
+    "httpMethod": "PATCH",
+    "path": "/api/voice/custom-voices/{saved_voice_id}",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "voice.custom_voices.delete",
+    "httpMethod": "DELETE",
+    "path": "/api/voice/custom-voices/{saved_voice_id}",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ",requestBody:\"empty\""
+  },
+  {
+    "method": "voice.pipeline_profiles",
+    "httpMethod": "GET",
+    "path": "/api/voice/pipeline-profiles",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "voice.select_pipeline_profile",
+    "httpMethod": "POST",
+    "path": "/api/voice/pipeline-profile",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "voice.avatar_video.prepare",
+    "httpMethod": "POST",
+    "path": "/api/voice/avatar-video/prepare",
+    "noiseOnly": true,
+    "service": null,
+    "aliases": [],
+    "rest": ",noiseOnly:!0,requestTimeoutMs:8e3"
+  },
+  {
+    "method": "client.runtime_state",
+    "httpMethod": "POST",
+    "path": "/api/client/runtime-state",
+    "noiseOnly": true,
+    "service": null,
+    "aliases": [],
+    "rest": ",noiseOnly:!0"
+  },
+  {
+    "method": "voice.start_call",
+    "httpMethod": "POST",
+    "path": "/api/voice/start-call",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "voice.end_call",
+    "httpMethod": "POST",
+    "path": "/api/voice/end-call",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "voice.onboarding.reset",
+    "httpMethod": "POST",
+    "path": "/api/voice/onboarding/reset",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "messenger.fb-check",
+    "httpMethod": "GET",
+    "path": "/api/messenger/fb-check",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "messenger.pin_status",
+    "httpMethod": "GET",
+    "path": "/api/messenger_companion/pin-status",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "messenger_companion.unlock",
+    "httpMethod": "POST",
+    "path": "/api/messenger_companion/unlock",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "messenger-read.unlock",
+    "httpMethod": "POST",
+    "path": "/api/messenger-read/unlock",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "foa.accounts",
+    "httpMethod": "GET",
+    "path": "/api/foa/accounts",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "connectors.accounts",
+    "httpMethod": "GET",
+    "path": "/connectors/{id}/accounts",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "connectors.accounts_unlink",
+    "httpMethod": "POST",
+    "path": "/connectors/{id}/accounts/{account_id}/unlink",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "connectors.accounts_link",
+    "httpMethod": "POST",
+    "path": "/connectors/{id}/accounts/link",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "foa_auth.callback",
+    "httpMethod": "POST",
+    "path": "/api/foa_auth/callback",
+    "noiseOnly": false,
+    "service": "authd",
+    "aliases": [],
+    "rest": ",service:\"authd\""
+  },
+  {
+    "method": "channels.status",
+    "httpMethod": "GET",
+    "path": "/channels/status",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "channels.link",
+    "httpMethod": "POST",
+    "path": "/channels/link",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "channels.unlink",
+    "httpMethod": "POST",
+    "path": "/channels/unlink",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "shared_agents.list",
+    "httpMethod": "GET",
+    "path": "/shared-agents",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "shared_agents.capabilities",
+    "httpMethod": "GET",
+    "path": "/shared-agents/capabilities",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "shared_agents.detail",
+    "httpMethod": "GET",
+    "path": "/shared-agents/{shared_agent_id}",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "shared_agents.delete",
+    "httpMethod": "DELETE",
+    "path": "/shared-agents/{shared_agent_id}",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "shared_agents.state.update",
+    "httpMethod": "PATCH",
+    "path": "/shared-agents/{shared_agent_id}/state",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "shared_agents.identity.update",
+    "httpMethod": "PATCH",
+    "path": "/shared-agents/{shared_agent_id}/identity",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "shared_agents.definition",
+    "httpMethod": "GET",
+    "path": "/shared-agents/{shared_agent_id}/definition",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "shared_agents.create",
+    "httpMethod": "POST",
+    "path": "/shared-agents/create-idempotent",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "shared_agents.definition.update",
+    "httpMethod": "PATCH",
+    "path": "/shared-agents/{shared_agent_id}/definition",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "shared_agents.shares.list",
+    "httpMethod": "GET",
+    "path": "/shared-agents/{shared_agent_id}/shares",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "shared_agents.shares.create",
+    "httpMethod": "POST",
+    "path": "/shared-agents/{shared_agent_id}/shares",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "shared_agents.shares.conversation",
+    "httpMethod": "GET",
+    "path": "/shared-agents/{shared_agent_id}/shares/{share_id}/conversation",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "shared_agents.shares.revoke",
+    "httpMethod": "POST",
+    "path": "/shared-agents/{shared_agent_id}/shares/{share_id}/revoke",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "shared_agents.remote.open",
+    "httpMethod": "POST",
+    "path": "/api/shared-agents/remote/open",
+    "noiseOnly": true,
+    "service": null,
+    "aliases": [],
+    "rest": ",noiseOnly:!0,streamMode:\"subscription\",connectionClass:\"shared_agent\""
+  },
+  {
+    "method": "shared_agents.remote.send",
+    "httpMethod": "POST",
+    "path": "/api/shared-agents/remote/send",
+    "noiseOnly": true,
+    "service": null,
+    "aliases": [],
+    "rest": ",noiseOnly:!0,connectionClass:\"shared_agent\""
+  },
+  {
+    "method": "memory.search",
+    "httpMethod": "POST",
+    "path": "/memory/search",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "memory.get",
+    "httpMethod": "POST",
+    "path": "/memory/get",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "memory.consolidate",
+    "httpMethod": "POST",
+    "path": "/memory/consolidate",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "memory.reindex",
+    "httpMethod": "POST",
+    "path": "/memory/reindex",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "bootstrap.reset",
+    "httpMethod": "POST",
+    "path": "/bootstrap/reset",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "subscription.callback",
+    "httpMethod": "POST",
+    "path": "/subscription/callback",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "subscription.redeem_complimentary",
+    "httpMethod": "POST",
+    "path": "/subscription/redeem-complimentary",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ",requestTimeoutMs:9e4"
+  },
+  {
+    "method": "reactions.toggle",
+    "httpMethod": "POST",
+    "path": "/reactions/toggle",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "oauth.callback",
+    "httpMethod": "POST",
+    "path": "/oauth/callback",
+    "noiseOnly": false,
+    "service": "authd",
+    "aliases": [],
+    "rest": ",service:\"authd\""
+  },
+  {
+    "method": "ac_oauth.callback",
+    "httpMethod": "POST",
+    "path": "/ac_oauth/callback",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "github.installation.callback",
+    "httpMethod": "POST",
+    "path": "/api/github/installation/callback",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "api_key_auth.callback",
+    "httpMethod": "POST",
+    "path": "/api_key_auth/callback",
+    "noiseOnly": false,
+    "service": "authd",
+    "aliases": [],
+    "rest": ",service:\"authd\""
+  },
+  {
+    "method": "custom_connectors.register",
+    "httpMethod": "POST",
+    "path": "/v1/custom-connectors/register",
+    "noiseOnly": false,
+    "service": "authd",
+    "aliases": [
+      "custom_oauth_connector.register"
+    ],
+    "rest": ",service:\"authd\",aliases:[\"custom_oauth_connector.register\"]"
+  },
+  {
+    "method": "custom_connectors.list",
+    "httpMethod": "POST",
+    "path": "/v1/custom-connectors/list",
+    "noiseOnly": false,
+    "service": "authd",
+    "aliases": [],
+    "rest": ",service:\"authd\""
+  },
+  {
+    "method": "custom_connectors.delete",
+    "httpMethod": "POST",
+    "path": "/v1/custom-connectors/delete",
+    "noiseOnly": false,
+    "service": "authd",
+    "aliases": [],
+    "rest": ",service:\"authd\""
+  },
+  {
+    "method": "connectors.list",
+    "httpMethod": "GET",
+    "path": "/connectors",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "connectors.homepage",
+    "httpMethod": "GET",
+    "path": "/connectors/homepage",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "connectors.get",
+    "httpMethod": "GET",
+    "path": "/connectors/{id}",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "connectors.connect_info",
+    "httpMethod": "GET",
+    "path": "/connectors/{id}/connect/info",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "connectors.connect",
+    "httpMethod": "POST",
+    "path": "/connectors/{id}/connect",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "connectors.permissions",
+    "httpMethod": "GET",
+    "path": "/connectors/{id}/permissions",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "connectors.scope_link",
+    "httpMethod": "POST",
+    "path": "/connectors/{id}/scopes/{method}/link",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "connectors.disconnect",
+    "httpMethod": "POST",
+    "path": "/connectors/{id}/disconnect",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "consent_auth.callback",
+    "httpMethod": "POST",
+    "path": "/consent_auth/callback",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "username_password_auth.callback",
+    "httpMethod": "POST",
+    "path": "/username_password_auth/callback",
+    "noiseOnly": false,
+    "service": "authd",
+    "aliases": [],
+    "rest": ",service:\"authd\""
+  },
+  {
+    "method": "whatsapp.login",
+    "httpMethod": "POST",
+    "path": "/whatsapp/login",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "whatsapp.install",
+    "httpMethod": "POST",
+    "path": "/whatsapp/install",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "whatsapp_companion.link",
+    "httpMethod": "POST",
+    "path": "/whatsapp_companion/link",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "whatsapp_companion.status",
+    "httpMethod": "GET",
+    "path": "/whatsapp_companion/status",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "browser_stream.attach",
+    "httpMethod": "POST",
+    "path": "/api/browser-task/{task_id}/websockify?mode=attach",
+    "noiseOnly": true,
+    "service": null,
+    "aliases": [],
+    "rest": ",noiseOnly:!0"
+  },
+  {
+    "method": "browser_activity.snapshot",
+    "httpMethod": "GET",
+    "path": "/api/browser-activity/actions/{action_id}/snapshot",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ",responseType:\"binary\",channel:\"media\""
+  },
+  {
+    "method": "voice.dictation",
+    "httpMethod": "POST",
+    "path": "/api/voice/dictation?sample_rate_hz={sample_rate_hz}",
+    "noiseOnly": true,
+    "service": null,
+    "aliases": [],
+    "rest": ",noiseOnly:!0"
+  },
+  {
+    "method": "browser_task.get",
+    "httpMethod": "GET",
+    "path": "/api/browser-task/{task_id}",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "browser_task.clipboard.readiness",
+    "httpMethod": "POST",
+    "path": "/api/browser-task/{task_id}/clipboard/readiness",
+    "noiseOnly": true,
+    "service": null,
+    "aliases": [],
+    "rest": ",noiseOnly:!0,maxResponseBytes:2048"
+  },
+  {
+    "method": "browser_task.clipboard.copy",
+    "httpMethod": "POST",
+    "path": "/api/browser-task/{task_id}/clipboard/copy",
+    "noiseOnly": true,
+    "service": null,
+    "aliases": [],
+    "rest": ",noiseOnly:!0,maxResponseBytes:370688"
+  },
+  {
+    "method": "browser_task.clipboard.paste",
+    "httpMethod": "POST",
+    "path": "/api/browser-task/{task_id}/clipboard/paste",
+    "noiseOnly": true,
+    "service": null,
+    "aliases": [],
+    "rest": ",noiseOnly:!0,maxResponseBytes:2048"
+  },
+  {
+    "method": "browser_task.takeover",
+    "httpMethod": "POST",
+    "path": "/api/browser-task/{task_id}/takeover",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "browser_task.present",
+    "httpMethod": "POST",
+    "path": "/api/browser-task/{task_id}/present",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "browser_task.viewer",
+    "httpMethod": "PATCH",
+    "path": "/api/browser-task/{task_id}/viewer",
+    "noiseOnly": true,
+    "service": "daemon",
+    "aliases": [],
+    "rest": ",service:\"daemon\",noiseOnly:!0"
+  },
+  {
+    "method": "browser_task.heartbeat",
+    "httpMethod": "POST",
+    "path": "/api/browser-task/{task_id}/heartbeat",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "browser_task.close",
+    "httpMethod": "POST",
+    "path": "/api/browser-task/{task_id}/close",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "browser_task.release",
+    "httpMethod": "POST",
+    "path": "/api/browser-task/{task_id}/release",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "browser_task.stop",
+    "httpMethod": "POST",
+    "path": "/api/browser-task/{task_id}/stop",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "browser_task.refresh_environment",
+    "httpMethod": "POST",
+    "path": "/api/browser-task/{task_id}/refresh-environment",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ",requestTimeoutMs:15e4"
+  },
+  {
+    "method": "browser_task.end_and_release",
+    "httpMethod": "POST",
+    "path": "/api/browser-task/{task_id}/end-and-release",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ",requestTimeoutMs:12e4"
+  },
+  {
+    "method": "browser_task.lease_info",
+    "httpMethod": "GET",
+    "path": "/api/browser-task/{task_id}/lease",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "browser.debug_access.get",
+    "httpMethod": "GET",
+    "path": "/api/browser/debug-access",
+    "noiseOnly": true,
+    "service": null,
+    "aliases": [],
+    "rest": ",noiseOnly:!0"
+  },
+  {
+    "method": "browser.lease_overrides.get",
+    "httpMethod": "GET",
+    "path": "/api/browser/lease-overrides",
+    "noiseOnly": true,
+    "service": null,
+    "aliases": [],
+    "rest": ",noiseOnly:!0"
+  },
+  {
+    "method": "browser.lease_overrides.set",
+    "httpMethod": "PATCH",
+    "path": "/api/browser/lease-overrides",
+    "noiseOnly": true,
+    "service": null,
+    "aliases": [],
+    "rest": ",noiseOnly:!0"
+  },
+  {
+    "method": "browser.lease_overrides.release",
+    "httpMethod": "POST",
+    "path": "/api/browser/lease-overrides/release",
+    "noiseOnly": true,
+    "service": null,
+    "aliases": [],
+    "rest": ",noiseOnly:!0,requestTimeoutMs:12e4"
+  },
+  {
+    "method": "search.debug_overrides.get",
+    "httpMethod": "GET",
+    "path": "/api/search/debug-overrides",
+    "noiseOnly": true,
+    "service": null,
+    "aliases": [],
+    "rest": ",noiseOnly:!0"
+  },
+  {
+    "method": "search.debug_overrides.set",
+    "httpMethod": "PATCH",
+    "path": "/api/search/debug-overrides",
+    "noiseOnly": true,
+    "service": null,
+    "aliases": [],
+    "rest": ",noiseOnly:!0"
+  },
+  {
+    "method": "browser.lease",
+    "httpMethod": "POST",
+    "path": "/api/browser/lease",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ",requestTimeoutMs:12e4"
+  },
+  {
+    "method": "computer.context",
+    "httpMethod": "GET",
+    "path": "/api/computer/context",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "computer.preview",
+    "httpMethod": "GET",
+    "path": "/api/computer/previews/{task_id}/{sha256}",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ",responseType:\"binary\",channel:\"media\""
+  },
+  {
+    "method": "browser.local_testing.get",
+    "httpMethod": "GET",
+    "path": "/api/browser/local-testing",
+    "noiseOnly": true,
+    "service": null,
+    "aliases": [],
+    "rest": ",noiseOnly:!0,requestTimeoutMs:9e4"
+  },
+  {
+    "method": "browser.local_testing.set",
+    "httpMethod": "PATCH",
+    "path": "/api/browser/local-testing",
+    "noiseOnly": true,
+    "service": null,
+    "aliases": [],
+    "rest": ",noiseOnly:!0,requestTimeoutMs:9e4"
+  },
+  {
+    "method": "identity",
+    "httpMethod": "GET",
+    "path": "/identity",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "chat.themes",
+    "httpMethod": "GET",
+    "path": "/api/chat/themes",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "chat.themes.set",
+    "httpMethod": "POST",
+    "path": "/api/chat/themes/set",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "iframe.call",
+    "httpMethod": "POST",
+    "path": "/call",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "voice.calls.join",
+    "httpMethod": "POST",
+    "path": "/voice/calls/join",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "artifacts.share",
+    "httpMethod": "POST",
+    "path": "/artifacts/share",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "artifacts.remove",
+    "httpMethod": "POST",
+    "path": "/artifacts/remove",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "artifacts.fetch_url",
+    "httpMethod": "GET",
+    "path": "/artifacts/fetch_url",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "artifacts.list",
+    "httpMethod": "GET",
+    "path": "/api/artifacts",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "artifacts.pin",
+    "httpMethod": "POST",
+    "path": "/api/artifacts/pin",
+    "noiseOnly": true,
+    "service": null,
+    "aliases": [],
+    "rest": ",noiseOnly:!0"
+  },
+  {
+    "method": "artifacts.slides.rebuild",
+    "httpMethod": "POST",
+    "path": "/api/artifacts/slides/rebuild",
+    "noiseOnly": true,
+    "service": null,
+    "aliases": [],
+    "rest": ",noiseOnly:!0,requestTimeoutMs:18e4"
+  },
+  {
+    "method": "onboarding.variants",
+    "httpMethod": "GET",
+    "path": "/api/onboarding/variants",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "onboarding.pages.start",
+    "httpMethod": "POST",
+    "path": "/onboarding/pages",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "onboarding.complete",
+    "httpMethod": "POST",
+    "path": "/onboarding/complete",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "onboarding.reset",
+    "httpMethod": "POST",
+    "path": "/onboarding/reset",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "onboarding.tasks",
+    "httpMethod": "GET",
+    "path": "/onboarding/tasks",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "onboarding.identity",
+    "httpMethod": "GET",
+    "path": "/onboarding/identity",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "onboarding.identity.set",
+    "httpMethod": "POST",
+    "path": "/onboarding/identity",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "goal_prompt",
+    "httpMethod": "POST",
+    "path": "/goal_prompt",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "goals.list",
+    "httpMethod": "GET",
+    "path": "/goals",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "goals.get",
+    "httpMethod": "GET",
+    "path": "/goals/{id}",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "goals.update",
+    "httpMethod": "PATCH",
+    "path": "/goals/{id}",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "goals.reorder",
+    "httpMethod": "PATCH",
+    "path": "/goals/{id}/order",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "goals.delete",
+    "httpMethod": "DELETE",
+    "path": "/goals/{id}",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "podcasts.episodes.list",
+    "httpMethod": "GET",
+    "path": "/api/podcasts/episodes",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "podcasts.feed.get",
+    "httpMethod": "GET",
+    "path": "/api/podcasts/feed",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "podcasts.feeds.list",
+    "httpMethod": "GET",
+    "path": "/api/podcasts/feeds",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "podcasts.episode.delete",
+    "httpMethod": "DELETE",
+    "path": "/api/podcasts/episodes/{slug}",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "goals.suggestions.decide",
+    "httpMethod": "POST",
+    "path": "/goals/{goal_id}/suggestions/{suggestion_id}/decision",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "api.idea-cards.list",
+    "httpMethod": "GET",
+    "path": "/api/idea-cards",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "api.ideas.reset",
+    "httpMethod": "POST",
+    "path": "/api/ideas/reset",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "api.ideas.engagement",
+    "httpMethod": "POST",
+    "path": "/api/ideas/{id}/engagement",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "api.ideas.feedback",
+    "httpMethod": "POST",
+    "path": "/api/ideas/{id}/feedback",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "api.idea-cards.detail",
+    "httpMethod": "GET",
+    "path": "/api/idea-cards/{ideaCardId}",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "api.idea-cards.execute",
+    "httpMethod": "POST",
+    "path": "/api/idea-cards/{ideaCardId}/execute",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "api.idea-cards.share",
+    "httpMethod": "POST",
+    "path": "/api/idea-cards/{ideaCardId}/share",
+    "noiseOnly": true,
+    "service": null,
+    "aliases": [],
+    "rest": ",noiseOnly:!0"
+  },
+  {
+    "method": "api.idea-cards.share-preview",
+    "httpMethod": "GET",
+    "path": "/api/idea-cards/{ideaCardId}/share-preview",
+    "noiseOnly": true,
+    "service": null,
+    "aliases": [],
+    "rest": ",noiseOnly:!0"
+  },
+  {
+    "method": "api.idea-cards.debug",
+    "httpMethod": "GET",
+    "path": "/api/idea-cards/{ideaCardId}/debug",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "shopping.product_details",
+    "httpMethod": "GET",
+    "path": "/api/shopping",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "shopping.cart",
+    "httpMethod": "GET",
+    "path": "/api/shopping/cart",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "shopping.events",
+    "httpMethod": "POST",
+    "path": "/api/shopping/events",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "saved.default_status",
+    "httpMethod": "GET",
+    "path": "/api/saved/default",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "saved.default_save",
+    "httpMethod": "POST",
+    "path": "/api/saved/default",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "saved.item_delete",
+    "httpMethod": "DELETE",
+    "path": "/api/saved/items/{item_id}",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "hotels.results",
+    "httpMethod": "GET",
+    "path": "/api/hotels/results",
+    "noiseOnly": true,
+    "service": "daemon",
+    "aliases": [],
+    "rest": ",service:\"daemon\",noiseOnly:!0,channel:\"main\",maxResponseBytes:2097152"
+  },
+  {
+    "method": "hotels.details",
+    "httpMethod": "GET",
+    "path": "/api/hotels/details",
+    "noiseOnly": true,
+    "service": "daemon",
+    "aliases": [],
+    "rest": ",service:\"daemon\",noiseOnly:!0,channel:\"main\",maxResponseBytes:2097152"
+  },
+  {
+    "method": "hotels.events",
+    "httpMethod": "POST",
+    "path": "/api/hotels/events",
+    "noiseOnly": true,
+    "service": "daemon",
+    "aliases": [],
+    "rest": ",service:\"daemon\",noiseOnly:!0,channel:\"main\",maxResponseBytes:16384"
+  },
+  {
+    "method": "ads.details",
+    "httpMethod": "GET",
+    "path": "/api/ads/details",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "feed.list",
+    "httpMethod": "GET",
+    "path": "/api/feed",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "feed.infinite",
+    "httpMethod": "GET",
+    "path": "/api/feed/infinite",
+    "noiseOnly": true,
+    "service": null,
+    "aliases": [],
+    "rest": ",noiseOnly:!0,streamMode:\"records\""
+  },
+  {
+    "method": "feed.status",
+    "httpMethod": "GET",
+    "path": "/api/feed/status",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "feed.search",
+    "httpMethod": "GET",
+    "path": "/api/feed/search",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "feed.unit",
+    "httpMethod": "GET",
+    "path": "/api/feed/units/{unit_id}",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "feed.unit.delete",
+    "httpMethod": "DELETE",
+    "path": "/api/feed/units/{unit_id}",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "feed.unit.reaction",
+    "httpMethod": "POST",
+    "path": "/api/feed/units/{unit_id}/reaction",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "feed.unit.tap",
+    "httpMethod": "POST",
+    "path": "/api/feed/units/{unit_id}/tap",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "feed.units.seen",
+    "httpMethod": "POST",
+    "path": "/api/feed/units/seen",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "feed.reorder",
+    "httpMethod": "POST",
+    "path": "/api/feed/reorder",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "feed.regenerate",
+    "httpMethod": "POST",
+    "path": "/api/feed/regenerate",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "feed.prompt.get",
+    "httpMethod": "GET",
+    "path": "/api/feed/prompt",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "feed.prompt.update",
+    "httpMethod": "PATCH",
+    "path": "/api/feed/prompt",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "feed.prompts.delete",
+    "httpMethod": "DELETE",
+    "path": "/api/feed/prompts/{prompt_id}",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "feed.social_source_icon",
+    "httpMethod": "GET",
+    "path": "/api/feed/social-source-icon/{source}",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ",responseType:\"binary\",channel:\"media\""
+  },
+  {
+    "method": "feed.unit.media",
+    "httpMethod": "GET",
+    "path": "/api/feed/units/{unit_id}/media/{handle}",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ",responseType:\"binary\",channel:\"media\""
+  },
+  {
+    "method": "redteam.mocks.apply",
+    "httpMethod": "POST",
+    "path": "/redteam/mocks",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "redteam.mocks.clear",
+    "httpMethod": "DELETE",
+    "path": "/redteam/mocks",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "redteam.mocks.get",
+    "httpMethod": "GET",
+    "path": "/redteam/mocks",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "redteam.sidecar.tail",
+    "httpMethod": "GET",
+    "path": "/redteam/mocks/sidecar",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "check",
+    "httpMethod": "GET",
+    "path": "/check",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "session.start",
+    "httpMethod": "POST",
+    "path": "/session/start",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "session.archive",
+    "httpMethod": "POST",
+    "path": "/session/archive",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "session.unarchive",
+    "httpMethod": "POST",
+    "path": "/session/unarchive",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "session.pin",
+    "httpMethod": "POST",
+    "path": "/session/pin",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "session.unpin",
+    "httpMethod": "POST",
+    "path": "/session/unpin",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "session.rename",
+    "httpMethod": "POST",
+    "path": "/session/rename",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "session.delete",
+    "httpMethod": "POST",
+    "path": "/session/delete",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "chat.unread_count",
+    "httpMethod": "GET",
+    "path": "/chat/unread-count",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "chat.poke",
+    "httpMethod": "POST",
+    "path": "/chat/poke",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "onboarding.state",
+    "httpMethod": "GET",
+    "path": "/onboarding",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "onboarding.questions",
+    "httpMethod": "GET",
+    "path": "/onboarding/questions",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "spaces.list",
+    "httpMethod": "GET",
+    "path": "/spaces/v2",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "spaces.delete",
+    "httpMethod": "DELETE",
+    "path": "/spaces/v2/{slug}",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "spaces.owned.delete",
+    "httpMethod": "DELETE",
+    "path": "/spaces/v2/{slug}?source=space",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "spaces.saved.delete",
+    "httpMethod": "DELETE",
+    "path": "/spaces/v2/{slug}?source=saved_space",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "spaces.save",
+    "httpMethod": "POST",
+    "path": "/spaces/v2/{slug}/save",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "artifacts.save",
+    "httpMethod": "POST",
+    "path": "/api/artifacts/save",
+    "noiseOnly": true,
+    "service": null,
+    "aliases": [],
+    "rest": ",noiseOnly:!0"
+  },
+  {
+    "method": "artifacts.participation.get",
+    "httpMethod": "GET",
+    "path": "/api/artifacts/participation",
+    "noiseOnly": true,
+    "service": null,
+    "aliases": [],
+    "rest": ",noiseOnly:!0"
+  },
+  {
+    "method": "artifacts.participation.update",
+    "httpMethod": "POST",
+    "path": "/api/artifacts/participation",
+    "noiseOnly": true,
+    "service": null,
+    "aliases": [],
+    "rest": ",noiseOnly:!0"
+  },
+  {
+    "method": "spaces.share.review",
+    "httpMethod": "GET",
+    "path": "/spaces/share/{slug}/review",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "spaces.share",
+    "httpMethod": "POST",
+    "path": "/spaces/share/{slug}",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ",requestTimeoutMs:6e5"
+  },
+  {
+    "method": "spaces.share.settings",
+    "httpMethod": "GET",
+    "path": "/spaces/share/{slug}/settings",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "spaces.sharing.settings",
+    "httpMethod": "GET",
+    "path": "/spaces/share/{slug}/settings",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ",requestTimeoutMs:6e5"
+  },
+  {
+    "method": "spaces.audience.get",
+    "httpMethod": "GET",
+    "path": "/spaces/share/{slug}/audience",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ",requestTimeoutMs:6e5"
+  },
+  {
+    "method": "spaces.audience.set",
+    "httpMethod": "POST",
+    "path": "/spaces/share/{slug}/audience/update",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ",requestTimeoutMs:6e5"
+  },
+  {
+    "method": "spaces.share.settings.save",
+    "httpMethod": "POST",
+    "path": "/spaces/share/{slug}/settings",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ",requestTimeoutMs:6e5"
+  },
+  {
+    "method": "spaces.share.status",
+    "httpMethod": "GET",
+    "path": "/spaces/share/{slug}",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "spaces.unshare",
+    "httpMethod": "DELETE",
+    "path": "/spaces/share/{slug}",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "spaces.share.fix",
+    "httpMethod": "POST",
+    "path": "/spaces/share/{slug}/fix",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "spaces.debug.summary",
+    "httpMethod": "GET",
+    "path": "/spaces/{slug}/debug/summary",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "spaces.debug.invocations",
+    "httpMethod": "GET",
+    "path": "/spaces/{slug}/debug/invocations",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "spaces.debug.invocation",
+    "httpMethod": "GET",
+    "path": "/spaces/{slug}/debug/invocations/{invocation_id}",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "spaces.debug.log",
+    "httpMethod": "GET",
+    "path": "/spaces/{slug}/debug/log",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "spaces.export_html",
+    "httpMethod": "GET",
+    "path": "/spaces/{slug}/export.html",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ",responseType:\"binary\",channel:\"media\""
+  },
+  {
+    "method": "spaces.cvm.render",
+    "httpMethod": "GET",
+    "path": "/spaces/cvm/{slug}/",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ",responseType:\"binary\",channel:\"media\""
+  },
+  {
+    "method": "spaces.cvm.get",
+    "httpMethod": "GET",
+    "path": "/spaces/cvm/{slug}/{*subpath}",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ",responseType:\"binary\",channel:\"media\""
+  },
+  {
+    "method": "spaces.cvm.post",
+    "httpMethod": "POST",
+    "path": "/spaces/cvm/{slug}/{*subpath}",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ",responseType:\"binary\""
+  },
+  {
+    "method": "fs.stats",
+    "httpMethod": "POST",
+    "path": "/fs/stats",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "fs.list",
+    "httpMethod": "POST",
+    "path": "/fs/list",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "fs.stat",
+    "httpMethod": "POST",
+    "path": "/fs/stat",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "fs.read",
+    "httpMethod": "POST",
+    "path": "/fs/read",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "fs.reads",
+    "httpMethod": "POST",
+    "path": "/fs/reads",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "fs.write",
+    "httpMethod": "POST",
+    "path": "/fs/write",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "fs.delete",
+    "httpMethod": "POST",
+    "path": "/fs/delete",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "fs.rename",
+    "httpMethod": "POST",
+    "path": "/fs/rename",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "fs.mkdir",
+    "httpMethod": "POST",
+    "path": "/fs/mkdir",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "fs.library",
+    "httpMethod": "POST",
+    "path": "/fs/library",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "fs.export",
+    "httpMethod": "POST",
+    "path": "/fs/export",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ",responseType:\"binary\""
+  },
+  {
+    "method": "fs.raw",
+    "httpMethod": "GET",
+    "path": "/fs/raw/{*path}",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ",responseType:\"binary\",maxResponseBytes:1/0,channel:\"media\""
+  },
+  {
+    "method": "idea-cards.media",
+    "httpMethod": "GET",
+    "path": "/api/idea-cards/media/{handle}",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ",responseType:\"binary\",channel:\"media\""
+  },
+  {
+    "method": "fs.search",
+    "httpMethod": "POST",
+    "path": "/fs/search",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "git.log",
+    "httpMethod": "POST",
+    "path": "/git/log",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "git.show_file",
+    "httpMethod": "POST",
+    "path": "/git/show_file",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "nodes.invoke_result",
+    "httpMethod": "POST",
+    "path": "/nodes/invoke-result",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "nodes.invoke_ack",
+    "httpMethod": "POST",
+    "path": "/nodes/invoke-ack",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "nodes.sync",
+    "httpMethod": "POST",
+    "path": "/nodes/sync",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "node.list",
+    "httpMethod": "POST",
+    "path": "/api/nodes/list",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [
+      "/nodes/list"
+    ],
+    "rest": ",aliases:[\"/nodes/list\"]"
+  },
+  {
+    "method": "node.register",
+    "httpMethod": "POST",
+    "path": "/api/nodes/register",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [
+      "/nodes/register"
+    ],
+    "rest": ",aliases:[\"/nodes/register\"]"
+  },
+  {
+    "method": "node.heartbeat",
+    "httpMethod": "POST",
+    "path": "/api/nodes/heartbeat",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [
+      "/nodes/heartbeat"
+    ],
+    "rest": ",aliases:[\"/nodes/heartbeat\"]"
+  },
+  {
+    "method": "node.unpair",
+    "httpMethod": "POST",
+    "path": "/api/nodes/unpair",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [
+      "/nodes/unpair"
+    ],
+    "rest": ",aliases:[\"/nodes/unpair\"]"
+  },
+  {
+    "method": "node.disconnect",
+    "httpMethod": "POST",
+    "path": "/api/nodes/disconnect",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [
+      "/nodes/disconnect"
+    ],
+    "rest": ",aliases:[\"/nodes/disconnect\"]"
+  },
+  {
+    "method": "pin.update",
+    "httpMethod": "POST",
+    "path": "/api/pin-reminder/update",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "pin.reminder_confirm",
+    "httpMethod": "POST",
+    "path": "/api/pin-reminder/confirm",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "wallet.get",
+    "httpMethod": "GET",
+    "path": "/wallet",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "wallet.set",
+    "httpMethod": "POST",
+    "path": "/wallet",
+    "noiseOnly": false,
+    "service": null,
+    "aliases": [],
+    "rest": ""
+  },
+  {
+    "method": "egress.approvals",
+    "httpMethod": "GET",
+    "path": "/approvals",
+    "noiseOnly": false,
+    "service": "sentinel",
+    "aliases": [],
+    "rest": ",service:\"sentinel\""
+  },
+  {
+    "method": "egress.approval",
+    "httpMethod": "GET",
+    "path": "/approvals/{approval_id}",
+    "noiseOnly": false,
+    "service": "sentinel",
+    "aliases": [],
+    "rest": ",service:\"sentinel\""
+  },
+  {
+    "method": "egress.approval.editable_message",
+    "httpMethod": "GET",
+    "path": "/approvals/{approval_id}/editable-message",
+    "noiseOnly": false,
+    "service": "sentinel",
+    "aliases": [],
+    "rest": ",service:\"sentinel\""
+  },
+  {
+    "method": "egress.approval.decide",
+    "httpMethod": "POST",
+    "path": "/approvals/{approval_id}/decide",
+    "noiseOnly": false,
+    "service": "sentinel",
+    "aliases": [],
+    "rest": ",service:\"sentinel\""
+  },
+  {
+    "method": "egress.approval.edit_message",
+    "httpMethod": "POST",
+    "path": "/approvals/{approval_id}/edit-message",
+    "noiseOnly": false,
+    "service": "sentinel",
+    "aliases": [],
+    "rest": ",service:\"sentinel\""
+  },
+  {
+    "method": "egress.approval.history",
+    "httpMethod": "GET",
+    "path": "/approvals/history",
+    "noiseOnly": false,
+    "service": "sentinel",
+    "aliases": [],
+    "rest": ",service:\"sentinel\""
+  },
+  {
+    "method": "egress.permissions",
+    "httpMethod": "GET",
+    "path": "/permissions",
+    "noiseOnly": false,
+    "service": "sentinel",
+    "aliases": [],
+    "rest": ",service:\"sentinel\""
+  },
+  {
+    "method": "permissions.settings",
+    "httpMethod": "GET",
+    "path": "/permissions/settings",
+    "noiseOnly": false,
+    "service": "sentinel",
+    "aliases": [],
+    "rest": ",service:\"sentinel\""
+  },
+  {
+    "method": "permissions.inventory",
+    "httpMethod": "GET",
+    "path": "/permissions/inventory",
+    "noiseOnly": false,
+    "service": "daemon",
+    "aliases": [],
+    "rest": ",service:\"daemon\""
+  },
+  {
+    "method": "permissions.settings.update",
+    "httpMethod": "PATCH",
+    "path": "/permissions/settings",
+    "noiseOnly": false,
+    "service": "sentinel",
+    "aliases": [],
+    "rest": ",service:\"sentinel\""
+  },
+  {
+    "method": "egress.permissions.hitl",
+    "httpMethod": "PATCH",
+    "path": "/permissions/hitl",
+    "noiseOnly": false,
+    "service": "sentinel",
+    "aliases": [],
+    "rest": ",service:\"sentinel\""
+  },
+  {
+    "method": "egress.permissions.hitl.snooze.delete",
+    "httpMethod": "DELETE",
+    "path": "/permissions/hitl/snooze",
+    "noiseOnly": false,
+    "service": "sentinel",
+    "aliases": [],
+    "rest": ",service:\"sentinel\""
+  },
+  {
+    "method": "egress.permissions.tproxy",
+    "httpMethod": "PATCH",
+    "path": "/permissions/tproxy",
+    "noiseOnly": false,
+    "service": "sentinel",
+    "aliases": [],
+    "rest": ",service:\"sentinel\""
+  },
+  {
+    "method": "egress.permissions.mitm",
+    "httpMethod": "PATCH",
+    "path": "/permissions/mitm",
+    "noiseOnly": false,
+    "service": "sentinel",
+    "aliases": [],
+    "rest": ",service:\"sentinel\""
+  },
+  {
+    "method": "egress.permissions.sni_rejection",
+    "httpMethod": "PATCH",
+    "path": "/permissions/sni-rejection",
+    "noiseOnly": false,
+    "service": "sentinel",
+    "aliases": [],
+    "rest": ",service:\"sentinel\""
+  },
+  {
+    "method": "egress.permissions.active",
+    "httpMethod": "GET",
+    "path": "/permissions/active",
+    "noiseOnly": false,
+    "service": "sentinel",
+    "aliases": [],
+    "rest": ",service:\"sentinel\""
+  },
+  {
+    "method": "egress.permissions.active.update",
+    "httpMethod": "PATCH",
+    "path": "/permissions/active",
+    "noiseOnly": false,
+    "service": "sentinel",
+    "aliases": [],
+    "rest": ",service:\"sentinel\""
+  },
+  {
+    "method": "egress.permissions.scoped",
+    "httpMethod": "GET",
+    "path": "/permissions/scopes/{scope_type}/{scope_id}",
+    "noiseOnly": false,
+    "service": "sentinel",
+    "aliases": [],
+    "rest": ",service:\"sentinel\""
+  },
+  {
+    "method": "egress.permissions.scoped.update",
+    "httpMethod": "PATCH",
+    "path": "/permissions/scopes/{scope_type}/{scope_id}",
+    "noiseOnly": false,
+    "service": "sentinel",
+    "aliases": [],
+    "rest": ",service:\"sentinel\""
+  },
+  {
+    "method": "egress.permissions.revoke",
+    "httpMethod": "POST",
+    "path": "/permissions/revoke",
+    "noiseOnly": false,
+    "service": "sentinel",
+    "aliases": [],
+    "rest": ",service:\"sentinel\""
+  },
+  {
+    "method": "egress.permissions.reset",
+    "httpMethod": "POST",
+    "path": "/permissions/reset",
+    "noiseOnly": false,
+    "service": "sentinel",
+    "aliases": [],
+    "rest": ",service:\"sentinel\""
+  },
+  {
+    "method": "egress.permissions.network_rules",
+    "httpMethod": "PATCH",
+    "path": "/permissions/network-rules",
+    "noiseOnly": false,
+    "service": "sentinel",
+    "aliases": [],
+    "rest": ",service:\"sentinel\""
+  },
+  {
+    "method": "egress.permissions.connector",
+    "httpMethod": "PATCH",
+    "path": "/permissions/connectors/{connector}",
+    "noiseOnly": false,
+    "service": "sentinel",
+    "aliases": [],
+    "rest": ",service:\"sentinel\""
+  },
+  {
+    "method": "egress.permissions.connector.reset",
+    "httpMethod": "DELETE",
+    "path": "/permissions/connectors/{connector}",
+    "noiseOnly": false,
+    "service": "sentinel",
+    "aliases": [],
+    "rest": ",service:\"sentinel\""
+  },
+  {
+    "method": "ssh.operator.enable",
+    "httpMethod": "POST",
+    "path": "/v1/ssh/operator/enable",
+    "noiseOnly": true,
+    "service": "ssh_access",
+    "aliases": [],
+    "rest": ",service:\"ssh_access\",requestBody:\"empty\",noiseOnly:!0"
+  },
+  {
+    "method": "ssh.operator.disable",
+    "httpMethod": "POST",
+    "path": "/v1/ssh/operator/disable",
+    "noiseOnly": true,
+    "service": "ssh_access",
+    "aliases": [],
+    "rest": ",service:\"ssh_access\",requestBody:\"empty\",noiseOnly:!0"
+  },
+  {
+    "method": "credentials.list",
+    "httpMethod": "GET",
+    "path": "/v1/credentials/list",
+    "noiseOnly": false,
+    "service": "authd",
+    "aliases": [],
+    "rest": ",service:\"authd\""
+  },
+  {
+    "method": "credentials.catalog",
+    "httpMethod": "GET",
+    "path": "/v1/credentials/catalog",
+    "noiseOnly": true,
+    "service": "authd",
+    "aliases": [],
+    "rest": ",service:\"authd\",noiseOnly:!0"
+  },
+  {
+    "method": "credentials.catalog.details",
+    "httpMethod": "GET",
+    "path": "/v1/credentials/catalog/details",
+    "noiseOnly": true,
+    "service": "authd",
+    "aliases": [],
+    "rest": ",service:\"authd\",noiseOnly:!0"
+  },
+  {
+    "method": "credentials.catalog.update",
+    "httpMethod": "POST",
+    "path": "/v1/credentials/catalog/update",
+    "noiseOnly": true,
+    "service": "authd",
+    "aliases": [],
+    "rest": ",service:\"authd\",noiseOnly:!0"
+  },
+  {
+    "method": "credentials.catalog.delete",
+    "httpMethod": "POST",
+    "path": "/v1/credentials/catalog/delete",
+    "noiseOnly": true,
+    "service": "authd",
+    "aliases": [],
+    "rest": ",service:\"authd\",noiseOnly:!0"
+  },
+  {
+    "method": "credentials.register",
+    "httpMethod": "POST",
+    "path": "/v1/credentials/register",
+    "noiseOnly": false,
+    "service": "authd",
+    "aliases": [],
+    "rest": ",service:\"authd\""
+  },
+  {
+    "method": "credentials.capture",
+    "httpMethod": "POST",
+    "path": "/v1/credentials/capture",
+    "noiseOnly": true,
+    "service": "authd",
+    "aliases": [],
+    "rest": ",service:\"authd\",noiseOnly:!0"
+  },
+  {
+    "method": "credentials.capture.external_provider.request",
+    "httpMethod": "POST",
+    "path": "/v1/credentials/capture/external-provider/request",
+    "noiseOnly": true,
+    "service": "authd",
+    "aliases": [],
+    "rest": ",service:\"authd\",noiseOnly:!0"
+  },
+  {
+    "method": "credentials.capture.external_provider.fulfill",
+    "httpMethod": "POST",
+    "path": "/v1/credentials/capture/external-provider/fulfill",
+    "noiseOnly": true,
+    "service": "authd",
+    "aliases": [],
+    "rest": ",service:\"authd\",noiseOnly:!0"
+  },
+  {
+    "method": "credentials.delete",
+    "httpMethod": "POST",
+    "path": "/v1/credentials/delete",
+    "noiseOnly": false,
+    "service": "authd",
+    "aliases": [],
+    "rest": ",service:\"authd\""
+  },
+  {
+    "method": "chat.history_window",
+    "httpMethod": "GET",
+    "path": "/chat/history-window",
+    "noiseOnly": true,
+    "service": null,
+    "aliases": [],
+    "rest": ",noiseOnly:!0"
+  },
+  {
+    "method": "chat.cancel",
+    "httpMethod": "POST",
+    "path": "/chat/cancel",
+    "noiseOnly": true,
+    "service": null,
+    "aliases": [],
+    "rest": ",noiseOnly:!0"
+  },
+  {
+    "method": "chat.delete_turn",
+    "httpMethod": "POST",
+    "path": "/api/chat/delete-turn",
+    "noiseOnly": true,
+    "service": null,
+    "aliases": [],
+    "rest": ",noiseOnly:!0"
+  },
+  {
+    "method": "chat.message_get",
+    "httpMethod": "GET",
+    "path": "/chat/message",
+    "noiseOnly": true,
+    "service": null,
+    "aliases": [],
+    "rest": ",noiseOnly:!0"
+  },
+  {
+    "method": "chat.search",
+    "httpMethod": "GET",
+    "path": "/chat/search",
+    "noiseOnly": true,
+    "service": null,
+    "aliases": [],
+    "rest": ",noiseOnly:!0"
+  },
+  {
+    "method": "client.register_capabilities",
+    "httpMethod": "POST",
+    "path": "/client/register-capabilities",
+    "noiseOnly": true,
+    "service": null,
+    "aliases": [],
+    "rest": ",noiseOnly:!0"
+  },
+  {
+    "method": "client.invoke.result",
+    "httpMethod": "POST",
+    "path": "/client/invoke-result",
+    "noiseOnly": true,
+    "service": null,
+    "aliases": [],
+    "rest": ",noiseOnly:!0"
+  },
+  {
+    "method": "connection.ping",
+    "httpMethod": "POST",
+    "path": "/api/ping",
+    "noiseOnly": true,
+    "service": null,
+    "aliases": [],
+    "rest": ",noiseOnly:!0"
+  },
+  {
+    "method": "model.get",
+    "httpMethod": "GET",
+    "path": "/model",
+    "noiseOnly": true,
+    "service": null,
+    "aliases": [],
+    "rest": ",noiseOnly:!0"
+  },
+  {
+    "method": "model.set",
+    "httpMethod": "POST",
+    "path": "/model",
+    "noiseOnly": true,
+    "service": null,
+    "aliases": [],
+    "rest": ",noiseOnly:!0"
+  },
+  {
+    "method": "widgets.state.set",
+    "httpMethod": "POST",
+    "path": "/widgets/state",
+    "noiseOnly": true,
+    "service": null,
+    "aliases": [],
+    "rest": ",noiseOnly:!0"
+  },
+  {
+    "method": "widgets.state.patch",
+    "httpMethod": "POST",
+    "path": "/widgets/state/patch",
+    "noiseOnly": true,
+    "service": null,
+    "aliases": [],
+    "rest": ",noiseOnly:!0"
+  },
+  {
+    "method": "navigation.subscribe",
+    "httpMethod": "POST",
+    "path": "/navigation/subscribe",
+    "noiseOnly": true,
+    "service": null,
+    "aliases": [],
+    "rest": ",noiseOnly:!0,streamMode:\"subscription\""
+  },
+  {
+    "method": "navigation.recents.touch",
+    "httpMethod": "POST",
+    "path": "/navigation/recents/touch",
+    "noiseOnly": true,
+    "service": null,
+    "aliases": [],
+    "rest": ",noiseOnly:!0"
+  },
+  {
+    "method": "navigation.pinned.set",
+    "httpMethod": "POST",
+    "path": "/navigation/pinned/set",
+    "noiseOnly": true,
+    "service": null,
+    "aliases": [],
+    "rest": ",noiseOnly:!0"
+  },
+  {
+    "method": "navigation.tab_order.get",
+    "httpMethod": "GET",
+    "path": "/api/navigation/tab-order",
+    "noiseOnly": true,
+    "service": null,
+    "aliases": [],
+    "rest": ",noiseOnly:!0"
+  },
+  {
+    "method": "navigation.tab_order.set",
+    "httpMethod": "PUT",
+    "path": "/api/navigation/tab-order",
+    "noiseOnly": true,
+    "service": null,
+    "aliases": [],
+    "rest": ",noiseOnly:!0"
+  },
+  {
+    "method": "artifacts.placement.set",
+    "httpMethod": "POST",
+    "path": "/api/artifacts/placement",
+    "noiseOnly": true,
+    "service": null,
+    "aliases": [],
+    "rest": ",noiseOnly:!0"
+  },
+  {
+    "method": "chat.stream",
+    "httpMethod": "POST",
+    "path": "/chat/stream",
+    "noiseOnly": true,
+    "service": null,
+    "aliases": [],
+    "rest": ",noiseOnly:!0,streamMode:\"subscription\""
+  },
+  {
+    "method": "chat.stream_events",
+    "httpMethod": "POST",
+    "path": "/chat/stream-events",
+    "noiseOnly": true,
+    "service": null,
+    "aliases": [],
+    "rest": ",noiseOnly:!0,streamMode:\"subscription\""
+  },
+  {
+    "method": "chat.subscribe",
+    "httpMethod": "POST",
+    "path": "/chat/subscribe",
+    "noiseOnly": true,
+    "service": null,
+    "aliases": [],
+    "rest": ",noiseOnly:!0,streamMode:\"subscription\",requestTimeoutMs:3e4"
+  },
+  {
+    "method": "activity.subscribe",
+    "httpMethod": "POST",
+    "path": "/activity/subscribe",
+    "noiseOnly": true,
+    "service": null,
+    "aliases": [],
+    "rest": ",noiseOnly:!0,streamMode:\"subscription\""
+  },
+  {
+    "method": "fs.subscribe",
+    "httpMethod": "POST",
+    "path": "/api/fs/subscribe",
+    "noiseOnly": true,
+    "service": null,
+    "aliases": [],
+    "rest": ",noiseOnly:!0,streamMode:\"subscription\""
+  },
+  {
+    "method": "identity.subscribe",
+    "httpMethod": "POST",
+    "path": "/identity/subscribe",
+    "noiseOnly": true,
+    "service": null,
+    "aliases": [],
+    "rest": ",noiseOnly:!0,streamMode:\"subscription\""
+  },
+  {
+    "method": "spaces.subscribe",
+    "httpMethod": "POST",
+    "path": "/spaces/subscribe",
+    "noiseOnly": true,
+    "service": null,
+    "aliases": [],
+    "rest": ",noiseOnly:!0,streamMode:\"subscription\""
+  },
+  {
+    "method": "artifacts.subscribe",
+    "httpMethod": "POST",
+    "path": "/api/artifacts/subscribe",
+    "noiseOnly": true,
+    "service": null,
+    "aliases": [],
+    "rest": ",noiseOnly:!0,streamMode:\"subscription\""
+  },
+  {
+    "method": "tasks.subscribe",
+    "httpMethod": "POST",
+    "path": "/tasks/subscribe",
+    "noiseOnly": true,
+    "service": null,
+    "aliases": [],
+    "rest": ",noiseOnly:!0,streamMode:\"subscription\""
+  },
+  {
+    "method": "theme.subscribe",
+    "httpMethod": "POST",
+    "path": "/themes/subscribe",
+    "noiseOnly": true,
+    "service": null,
+    "aliases": [],
+    "rest": ",noiseOnly:!0,streamMode:\"subscription\""
+  },
+  {
+    "method": "computer.subscribe",
+    "httpMethod": "POST",
+    "path": "/api/computer/subscribe",
+    "noiseOnly": true,
+    "service": null,
+    "aliases": [],
+    "rest": ",noiseOnly:!0,streamMode:\"subscription\""
+  }
+]

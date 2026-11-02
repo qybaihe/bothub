@@ -1,0 +1,6 @@
+{
+  "items": [{"type": "text", "text": "hello"}],
+  "node_id": "<deviceId>",
+  "session_id": "<optional thread session id>",
+  "capabilities": ["<capability strings from client register>"]
+}

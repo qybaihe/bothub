@@ -19,6 +19,8 @@ export interface BotHubState {
   collapsedGroups: Record<string, boolean>
   infoPanelOpen: boolean
   addBotOpen: boolean
+  /** Show the embedded platform web session instead of the chat (Electron only). */
+  webSessionOpen: boolean
 
   // Navigation & layout
   selectBot: (botId: string) => void
@@ -26,6 +28,7 @@ export interface BotHubState {
   toggleGroup: (groupId: string) => void
   toggleInfoPanel: () => void
   setAddBotOpen: (open: boolean) => void
+  toggleWebSession: () => void
 
   // Creation
   /** Create a bot (and any new accounts/group), select it, and connect its accounts. */
@@ -138,6 +141,7 @@ export const useBotStore = create<BotHubState>()((set, get) => {
     collapsedGroups: {},
     infoPanelOpen: true,
     addBotOpen: false,
+    webSessionOpen: false,
 
     selectBot: (botId) =>
       set((state) => ({
@@ -155,6 +159,8 @@ export const useBotStore = create<BotHubState>()((set, get) => {
     toggleInfoPanel: () => set((state) => ({ infoPanelOpen: !state.infoPanelOpen })),
 
     setAddBotOpen: (open) => set({ addBotOpen: open }),
+
+    toggleWebSession: () => set((state) => ({ webSessionOpen: !state.webSessionOpen })),
 
     addBot: (input) => {
       const state = get()

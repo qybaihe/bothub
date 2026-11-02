@@ -1,6 +1,5 @@
-import type { ReactNode } from 'react'
 import { getPlatform } from '@adapters/platforms'
-import { PanelRight } from 'lucide-react'
+import { Globe, PanelRight } from 'lucide-react'
 import { PaneHeader } from '@/components/layout/PaneHeader'
 import { BotAvatar } from '@/components/ui/Avatar'
 import { IconButton } from '@/components/ui/IconButton'
@@ -13,16 +12,16 @@ import { AccountSwitcher } from './AccountSwitcher'
 interface ChatHeaderProps {
   bot: Bot
   accounts: BotAccount[]
-  /** Extra actions rendered before the info-panel toggle. */
-  actions?: ReactNode
 }
 
-export function ChatHeader({ bot, accounts, actions }: ChatHeaderProps) {
+export function ChatHeader({ bot, accounts }: ChatHeaderProps) {
   const allAccounts = useBotStore((s) => s.accounts)
   const groupName = useBotStore((s) => s.groups.find((g) => g.id === bot.groupId)?.name)
   const infoOpen = useBotStore((s) => s.infoPanelOpen)
   const toggleInfoPanel = useBotStore((s) => s.toggleInfoPanel)
   const setActiveAccount = useBotStore((s) => s.setActiveAccount)
+  const webSessionOpen = useBotStore((s) => s.webSessionOpen)
+  const toggleWebSession = useBotStore((s) => s.toggleWebSession)
 
   const platform = getPlatform(bot.platformId)
   const status = getBotStatus(bot, allAccounts)
@@ -59,7 +58,13 @@ export function ChatHeader({ bot, accounts, actions }: ChatHeaderProps) {
         }}
       />
       <div className="flex items-center gap-0.5">
-        {actions}
+        <IconButton
+          label={webSessionOpen ? 'Back to conversation' : 'Show web session'}
+          active={webSessionOpen}
+          onClick={toggleWebSession}
+        >
+          <Globe />
+        </IconButton>
         <IconButton
           label={infoOpen ? 'Hide details' : 'Show details'}
           active={infoOpen}

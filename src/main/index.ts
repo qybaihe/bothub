@@ -1,5 +1,6 @@
 import { join } from 'node:path'
 import { app, BrowserWindow, shell } from 'electron'
+import { attachWebViewManager, registerWebViewIpc } from './webViewIpc'
 
 const isMac = process.platform === 'darwin'
 
@@ -22,6 +23,9 @@ function createMainWindow(): BrowserWindow {
     }
   })
 
+  // Embedded platform web sessions (hidden until the renderer attaches one).
+  attachWebViewManager(win)
+
   win.once('ready-to-show', () => win.show())
 
   // Never open new Electron windows from the renderer; hand http(s) links to the OS.
@@ -41,6 +45,7 @@ function createMainWindow(): BrowserWindow {
 }
 
 app.whenReady().then(() => {
+  registerWebViewIpc()
   createMainWindow()
 
   app.on('activate', () => {

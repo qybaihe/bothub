@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import * as RadixDialog from '@radix-ui/react-dialog'
 import { X } from 'lucide-react'
 import { cn } from '@/lib/cn'
+import { useOverlayLock } from '@/lib/overlay'
 import { IconButton } from './IconButton'
 
 interface DialogProps {
@@ -16,6 +17,7 @@ interface DialogProps {
 
 /** Centered modal on a light, blurred scrim. Focus trap and Esc come from Radix. */
 export function Dialog({ open, onOpenChange, title, description, children, footer, className }: DialogProps) {
+  useOverlayLock(open)
   return (
     <RadixDialog.Root open={open} onOpenChange={onOpenChange}>
       <RadixDialog.Portal>

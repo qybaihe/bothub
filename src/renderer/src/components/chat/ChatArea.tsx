@@ -1,4 +1,4 @@
-import { useCallback, useMemo, type ReactNode } from 'react'
+import { useCallback, useMemo } from 'react'
 import type { AttachmentMeta } from '@adapters/types'
 import { MessagesSquare, Sparkles } from 'lucide-react'
 import { BotAvatar } from '@/components/ui/Avatar'
@@ -8,6 +8,7 @@ import type { Bot, ChatMessage } from '@/types'
 import { ChatHeader } from './ChatHeader'
 import { Composer } from './Composer'
 import { MessageList } from './MessageList'
+import { WebSessionPane } from './WebSessionPane'
 
 const NO_MESSAGES: ChatMessage[] = []
 
@@ -43,14 +44,7 @@ function ConversationIntro({ bot, canSend, onPick }: { bot: Bot; canSend: boolea
   )
 }
 
-interface ChatAreaProps {
-  /** Extra header actions (e.g. the web session toggle). */
-  headerActions?: ReactNode
-  /** Replaces the message list when set (e.g. an embedded web session). */
-  overlay?: ReactNode
-}
-
-export function ChatArea({ headerActions, overlay }: ChatAreaProps) {
+export function ChatArea() {
   const bot = useBotStore((s) => s.bots.find((b) => b.id === s.selectedBotId))
   const accountMap = useBotStore((s) => s.accounts)
   const messages = useBotStore((s) => (s.selectedBotId ? s.messages[s.selectedBotId] : undefined) ?? NO_MESSAGES)
@@ -58,6 +52,7 @@ export function ChatArea({ headerActions, overlay }: ChatAreaProps) {
   const sendMessage = useBotStore((s) => s.sendMessage)
   const retryMessage = useBotStore((s) => s.retryMessage)
   const connectAccount = useBotStore((s) => s.connectAccount)
+  const webSessionOpen = useBotStore((s) => s.webSessionOpen)
 
   const accounts = useMemo(() => (bot ? getBotAccounts(bot, accountMap) : []), [bot, accountMap])
   const activeAccount = bot ? accountMap[bot.activeAccountId] : undefined
@@ -93,8 +88,10 @@ export function ChatArea({ headerActions, overlay }: ChatAreaProps) {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <ChatHeader bot={bot} accounts={accounts} actions={headerActions} />
-      {overlay ?? (
+      <ChatHeader bot={bot} accounts={accounts} />
+      {webSessionOpen && activeAccount ? (
+        <WebSessionPane key={`${bot.id}:${activeAccount.id}`} bot={bot} account={activeAccount} />
+      ) : (
         <>
           {messages.length === 0 && !typing ? (
             <ConversationIntro bot={bot} canSend={canSend} onPick={(text) => onSend(text)} />

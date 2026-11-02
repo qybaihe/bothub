@@ -1,9 +1,23 @@
-import type { ComponentProps } from 'react'
+import { useState, type ComponentProps } from 'react'
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 import { cn } from '@/lib/cn'
+import { useOverlayLock } from '@/lib/overlay'
 
 /** Thin styling layer over Radix DropdownMenu. */
-export const Menu = DropdownMenu.Root
+export function Menu({ onOpenChange, ...props }: ComponentProps<typeof DropdownMenu.Root>) {
+  const [open, setOpen] = useState(false)
+  useOverlayLock(open)
+  return (
+    <DropdownMenu.Root
+      {...props}
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next)
+        onOpenChange?.(next)
+      }}
+    />
+  )
+}
 export const MenuTrigger = DropdownMenu.Trigger
 
 export function MenuContent({ className, sideOffset = 6, ...props }: ComponentProps<typeof DropdownMenu.Content>) {

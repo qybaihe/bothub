@@ -13,6 +13,17 @@ export default function App() {
 
   useEffect(() => startAdapterBridge(), [])
 
+  // Dev-only test harness for CDP/E2E scripts.
+  useEffect(() => {
+    if (!import.meta.env.DEV) return
+    void import("@adapters/registry").then(({ adapterRegistry }) => {
+      ;(window as unknown as { __bothub?: unknown }).__bothub = {
+        store: useBotStore,
+        adapterRegistry
+      }
+    })
+  }, [])
+
   return (
     <>
       <AppShell

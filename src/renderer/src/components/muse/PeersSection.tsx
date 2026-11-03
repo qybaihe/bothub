@@ -143,6 +143,7 @@ function parseInbox(raw: unknown): PeerInbox[] {
   const root = asObj(raw) || {}
   const list =
     (Array.isArray(root['deliveries']) && root['deliveries']) ||
+    (Array.isArray(root['inbox']) && root['inbox']) ||
     (Array.isArray(root['items']) && root['items']) ||
     (Array.isArray(raw) ? raw : [])
   const out: PeerInbox[] = []
@@ -186,6 +187,17 @@ function parseRequests(raw: unknown): PeerRequest[] {
 
 function can(ops: string[], name: string): boolean {
   if (!ops.length) return true // unknown catalog — allow attempt; server will refuse
+  // If the gateway uses unfamiliar operation ids, don't blank the UI — try and let RPC fail honestly.
+  const known = [
+    'list_contacts',
+    'list_invitations',
+    'list_requests',
+    'create_invitation',
+    'accept_invitation',
+    'revoke_invitation',
+    'disconnect'
+  ]
+  if (!ops.some((op) => known.includes(op))) return true
   return ops.includes(name)
 }
 

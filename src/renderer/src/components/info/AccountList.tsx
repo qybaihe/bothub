@@ -108,7 +108,7 @@ export function AccountList({ bot, accounts }: AccountListProps) {
                     )}
                   </p>
                   <p className="truncate text-caption text-ink-muted" title={account.statusDetail}>
-                    {account.status === 'error' && account.statusDetail
+                    {(account.status === 'error' || account.status === 'busy') && account.statusDetail
                       ? account.statusDetail
                       : account.statusDetail === 'Signed out'
                         ? 'Signed out · partition cleared'

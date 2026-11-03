@@ -114,7 +114,11 @@ export class MuseAdapter implements PlatformAdapter {
             : s.ready
               ? 'online'
               : 'busy'
-        this.setStatus(s.accountId, status, s.hook === 'none' ? 'Waiting for muse.ai gateway…' : undefined)
+        this.setStatus(
+          s.accountId,
+          s.phase && s.phase !== 'ready' && s.signedIn ? 'busy' : status,
+          s.phase && s.phase !== 'ready' ? s.phaseDetail : s.hook === 'none' ? 'Waiting for muse.ai gateway…' : undefined
+        )
         break
       }
       case 'login': {

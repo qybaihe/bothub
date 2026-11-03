@@ -19,6 +19,8 @@ interface DialogProps {
   className?: string
   /** Keep focus where it is when the dialog opens (the body focuses its own field). */
   onOpenAutoFocus?: (event: Event) => void
+  /** Prevent the default to send focus somewhere other than the trigger. */
+  onCloseAutoFocus?: (event: Event) => void
 }
 
 /**
@@ -36,7 +38,8 @@ export function Dialog({
   children,
   footer,
   className,
-  onOpenAutoFocus
+  onOpenAutoFocus,
+  onCloseAutoFocus
 }: DialogProps) {
   useOverlayLock(open)
   return (
@@ -45,6 +48,7 @@ export function Dialog({
         <RadixDialog.Overlay className="no-drag fixed inset-0 z-40 bg-black/25 data-[state=closed]:animate-scrim-out data-[state=open]:animate-scrim-in" />
         <RadixDialog.Content
           onOpenAutoFocus={onOpenAutoFocus}
+          onCloseAutoFocus={onCloseAutoFocus}
           className={cn(
             'no-drag fixed top-1/2 left-1/2 z-50 flex max-h-[min(88vh,760px)] w-[min(92vw,560px)] -translate-x-1/2 -translate-y-1/2 flex-col',
             'rounded-2xl border-[0.5px] border-line-strong bg-main shadow-dialog outline-none',

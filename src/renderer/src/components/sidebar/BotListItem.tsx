@@ -44,6 +44,8 @@ export const BotListItem = memo(function BotListItem({
   const fileRef = useRef<HTMLInputElement>(null)
   const rowRef = useRef<HTMLButtonElement>(null)
   const preview = previewText(last, typing)
+  // Only a bot created a moment ago rises into the list; startup stays still.
+  const [fresh] = useState(() => Date.now() - bot.createdAt < 3000)
 
   const body = (
     <>
@@ -102,7 +104,7 @@ export const BotListItem = memo(function BotListItem({
 
   return (
     <div
-      className="group relative"
+      className={cn('group relative', fresh && 'animate-step-in')}
       onContextMenu={(event) => {
         event.preventDefault()
         setMenuOpen(true)

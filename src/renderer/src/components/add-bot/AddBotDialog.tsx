@@ -52,6 +52,7 @@ function AddBotFlow({ open, onClose }: { open: boolean; onClose: () => void }) {
   const login = usePlatformLogin(botId)
   const listRef = useRef<HTMLUListElement>(null)
   const morph = useMorphHeight<HTMLDivElement>()
+  const created = useRef(false)
   const { phase } = login
 
   const close = () => {
@@ -62,6 +63,7 @@ function AddBotFlow({ open, onClose }: { open: boolean; onClose: () => void }) {
 
   const finish = (platformId: PlatformId, name: string, avatar: string | undefined) => {
     login.keep()
+    created.current = true
     addBot({
       id: botId,
       platformId,
@@ -91,6 +93,12 @@ function AddBotFlow({ open, onClose }: { open: boolean; onClose: () => void }) {
       onOpenAutoFocus={(event) => {
         event.preventDefault()
         listRef.current?.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus()
+      }}
+      onCloseAutoFocus={(event) => {
+        // A new bot is ready to talk to: land in its composer, not on "+".
+        if (!created.current) return
+        event.preventDefault()
+        window.dispatchEvent(new Event('bothub:focus-composer'))
       }}
     >
       <div
@@ -194,6 +202,8 @@ export function LoginWaiting({
   onReopen: () => void
 }) {
   const platform = getPlatform(platformId)
+  const actionRef = useRef<HTMLButtonElement>(null)
+  useEffect(() => actionRef.current?.focus(), [])
   return (
     <div className="flex animate-step-in flex-col items-center gap-4 pt-4 pb-2 text-center" role="status">
       <PlatformGlyph platform={platform} size="lg" />
@@ -203,7 +213,7 @@ export function LoginWaiting({
       >
         {windowClosed ? 'The sign-in window was closed' : 'Waiting for you to sign in…'}
       </p>
-      <Button variant={windowClosed ? 'primary' : 'secondary'} onClick={onReopen}>
+      <Button ref={actionRef} variant={windowClosed ? 'primary' : 'secondary'} onClick={onReopen}>
         {windowClosed ? 'Open again' : 'Show window'}
       </Button>
     </div>

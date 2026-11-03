@@ -1,29 +1,51 @@
 import { getGrokMainAuth, setGrokMainAuth } from './grokAuthStore'
 import { GrokConnectClient, GrokConnectError } from './connectClient'
 import { getOrCreateGrokMachineId } from './grokMachineId'
+import { getValidSandAccessToken } from './grokSandAuth'
 import type { GrokRpcRequest, GrokRpcResponse } from '@shared/ipc'
 
-function ensureAuth(accountId: string) {
-  const auth = getGrokMainAuth(accountId)
-  if (!auth?.accessToken) {
-    throw new GrokConnectError(401, 'Not signed in', 'not-connected')
+/**
+ * Resolve the write-capable sand accessToken for an account.
+ * Writes (Send/Transcript/approvals) require the PKCE sand token, not the
+ * web WorkosCursorSessionToken. Falls back to the in-memory web token only
+ * when no sand token exists (read-only ListAgents still works with it).
+ */
+async function resolveClientAuth(accountId: string): Promise<{
+  accessToken: string
+  teamId?: string
+  machineId: string
+  accountSlot?: string
+}> {
+  const stored = getGrokMainAuth(accountId)
+  const machineId = stored?.machineId?.trim() || getOrCreateGrokMachineId(accountId)
+  if (machineId !== stored?.machineId && stored) {
+    setGrokMainAuth({ ...stored, machineId })
   }
-  const machineId = auth.machineId?.trim() || getOrCreateGrokMachineId(accountId)
-  if (machineId !== auth.machineId) {
-    setGrokMainAuth({ ...auth, machineId })
+  const sand = await getValidSandAccessToken(accountId)
+  if (sand?.accessToken) {
+    return {
+      accessToken: sand.accessToken,
+      teamId: sand.selectedTeamId ?? stored?.teamId,
+      machineId,
+      accountSlot: stored?.accountSlot
+    }
   }
-  return { ...auth, machineId }
+  if (stored?.accessToken) {
+    // Legacy web token: reads only; writes will 401 until sand login runs.
+    return {
+      accessToken: stored.accessToken,
+      teamId: stored.teamId,
+      machineId,
+      accountSlot: stored.accountSlot
+    }
+  }
+  throw new GrokConnectError(401, 'Not signed in (no sand or web token)', 'not-connected')
 }
 
-function clientFor(accountId: string, timeZone?: string): GrokConnectClient {
-  const auth = ensureAuth(accountId)
+async function clientFor(accountId: string, timeZone?: string): Promise<GrokConnectClient> {
+  const auth = await resolveClientAuth(accountId)
   return new GrokConnectClient({
-    auth: {
-      accessToken: auth.accessToken,
-      teamId: auth.teamId,
-      machineId: auth.machineId,
-      accountSlot: auth.accountSlot
-    },
+    auth,
     timeZone: timeZone ?? Intl.DateTimeFormat().resolvedOptions().timeZone
   })
 }
@@ -42,11 +64,11 @@ function fail(error: unknown): GrokRpcResponse {
   return { ok: false, status: 0, message }
 }
 
-/** Dispatch a typed Grok RPC using the account's in-memory Hub token. */
+/** Dispatch a typed Grok RPC using the account's sand (or web) token. */
 export async function runGrokRpc(request: GrokRpcRequest): Promise<GrokRpcResponse> {
   try {
-    const client = clientFor(request.accountId, request.timeZone)
-    const auth = ensureAuth(request.accountId)
+    const client = await clientFor(request.accountId, request.timeZone)
+    const auth = await resolveClientAuth(request.accountId)
     const defaultSession = auth.accountSlot ?? request.accountId
 
     switch (request.op) {

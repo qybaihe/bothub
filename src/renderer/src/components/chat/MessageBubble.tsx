@@ -1,9 +1,9 @@
 import { memo, useState } from 'react'
-import { AlertCircle, Check, Clock3, FileText, RotateCw } from 'lucide-react'
+import { AlertCircle, Check, Clock3, FileText, Image as ImageIcon, Loader2, RotateCw, Wrench } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { formatBytes, formatClock } from '@/lib/format'
 import { useBotStore } from '@/store/botStore'
-import type { ChatMessage, ChatOptionWidget } from '@/types'
+import type { ChatMediaPart, ChatMessage, ChatOptionWidget, ChatToolCall } from '@/types'
 import { MarkdownText } from './MarkdownText'
 import { t } from '@/lib/i18n'
 
@@ -47,6 +47,84 @@ function DeliveryState({ message, onRetry }: Pick<MessageBubbleProps, 'message' 
     default:
       return null
   }
+}
+
+function ToolChips({ tools }: { tools: ChatToolCall[] }) {
+  if (!tools.length) return null
+  return (
+    <ul className="mb-1.5 flex max-w-[78%] flex-col gap-1" aria-label={t('Tools')}>
+      {tools.map((tool) => (
+        <li
+          key={tool.id}
+          className="flex items-center gap-2 rounded-xl border border-line bg-surface px-2.5 py-1.5 text-[12px] text-ink-secondary shadow-soft"
+        >
+          {tool.status === 'running' ? (
+            <Loader2 className="size-3.5 shrink-0 animate-spin text-accent-600" aria-hidden />
+          ) : (
+            <Wrench className="size-3.5 shrink-0 text-ink-muted" aria-hidden />
+          )}
+          <span className="min-w-0 flex-1 truncate font-medium text-ink">{tool.name}</span>
+          {tool.toolType && tool.toolType !== tool.name && (
+            <span className="shrink-0 text-ink-muted">{tool.toolType}</span>
+          )}
+          <span className="shrink-0 tabular-nums text-ink-muted">
+            {tool.status === 'running'
+              ? t('Running')
+              : tool.status === 'errored'
+                ? t('Failed')
+                : t('Done')}
+          </span>
+        </li>
+      ))}
+      {tools.some((t) => t.summary) && (
+        <li className="px-1 text-[11px] text-ink-muted">
+          {tools
+            .filter((t) => t.summary)
+            .map((tool) => tool.summary)
+            .join(' · ')}
+        </li>
+      )}
+    </ul>
+  )
+}
+
+function MediaParts({ parts }: { parts: ChatMediaPart[] }) {
+  if (!parts.length) return null
+  return (
+    <ul className="mb-1.5 flex max-w-[78%] flex-col gap-1.5" aria-label={t('Media')}>
+      {parts.map((part) => {
+        const http = /^https?:\/\//i.test(part.path)
+        return (
+          <li
+            key={part.path}
+            className="overflow-hidden rounded-xl border border-line bg-surface shadow-soft"
+          >
+            {part.kind === 'image' && http ? (
+              <a href={part.path} target="_blank" rel="noreferrer" className="block">
+                <img src={part.path} alt={part.name || part.path} className="max-h-64 max-w-full object-contain" />
+              </a>
+            ) : (
+              <div className="flex items-center gap-2 px-2.5 py-2 text-[12px]">
+                <span className="grid size-7 place-items-center rounded-lg bg-accent-50 text-accent-600">
+                  {part.kind === 'image' ? (
+                    <ImageIcon className="size-4" aria-hidden />
+                  ) : (
+                    <FileText className="size-4" aria-hidden />
+                  )}
+                </span>
+                <span className="min-w-0">
+                  <span className="block max-w-56 truncate font-medium text-ink">{part.name || part.path}</span>
+                  <span className="block truncate text-caption text-ink-muted" title={part.path}>
+                    {part.path}
+                  </span>
+                </span>
+              </div>
+            )}
+          </li>
+        )
+      })}
+    </ul>
+  )
 }
 
 function OptionChips({ message, widget }: { message: ChatMessage; widget: ChatOptionWidget }) {
@@ -134,9 +212,13 @@ export const MessageBubble = memo(function MessageBubble({
 }: MessageBubbleProps) {
   const mine = message.role === 'user'
   const optionWidgets = (!mine && message.widgets?.filter((w) => w.kind === 'option')) || []
+  const tools = (!mine && message.tools) || []
+  const media = (!mine && message.media) || []
 
   return (
     <div className={cn('flex flex-col', mine ? 'items-end' : 'items-start')}>
+      {!mine && tools.length > 0 && <ToolChips tools={tools} />}
+      {!mine && media.length > 0 && <MediaParts parts={media} />}
       {message.attachments && message.attachments.length > 0 && (
         <ul className={cn('mb-1 flex max-w-[78%] flex-wrap gap-1.5', mine && 'justify-end')}>
           {message.attachments.map((file) => (

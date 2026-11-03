@@ -378,6 +378,7 @@ export class MuseSessionManager {
     this.emitStatus(accountId)
   }
 
+
   /** Pull Sentinel approvals and emit (official: query on needs_approval / 5s stale). */
   async refreshApprovals(accountId: string): Promise<void> {
     const session = this.sessions.get(accountId)
@@ -566,7 +567,9 @@ export class MuseSessionManager {
             messageId: id,
             text: u.text,
             done: u.done,
-            widgets: this.mapStreamWidgets(u.widgets)
+            widgets: this.mapStreamWidgets(u.widgets),
+            tools: u.tools,
+            media: u.media
           })
         }
       },
@@ -619,7 +622,9 @@ export class MuseSessionManager {
           messageId: id,
           text: u.text,
           done: u.done,
-          widgets: this.mapStreamWidgets(u.widgets)
+          widgets: this.mapStreamWidgets(u.widgets),
+          tools: u.tools,
+          media: u.media
         })
       },
       { timeoutMs: 600_000, settleMs: 1500 }

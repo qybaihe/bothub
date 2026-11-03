@@ -72,7 +72,7 @@ export interface BotHubState {
   retryMessage: (botId: string, messageId: string) => Promise<void>
   receiveMessage: (message: IncomingMessage) => void
   /** Upsert a streaming assistant bubble (same id updated as deltas arrive). */
-  applyMessageDelta: (messageId: string, conversationId: string, accountId: string, text: string, widgets?: import('@/types').ChatOptionWidget[]) => void
+  applyMessageDelta: (messageId: string, conversationId: string, accountId: string, text: string, widgets?: import('@/types').ChatOptionWidget[], tools?: import('@/types').ChatToolCall[], media?: import('@/types').ChatMediaPart[]) => void
   setTyping: (botId: string, isTyping: boolean) => void
   setActivity: (accountId: string, activity: import('@/types').BotActivity | null) => void
   setMessageWidgets: (botId: string, messageId: string, widgets: import('@/types').ChatOptionWidget[]) => void
@@ -150,6 +150,14 @@ function materializeAccounts(
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'Something went wrong.'
+}
+
+function prevMediaMerge(
+  prev: import('@/types').ChatMediaPart[] | undefined,
+  incoming: import('@/types').ChatMediaPart[] | undefined
+): import('@/types').ChatMediaPart[] | undefined {
+  if (incoming?.length) return incoming
+  return prev
 }
 
 export const useBotStore = create<BotHubState>()(
@@ -468,6 +476,10 @@ export const useBotStore = create<BotHubState>()(
                     : prevText
         const prevWidgets = existingIdx >= 0 ? list[existingIdx]!.widgets : undefined
         const incomingWidgets = (incoming as { widgets?: ChatMessage['widgets'] }).widgets
+        const prevTools = existingIdx >= 0 ? list[existingIdx]!.tools : undefined
+        const incomingTools = (incoming as { tools?: ChatMessage['tools'] }).tools
+        const prevMedia = existingIdx >= 0 ? list[existingIdx]!.media : undefined
+        const incomingMedia = (incoming as { media?: ChatMessage['media'] }).media
         const message: ChatMessage = {
           id: incoming.id,
           botId,
@@ -475,7 +487,9 @@ export const useBotStore = create<BotHubState>()(
           role: 'bot',
           text: mergedText,
           createdAt: existingIdx >= 0 ? list[existingIdx]!.createdAt : incoming.createdAt,
-          widgets: incomingWidgets?.length ? incomingWidgets : prevWidgets
+          widgets: incomingWidgets?.length ? incomingWidgets : prevWidgets,
+          tools: incomingTools?.length ? incomingTools : prevTools,
+          media: incomingMedia?.length ? incomingMedia : prevMedia
         }
         const selected = state.selectedBotId === botId
         const isNew = existingIdx < 0
@@ -504,7 +518,7 @@ export const useBotStore = create<BotHubState>()(
         }
       }),
 
-    applyMessageDelta: (messageId, conversationId, accountId, text, widgets) =>
+    applyMessageDelta: (messageId, conversationId, accountId, text, widgets, tools, media) =>
       set((state) => {
         const botId = conversationId
         if (!state.bots.some((b) => b.id === botId)) return state
@@ -525,12 +539,22 @@ export const useBotStore = create<BotHubState>()(
                     : prev
           const prevMsg = list[existingIdx]!
           const nextWidgets = widgets?.length ? widgets : prevMsg.widgets
-          if (next === prev && nextWidgets === prevMsg.widgets) return state
+          const nextTools = tools?.length ? tools : prevMsg.tools
+          const nextMedia = media?.length ? media : prevMediaMerge(prevMsg.media, media)
+          if (
+            next === prev &&
+            nextWidgets === prevMsg.widgets &&
+            nextTools === prevMsg.tools &&
+            nextMedia === prevMsg.media
+          )
+            return state
           return {
             messages: {
               ...state.messages,
               [botId]: list.map((m, i) =>
-                i === existingIdx ? { ...m, text: next, widgets: nextWidgets } : m
+                i === existingIdx
+                  ? { ...m, text: next, widgets: nextWidgets, tools: nextTools, media: nextMedia }
+                  : m
               )
             }
           }
@@ -542,7 +566,9 @@ export const useBotStore = create<BotHubState>()(
           role: 'bot',
           text,
           createdAt: Date.now(),
-          widgets: widgets?.length ? widgets : undefined
+          widgets: widgets?.length ? widgets : undefined,
+          tools: tools?.length ? tools : undefined,
+          media: media?.length ? media : undefined
         }
         return { messages: { ...state.messages, [botId]: [...list, message] } }
       }),

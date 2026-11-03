@@ -175,6 +175,8 @@ export class MuseAdapter implements PlatformAdapter {
       }
       case 'stream': {
         const widgets = event.widgets as MuseOptionWidget[] | undefined
+        const tools = event.tools as import('../types').MuseToolCall[] | undefined
+        const media = event.media as import('../types').MuseMediaPart[] | undefined
         if (!event.done) {
           this.emit({
             type: 'typing',
@@ -182,14 +184,16 @@ export class MuseAdapter implements PlatformAdapter {
             accountId: event.accountId,
             isTyping: true
           })
-          if (event.text || widgets?.length) {
+          if (event.text || widgets?.length || tools?.length || media?.length) {
             this.emit({
               type: 'message_delta',
               messageId: event.messageId,
               conversationId: event.conversationId ?? event.accountId,
               accountId: event.accountId,
               text: event.text || '',
-              widgets
+              widgets,
+              tools,
+              media
             })
           }
           this.setStatus(event.accountId, 'busy')
@@ -201,15 +205,21 @@ export class MuseAdapter implements PlatformAdapter {
             accountId: event.accountId,
             isTyping: false
           })
-          if (event.text || widgets?.length) {
+          if (event.text || widgets?.length || tools?.length || media?.length) {
             this.streamDelivered.add(`${event.accountId}:${conversationId}`)
-            const message: IncomingMessage & { widgets?: MuseOptionWidget[] } = {
+            const message: IncomingMessage & {
+              widgets?: MuseOptionWidget[]
+              tools?: import('../types').MuseToolCall[]
+              media?: import('../types').MuseMediaPart[]
+            } = {
               id: event.messageId,
               conversationId,
               accountId: event.accountId,
               text: event.text || '',
               createdAt: Date.now(),
-              widgets
+              widgets,
+              tools,
+              media
             }
             this.emit({ type: 'message', message })
           }

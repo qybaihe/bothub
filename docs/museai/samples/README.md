@@ -9,3 +9,8 @@
 
 Raw Chrome netlogs with cookies/tokens were deleted after analysis.
 See `../protocol.md` and `../NATIVE_CLIENT.md`.
+
+- `quota/` — `fetchSubscriptionAction` 脱敏响应；invite 控制面脱敏 JSON。
+- `44_POST__.txt` — Server Action 多行响应（subscription + usage）。
+- `42_GET__api_hatch_invite.*` — 邀请加额度。
+- 定时任务：字段见 `../SCHEDULES.md`（暂无实机 `tasks.list` JSON；有 cookie 后补 `schedules/`）。

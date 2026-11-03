@@ -1,0 +1,20 @@
+{
+  "invite_state": "ELIGIBLE",
+  "show_gift": true,
+  "title": "Invite friends and get additional usage",
+  "subtitle": "Invite a friend and you'll both get 1 billion Muse tokens when they redeem your code in Settings within 48 hours of joining. N uses left.",
+  "has_redeemed_invite_code": true,
+  "code": "<REDACTED>",
+  "invite_link": "https://muse.ai/join",
+  "max_uses": 30,
+  "use_count": 3,
+  "uses_remaining": 27,
+  "reward": {
+    "title": "You've earned N billion Muse tokens",
+    "body": "N friends have redeemed your code."
+  },
+  "redeem_invite_code_screen": {
+    "subtitle": "Redeem a friend's code within 48 hours of joining. You'll both get 1 billion Muse tokens.",
+    "disclaimer": "You are receiving a license for additional AI usage. It is not money, stored value, or a gift card."
+  }
+}

@@ -1,38 +1,36 @@
-# Handoff → Claude：Muse 原生 Noise 客户端
+# Handoff → Claude：Muse 原生客户端（续）
 
-## 用户诉求
-muse 内嵌不稳定：**消息发不出去 + 流式回复断**。要深度逆向后写**不依赖 WebContentsView sendRequest** 的稳定客户端。
+## 已完成（v0.2.0）
+原生 Noise_XX + `chat.stream` subscription、重连、approvals。默认 `BOTHUB_MUSE_TRANSPORT=native`。
 
-## 交付物（已 scp 到本机）
-`~/projects/bothub/docs/museai/`
+## 新交付（额度 + 定时任务）
 
 | 文件 | 用途 |
 |---|---|
-| **NATIVE_CLIENT.md** | 实现简报（按这个做） |
-| **protocol.md** | Noise 握手/帧/RPC/事件/重连/为何 hook 不稳 |
-| `samples/proto/*.proto` | NoiseTransport / ServiceFrame / Attestation |
-| `samples/stream/*` | chat.stream ack + NDJSON 事件 |
-| `samples/gateway_methods.json` | 387 RPC |
-| `samples/approval_*.json` | Sentinel decide |
-| `muse_client.py` | 控制面 HTTPS 草图 |
+| **QUOTA.md** | 额度/usage/credits：**HTTPS** `fetchSubscriptionAction`，非 Noise |
+| **SCHEDULES.md** | 定时任务：`tasks.list/runs/run/delete/subscribe` |
+| `samples/quota/*` | 脱敏订阅响应 + invite |
+| `samples/44_POST__.txt` | 原始（已无密钥）subscription action 响应 |
+| `samples/42_GET__api_hatch_invite.*` | 邀请加额度 |
 
-## 根因（对照现有代码）
-1. `hookScript.ts` 扫不到稳定的 `sendRequest` → DOM。
-2. `chatStreamAndCollect` **不读 subscription NDJSON**，只轮询 `chat.history` → 流式丢。
-3. 隐藏 WebContentsView 导致 SSR/gateway 不 hydrate（`museKeepAlive` 只是止血）。
-4. `capabilities:{}` / `node_id=accountId` 与官方不符。
+仍有效：`NATIVE_CLIENT.md`、`protocol.md`、`samples/proto/*`、`samples/stream/*`、`gateway_methods.json`。
 
 ## 你要做的
-按 `NATIVE_CLIENT.md` P0→P3 在 **main process** 实现：
-1. Cookie → wake/lease/token/notary  
-2. Noise_XX（移植 `docs` 所述算法，源码参考箱内/文档指向的 JS）  
-3. HTTP-over-Noise unary + **chat.stream subscription 事件**  
-4. 重连/心跳；Sentinel approvals  
 
-验收：cookie 有效时原生 `chat.stream` 能拿到 `delta.text_append`，WS 断开后重连仍可发。
+### A. 额度管理（只读优先）
+1. `src/main/muse-native/quota.ts`：用账号 **hatch cookie** 调 `fetchSubscriptionAction`（见 QUOTA.md；action hash 可能随前端变）。
+2. IPC + Info/账号「额度管理」：套餐、`percentUsed`、topup 文案、重置副标题。
+3. Poll 60–120s；**不要**走 `wallet.get`（那是支付卡）。
+4. Upgrade CTA → 外开 muse.ai；购买/取消 Server Action 第二期。
+
+### B. 定时任务
+1. `methods.ts` 补齐 `tasks.runs` / `tasks.run` / `tasks.delete`（list/subscribe 已有）。
+2. `list → .schedules`；UI Active/Paused；运行/删除。
+3. 优先 `tasks.subscribe`；**无 `tasks.create`** → 创建靠 chat 指令。
+4. 与 browser_task / goals 分开。
 
 ## 禁区
-不挖 Keychain / CVM recovery key；token 脱敏；未批准不 push。
+不挖 Keychain / CVM recovery；token 脱敏；未批准不 push。
 
 ## 优先级
-Muse 原生传输 > 继续打磨 hook。Grok Bot sand-token 登录另线。
+额度只读 UI + 定时任务 list/run/delete → 再考虑 plans/checkout 与 goals。

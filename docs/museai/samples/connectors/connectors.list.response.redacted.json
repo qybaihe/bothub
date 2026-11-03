@@ -1,0 +1,16 @@
+{
+  "connectors": [
+    {
+      "id": "github",
+      "name": "GitHub",
+      "connected": true,
+      "description": "Repos"
+    },
+    {
+      "id": "gmail",
+      "name": "Gmail",
+      "connected": false,
+      "description": "Email"
+    }
+  ]
+}

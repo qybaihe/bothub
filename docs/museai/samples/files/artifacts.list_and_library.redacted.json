@@ -1,0 +1,22 @@
+{
+  "artifacts": [
+    {
+      "id": "<ARTIFACT_ID>",
+      "name": "notes.md",
+      "kind": "document",
+      "size_bytes": 1234,
+      "pinned": false
+    }
+  ],
+  "library": {
+    "entries": [
+      {
+        "id": "<FILE_ID>",
+        "name": "export.csv",
+        "path": "/library/export.csv",
+        "size": 2048,
+        "type": "file"
+      }
+    ]
+  }
+}

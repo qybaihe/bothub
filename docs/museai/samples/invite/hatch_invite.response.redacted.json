@@ -1,0 +1,21 @@
+{
+  "invite_state": "ELIGIBLE",
+  "title": "Invite friends and get additional usage",
+  "subtitle": "Invite a friend\u2026 N uses left.",
+  "has_redeemed_invite_code": true,
+  "invite_code_entry_available": false,
+  "code": "<REDACTED>",
+  "invite_link": "https://muse.ai/join",
+  "max_uses": 30,
+  "use_count": 3,
+  "uses_remaining": 27,
+  "share_text": "\u2026\n\nCode: <REDACTED>\nhttps://muse.ai/join",
+  "reward": {
+    "title": "You've earned N billion Muse tokens",
+    "body": "N friends have redeemed your code."
+  },
+  "redeem_invite_code_screen": {
+    "subtitle": "Redeem a friend's code within 48 hours of joining.",
+    "disclaimer": "License for additional AI usage; not money."
+  }
+}

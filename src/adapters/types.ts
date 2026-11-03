@@ -25,6 +25,8 @@ export interface PlatformDescriptor {
   monogram: string
   /** Web entry point for embedded sessions (WebContentsView), if any. */
   homeUrl?: string
+  /** Optional interactive login entry (Grok / Cursor authenticator). */
+  loginUrl?: string
 }
 
 /** An account (login/session) on a platform. A bot can use several. */

@@ -17,9 +17,11 @@ export const PLATFORMS: readonly PlatformDescriptor[] = [
   {
     id: 'grok',
     name: 'Grok Bot',
-    description: 'xAI Grok assistant with real-time knowledge.',
-    availability: 'coming-soon',
-    monogram: 'G'
+    description: 'xAI / Cursor sand desktop bots via ConnectRPC (api2.cursor.sh).',
+    availability: 'available',
+    monogram: 'G',
+    homeUrl: 'https://x.ai/bot',
+    loginUrl: 'https://authenticator.cursor.sh'
   },
   {
     id: 'deepseek',

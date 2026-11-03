@@ -13,3 +13,4 @@ release
 hold-*.mjs
 *.bak
 *.local
+.tmp-screenshots/

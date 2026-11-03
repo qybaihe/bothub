@@ -1,6 +1,6 @@
 import { memo, useRef, useState } from 'react'
 import type { ConnectionStatus } from '@adapters/types'
-import { FolderInput, ImageMinus, ImagePlus, MoreHorizontal, Pencil, Trash2 } from 'lucide-react'
+import { FolderInput, Pin, PinOff, ImageMinus, ImagePlus, MoreHorizontal, Pencil, Trash2 } from 'lucide-react'
 import { BotAvatar } from '@/components/ui/Avatar'
 import { InlineEdit } from '@/components/ui/InlineEdit'
 import { Menu, MenuContent, MenuItem, MenuLabel, MenuSeparator, MenuTrigger } from '@/components/ui/Menu'
@@ -56,6 +56,7 @@ export const BotListItem = memo(function BotListItem({
   const removeBot = useBotStore((s) => s.removeBot)
   const groups = useBotStore((s) => s.groups)
   const moveBotToGroup = useBotStore((s) => s.moveBotToGroup)
+  const togglePinBot = useBotStore((s) => s.togglePinBot)
   const [menuOpen, setMenuOpen] = useState(false)
   const [renaming, setRenaming] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -163,6 +164,9 @@ export const BotListItem = memo(function BotListItem({
             <MoreHorizontal className="size-4" />
           </MenuTrigger>
           <MenuContent align="start" side="bottom" className="min-w-48">
+            <MenuItem onSelect={() => togglePinBot(bot.id)}>
+              {bot.pinned ? <PinOff aria-hidden /> : <Pin aria-hidden />} {bot.pinned ? 'Unpin' : 'Pin'}
+            </MenuItem>
             <MenuItem onSelect={() => setRenaming(true)}>
               <Pencil aria-hidden /> Rename
             </MenuItem>

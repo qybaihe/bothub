@@ -46,6 +46,9 @@ export interface BotHubState {
   /** Drop a section; its bots move to another section. Keeps at least one. */
   removeGroup: (groupId: string) => void
   moveBotToGroup: (botId: string, groupId: string) => void
+  togglePinBot: (botId: string) => void
+  /** Local drag-reorder: place `botId` before `beforeId` (or at end) inside `groupId`. */
+  reorderBot: (botId: string, groupId: string, beforeId: string | null) => void
   toggleInfoPanel: () => void
   setSidebarWidth: (width: number) => void
   setAddBotOpen: (open: boolean) => void
@@ -269,6 +272,25 @@ export const useBotStore = create<BotHubState>()(
           bots: state.bots.map((b) => (b.id === botId ? { ...b, groupId } : b)),
           collapsedGroups: { ...state.collapsedGroups, [groupId]: false }
         }
+      }),
+
+    togglePinBot: (botId) =>
+      set((state) => ({ bots: state.bots.map((b) => (b.id === botId ? { ...b, pinned: !b.pinned } : b)) })),
+
+    reorderBot: (botId, groupId, beforeId) =>
+      set((state) => {
+        if (botId === beforeId) return state
+        const bot = state.bots.find((b) => b.id === botId)
+        if (!bot || !state.groups.some((g) => g.id === groupId)) return state
+        const rest = state.bots.filter((b) => b.id !== botId)
+        const moved = { ...bot, groupId }
+        let at = beforeId ? rest.findIndex((b) => b.id === beforeId) : -1
+        if (at < 0) {
+          const lastInGroup = rest.map((b) => b.groupId).lastIndexOf(groupId)
+          at = lastInGroup < 0 ? rest.length : lastInGroup + 1
+        }
+        rest.splice(at, 0, moved)
+        return { bots: rest }
       }),
 
     toggleInfoPanel: () => set((state) => ({ infoPanelOpen: !state.infoPanelOpen })),

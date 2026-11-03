@@ -1,5 +1,5 @@
 import { useState, type KeyboardEvent } from 'react'
-import { ChevronRight, FolderPlus, MoreHorizontal, Pencil, Settings2, Trash2 } from 'lucide-react'
+import { ChevronRight, Pin, FolderPlus, MoreHorizontal, Pencil, Settings2, Trash2 } from 'lucide-react'
 import { InlineEdit } from '@/components/ui/InlineEdit'
 import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from '@/components/ui/Menu'
 import { cn } from '@/lib/cn'
@@ -121,23 +121,63 @@ export function BotList() {
   const selectBot = useBotStore((s) => s.selectBot)
   const toggleGroup = useBotStore((s) => s.toggleGroup)
   const addGroup = useBotStore((s) => s.addGroup)
+  const reorderBot = useBotStore((s) => s.reorderBot)
+  const [dragId, setDragId] = useState<string | null>(null)
+  const [dropAt, setDropAt] = useState<string | null>(null)
+  const pinnedBots = bots.filter((b) => b.pinned)
   const [configureOpen, setConfigureOpen] = useState(false)
 
   // Always-on Grok-like section chrome — include empty sections so New section is visible.
   const sections = groups.map((group) => ({
     group,
-    bots: bots.filter((b) => b.groupId === group.id)
+    bots: bots.filter((b) => b.groupId === group.id && !b.pinned)
   }))
 
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="min-h-0 flex-1 overflow-y-auto" onKeyDown={moveBetweenRows}>
         <div className="flex flex-col gap-2 px-0 pt-0.5">
+          {pinnedBots.length > 0 && (
+            <section aria-labelledby="pinned-label">
+              <div className="flex h-7 items-center gap-1 px-1.5 text-ink-muted">
+                <Pin className="size-3 shrink-0" aria-hidden />
+                <span id="pinned-label" className="text-[12px] font-medium tracking-tight">
+                  Pinned
+                </span>
+              </div>
+              <ul className="flex flex-col gap-0.5">
+                {pinnedBots.map((bot) => (
+                  <li key={bot.id}>
+                    <BotListItem
+                      bot={bot}
+                      status={getBotStatus(bot, accounts)}
+                      last={lastMessage(messages[bot.id])}
+                      typing={typing[bot.id] === true}
+                      activity={activity[bot.activeAccountId]}
+                      selected={bot.id === selectedBotId}
+                      onSelect={selectBot}
+                    />
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
           {sections.map(({ group, bots: groupBots }) => {
             const isCollapsed = collapsed[group.id] === true
             const listId = `group-${group.id}`
             return (
-              <section key={group.id} aria-labelledby={`${listId}-label`}>
+              <section
+                key={group.id}
+                aria-labelledby={`${listId}-label`}
+                onDragOver={(e) => dragId && e.preventDefault()}
+                onDrop={(e) => {
+                  if (!dragId || e.defaultPrevented) return
+                  e.preventDefault()
+                  reorderBot(dragId, group.id, null)
+                  setDragId(null)
+                  setDropAt(null)
+                }}
+              >
                 <SectionHeader
                   group={group}
                   botCount={groupBots.length}
@@ -147,7 +187,36 @@ export function BotList() {
                 {!isCollapsed && (
                   <ul id={listId} className="flex flex-col gap-0.5">
                     {groupBots.map((bot) => (
-                      <li key={bot.id}>
+                      <li
+                        key={bot.id}
+                        draggable
+                        onDragStart={(e) => {
+                          setDragId(bot.id)
+                          e.dataTransfer.effectAllowed = 'move'
+                          e.dataTransfer.setData('text/plain', bot.id)
+                        }}
+                        onDragEnd={() => {
+                          setDragId(null)
+                          setDropAt(null)
+                        }}
+                        onDragOver={(e) => {
+                          if (!dragId) return
+                          e.preventDefault()
+                          setDropAt(bot.id)
+                        }}
+                        onDrop={(e) => {
+                          e.preventDefault()
+                          if (dragId) reorderBot(dragId, group.id, bot.id)
+                          setDragId(null)
+                          setDropAt(null)
+                        }}
+                        className={cn(
+                          'relative',
+                          dragId === bot.id && 'opacity-40',
+                          dropAt === bot.id && dragId !== bot.id &&
+                            'before:absolute before:inset-x-2 before:-top-px before:h-0.5 before:rounded-full before:bg-accent-500'
+                        )}
+                      >
                         <BotListItem
                           bot={bot}
                           status={getBotStatus(bot, accounts)}

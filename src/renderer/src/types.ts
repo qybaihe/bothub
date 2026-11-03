@@ -48,6 +48,8 @@ export interface Bot {
   notes: string
   createdAt: number
   unread: number
+  /** Local-only: shown in the sidebar Pinned row. */
+  pinned?: boolean
 }
 
 export type MessageRole = 'user' | 'bot'

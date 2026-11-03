@@ -1,15 +1,16 @@
-import { createMetaMuseMockAdapter } from './meta-muse/mock'
-import { createMuseAdapter } from './meta-muse/adapter'
-import { adapterRegistry, type AdapterRegistry } from './registry'
+import { createMetaMuseMockAdapter } from "./meta-muse/mock"
+import { createMuseAdapter } from "./meta-muse/adapter"
+import { createGrokBotAdapter } from "./grokbot/GrokBotAdapter"
+import { adapterRegistry, type AdapterRegistry } from "./registry"
 
-export { adapterRegistry, AdapterRegistry } from './registry'
-export { PLATFORMS, getPlatform } from './platforms'
-export * from './types'
+export { adapterRegistry, AdapterRegistry } from "./registry"
+export { PLATFORMS, getPlatform } from "./platforms"
+export * from "./types"
 
 function useMockMuse(): boolean {
   try {
     const env = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env
-    return env?.['BOTHUB_USE_MOCK_MUSE'] === '1'
+    return env?.["BOTHUB_USE_MOCK_MUSE"] === "1"
   } catch {
     return false
   }
@@ -21,9 +22,12 @@ function useMockMuse(): boolean {
  *
  * Default: real Muse adapter (Electron WebContentsView + sendRequest/DOM).
  * Set BOTHUB_USE_MOCK_MUSE=1 for the in-memory mock (also handy for pure web).
+ * Grok Bot uses ConnectRPC against api2.cursor.sh once an accessToken is set.
  */
 export function registerBuiltInAdapters(registry: AdapterRegistry = adapterRegistry): void {
-  if (registry.has('meta-muse')) return
-  if (useMockMuse()) registry.register(createMetaMuseMockAdapter())
-  else registry.register(createMuseAdapter())
+  if (!registry.has("meta-muse")) {
+    if (useMockMuse()) registry.register(createMetaMuseMockAdapter())
+    else registry.register(createMuseAdapter())
+  }
+  if (!registry.has("grok")) registry.register(createGrokBotAdapter())
 }

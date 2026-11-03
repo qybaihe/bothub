@@ -14,3 +14,6 @@ See `../protocol.md` and `../NATIVE_CLIENT.md`.
 - `44_POST__.txt` — Server Action 多行响应（subscription + usage）。
 - `42_GET__api_hatch_invite.*` — 邀请加额度。
 - 定时任务：字段见 `../SCHEDULES.md`（暂无实机 `tasks.list` JSON；有 cookie 后补 `schedules/`）。
+
+- `quota/fetchSubscriptionAction.live.redacted.json` — 实机额度快照（已脱敏）。
+- `schedules/tasks.list.live.redacted.json` / `tasks.runs.live.redacted.json` — 实机定时任务列表/运行史（id 已替换）。

@@ -1,0 +1,26 @@
+{
+  "schedules": [
+    {
+      "id": "[id]",
+      "title": "Untitled task",
+      "scheduleKey": "daily@12:58:00",
+      "timezone": "Asia/Singapore",
+      "isHeartbeat": false,
+      "enabled": true,
+      "nextRunAtUtc": 0,
+      "cadenceLabel": "Daily · 12:58:00"
+    },
+    {
+      "id": "[id]",
+      "title": "Untitled task",
+      "scheduleKey": "interval@30m",
+      "timezone": "UTC",
+      "isHeartbeat": true,
+      "enabled": true,
+      "nextRunAtUtc": 0,
+      "cadenceLabel": "Every 30 min"
+    }
+  ],
+  "count": 2,
+  "note": "live e2e; ids redacted; do not delete tasks"
+}

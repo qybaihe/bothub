@@ -1,11 +1,9 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { MoreHorizontal, Plus, RefreshCw, Search, X } from 'lucide-react'
-import { BotAvatar } from '@/components/ui/Avatar'
 import { IconButton } from '@/components/ui/IconButton'
 import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from '@/components/ui/Menu'
 import { getBridge, runtimePlatform } from '@/lib/bridge'
 import { cn } from '@/lib/cn'
-import { getBotStatus, lastMessage } from '@/lib/selectors'
 import { useBotStore } from '@/store/botStore'
 import { BotList } from './BotList'
 import { SearchField } from './SearchField'
@@ -30,11 +28,6 @@ function BrandMark() {
 export function Sidebar({ onAddBot }: SidebarProps) {
   const search = useBotStore((s) => s.search)
   const setSearch = useBotStore((s) => s.setSearch)
-  const bots = useBotStore((s) => s.bots)
-  const accounts = useBotStore((s) => s.accounts)
-  const messages = useBotStore((s) => s.messages)
-  const selectedBotId = useBotStore((s) => s.selectedBotId)
-  const selectBot = useBotStore((s) => s.selectBot)
   const [version, setVersion] = useState('')
   const [checking, setChecking] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
@@ -52,14 +45,6 @@ export function Sidebar({ onAddBot }: SidebarProps) {
   useEffect(() => {
     if (search.trim()) setSearchOpen(true)
   }, [search])
-
-  const featured = useMemo(() => {
-    if (bots.length === 0) return null
-    return bots.find((b) => b.id === selectedBotId) ?? bots[0]!
-  }, [bots, selectedBotId])
-
-  const featuredStatus = featured ? getBotStatus(featured, accounts) : null
-  const featuredLast = featured ? lastMessage(messages[featured.id]) : undefined
 
   return (
     <>
@@ -127,40 +112,6 @@ export function Sidebar({ onAddBot }: SidebarProps) {
               setSearchOpen(false)
             }}
           />
-        </div>
-      )}
-
-      {featured && !searchOpen && (
-        <div className="no-drag px-3 pb-2">
-          <button
-            type="button"
-            onClick={() => selectBot(featured.id)}
-            className={cn(
-              'flex w-full items-center gap-3 rounded-2xl bg-hover px-3 py-3 text-left transition-[background-color,transform] duration-150',
-              'hover:bg-active active:scale-[0.99]',
-              selectedBotId === featured.id && 'ring-1 ring-line-strong'
-            )}
-          >
-            <BotAvatar
-              emoji={featured.emoji}
-              seed={featured.id}
-              platformId={featured.platformId}
-              status={featuredStatus ?? undefined}
-              size="xl"
-              ringClassName="ring-transparent"
-            />
-            <span className="min-w-0 flex-1">
-              <span className="block truncate text-[15px] font-semibold tracking-tight text-ink">
-                {featured.name}
-              </span>
-              <span className="mt-0.5 block truncate text-[13px] text-ink-secondary">
-                {featured.description ||
-                  (featuredLast
-                    ? featuredLast.text.replace(/\s+/g, ' ').trim().slice(0, 48)
-                    : 'Ready')}
-              </span>
-            </span>
-          </button>
         </div>
       )}
 

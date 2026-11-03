@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { getPlatform } from '@adapters/platforms'
-import { Settings2, Share, X } from 'lucide-react'
+import { X } from 'lucide-react'
 import { AddAccountsButton } from '@/components/add-bot/AddAccountsDialog'
 import { PaneHeader } from '@/components/layout/PaneHeader'
 import { BotAvatar } from '@/components/ui/Avatar'
@@ -33,17 +33,9 @@ export function InfoPanel() {
   return (
     <>
       <PaneHeader className="pr-3">
-        <div className="ml-auto flex items-center gap-0.5">
-          <IconButton round label="Settings" size="sm" disabled>
-            <Settings2 />
-          </IconButton>
-          <IconButton round label="Share" size="sm" disabled>
-            <Share />
-          </IconButton>
-          <IconButton round label="Close details" size="sm" onClick={toggleInfoPanel}>
-            <X />
-          </IconButton>
-        </div>
+        <IconButton label="Close details" shortcut="⌘I" className="no-drag ml-auto" onClick={toggleInfoPanel}>
+          <X />
+        </IconButton>
       </PaneHeader>
 
       {!bot ? (

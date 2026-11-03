@@ -38,6 +38,11 @@ export interface MuseBridge {
   onEvent(listener: (event: MuseMainEvent) => void): () => void
   /** Destroy the muse view and clear the account partition. */
   signOut(accountId: string): Promise<void>
+  /**
+   * Open a BrowserWindow that shares the account persist partition and loads
+   * muse.ai. Cookies land automatically; the window closes when hatch_sess appears.
+   */
+  openLogin(request: MuseEnsureRequest): Promise<MuseSessionStatus>
 }
 
 export interface UpdateBridge {

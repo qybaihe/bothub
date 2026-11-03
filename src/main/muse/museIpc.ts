@@ -62,4 +62,9 @@ export function registerMuseIpc(): void {
     if (typeof accountId !== 'string') throw new TypeError('Invalid accountId')
     await managerFor(event).signOut(accountId)
   })
+
+  ipcMain.handle(MUSE_CHANNELS.openLogin, async (event, request: unknown) => {
+    const req = parseEnsure(request)
+    return managerFor(event).openLogin(req.botId, req.accountId)
+  })
 }

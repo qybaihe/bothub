@@ -1,4 +1,4 @@
-import { session as electronSession, type BrowserWindow } from 'electron'
+import { BrowserWindow, session as electronSession } from 'electron'
 import type { MuseMainEvent, MuseSessionStatus, WebViewBounds } from '@shared/ipc'
 import { partitionForAccount, WebContentsViewManager } from '../webContentsViewManager'
 import { MUSE_HOOK_SCRIPT, museDomSendScript, museRpcScript } from './hookScript'
@@ -40,9 +40,11 @@ function isAllowedMuseUrl(url: string): boolean {
 export class MuseSessionManager {
   private readonly sessions = new Map<string, AccountSession>()
   private readonly listeners = new Set<(event: MuseMainEvent) => void>()
+  /** Interactive login windows keyed by accountId (same persist partition). */
+  private readonly loginWindows = new Map<string, BrowserWindow>()
 
   constructor(
-    _window: BrowserWindow,
+    private readonly window: BrowserWindow,
     private readonly views: WebContentsViewManager
   ) {}
 
@@ -441,6 +443,111 @@ export class MuseSessionManager {
     if (session.pollTimer) clearInterval(session.pollTimer)
     this.views.destroy(session.viewId)
     this.sessions.delete(accountId)
+  }
+
+
+  /**
+   * Open a dedicated BrowserWindow that shares the account's persist partition
+   * and loads muse.ai. Meta/Facebook auth redirects stay in-window. When the
+   * `hatch_sess` cookie appears, emit login, reload the embedded view, and close.
+   */
+  async openLogin(botId: string, accountId: string): Promise<MuseSessionStatus> {
+    await this.ensure(botId, accountId)
+    const refreshed = await this.refreshSession(accountId)
+    if (refreshed?.signedIn) return refreshed
+
+    const existing = this.loginWindows.get(accountId)
+    if (existing && !existing.isDestroyed()) {
+      existing.show()
+      existing.focus()
+      return this.sessions.get(accountId)!.status
+    }
+
+    const partition = partitionForAccount(accountId)
+    const win = new BrowserWindow({
+      width: 1040,
+      height: 780,
+      minWidth: 720,
+      minHeight: 560,
+      title: '使用 Muse 登录',
+      backgroundColor: '#f7f7f8',
+      autoHideMenuBar: true,
+      parent: this.window.isDestroyed() ? undefined : this.window,
+      webPreferences: {
+        partition,
+        sandbox: true,
+        contextIsolation: true,
+        nodeIntegration: false,
+        backgroundThrottling: false
+      }
+    })
+    this.loginWindows.set(accountId, win)
+
+    win.webContents.setWindowOpenHandler(({ url }) => {
+      if (isAllowedMuseUrl(url)) {
+        void win.webContents.loadURL(url)
+      }
+      return { action: 'deny' }
+    })
+
+    const ses = electronSession.fromPartition(partition)
+    let settling = false
+
+    const finishIfSignedIn = async (): Promise<void> => {
+      if (settling || win.isDestroyed()) return
+      const cookies = await ses.cookies.get({ name: 'hatch_sess' })
+      const url = win.webContents.getURL()
+      const onAuthHost = /auth\.meta\.com|facebook\.com\/login|auth\.muse\.ai/i.test(url)
+      if (cookies.length === 0 || onAuthHost) return
+
+      settling = true
+      try {
+        await this.refreshSession(accountId)
+        const session = this.sessions.get(accountId)
+        const view = session && this.views.getView(session.viewId)
+        if (view && !view.webContents.isDestroyed()) {
+          try {
+            await view.webContents.loadURL(MUSE_ORIGIN)
+          } catch (error) {
+            console.error('[muse] reload embedded view after login failed', error)
+          }
+        }
+        await this.refreshSession(accountId)
+      } finally {
+        if (!win.isDestroyed()) win.close()
+      }
+    }
+
+    const onNav = () => {
+      void finishIfSignedIn()
+    }
+    win.webContents.on('did-finish-load', onNav)
+    win.webContents.on('did-navigate', onNav)
+    win.webContents.on('did-navigate-in-page', onNav)
+    win.webContents.on('did-redirect-navigation', onNav)
+
+    const onCookie = (
+      _event: unknown,
+      cookie: { name: string },
+      _cause: string,
+      removed: boolean
+    ) => {
+      if (!removed && cookie.name === 'hatch_sess') void finishIfSignedIn()
+    }
+    ses.cookies.on('changed', onCookie)
+
+    win.on('closed', () => {
+      ses.cookies.off('changed', onCookie)
+      this.loginWindows.delete(accountId)
+      void this.refreshSession(accountId)
+    })
+
+    try {
+      await win.loadURL(MUSE_ORIGIN)
+    } catch (error) {
+      console.error('[muse] openLogin load failed', error)
+    }
+    return this.sessions.get(accountId)!.status
   }
 
   /** Tear down the view and wipe the persist partition (full sign-out). */

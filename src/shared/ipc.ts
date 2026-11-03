@@ -46,7 +46,9 @@ export const MUSE_CHANNELS = {
   rpc: 'bothub:muse:rpc',
   status: 'bothub:muse:status',
   event: 'bothub:muse:event',
-  signOut: 'bothub:muse:sign-out'
+  signOut: 'bothub:muse:sign-out',
+  /** Open a same-partition BrowserWindow for interactive muse.ai login. */
+  openLogin: 'bothub:muse:open-login'
 } as const
 
 export interface MuseEnsureRequest {

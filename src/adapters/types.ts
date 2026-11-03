@@ -137,6 +137,8 @@ export interface PlatformAdapter {
   listConnectors?(accountId: string): Promise<MuseConnector[]>
   /** Ensure the embedded muse.ai session for this account is open (login / RPC). */
   ensureSession?(accountId: string, botId?: string): Promise<void>
+  /** Muse: open interactive login window sharing the account partition. */
+  openLogin?(accountId: string, botId?: string): Promise<ConnectionStatus>
 }
 
 export type AdapterErrorCode = 'not-connected' | 'unknown-account' | 'unsupported' | 'network' | 'timeout'

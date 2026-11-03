@@ -212,6 +212,25 @@ export class MuseAdapter implements PlatformAdapter {
     return this.getStatus(accountId)
   }
 
+  async openLogin(accountId: string, botId = 'muse'): Promise<ConnectionStatus> {
+    this.bindBridgeEvents()
+    if (!this.accounts.has(accountId)) {
+      this.upsertAccount({
+        id: accountId,
+        platformId: 'meta-muse',
+        displayName: 'Muse account',
+        handle: accountId
+      })
+    }
+    const status = await this.bridge().openLogin({ botId, accountId })
+    this.setStatus(
+      accountId,
+      status.signedIn ? (status.pendingApprovals > 0 ? 'attention' : 'online') : 'offline',
+      status.signedIn ? undefined : '在弹出的窗口里完成 Muse 登录'
+    )
+    return this.getStatus(accountId)
+  }
+
   async disconnect(accountId: string): Promise<void> {
     this.setStatus(accountId, 'offline')
   }

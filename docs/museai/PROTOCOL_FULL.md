@@ -40,8 +40,8 @@ Transport details: `protocol.md` + `NATIVE_CLIENT.md`. Protos: `samples/proto/`.
 | Chat item shape | Status | Notes |
 |---|---|---|
 | `{"type":"text","text"}` | **done** | Default send |
-| `{"type":"image","mime_type","data_base64","filename"}` | **partial** | Composer→stream when dataBase64 present |
-| `{"type":"file","mime_type","data_base64","filename"}` | **partial** | Small non-image files |
+| `{"type":"image","mime_type","data_base64","filename"}` | **done** | Composer reads ≤12MiB → chat.stream items |
+| `{"type":"file","mime_type","data_base64","filename"}` | **done** | Non-image ≤12MiB inline base64 |
 | `{"type":"file_ref","mime_type","path","filename"}` | **missing** | Needs eager fs/media upload; path workspace/user/files/<safe>_<n>_<rand>.ext |
 
 ### 2.2 Stream / subscribe events
@@ -642,8 +642,8 @@ upload as **missing** until a redacted capture exists. Prefer base64 items for B
 
 ## 9. Highest-value remaining gaps
 
-1. **Approval refresh on `needs_approval`** (event-driven; official has no push RPC) — reduce poll-only lag.
-2. **Outbound attachments** with `data_base64` / eventual `file_ref`.
+1. ~~Approval refresh on `needs_approval`~~ **done** (session manager + adapter).
+2. ~~Outbound attachments `data_base64`~~ **done** for image/file ≤12MiB; `file_ref` still missing.
 3. Rich inbound blocks: tool chips, image/file message parts, shopping/maps widgets.
 4. `permissions.*` / HITL settings pane.
 5. Muse `memory.*` + `skills.*` panels (distinct from local BotHub notes).

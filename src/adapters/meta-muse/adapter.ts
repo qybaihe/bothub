@@ -31,22 +31,47 @@ import {
 function mapApproval(raw: Record<string, unknown>): MuseApproval {
   const display = (raw['display'] as Record<string, unknown> | undefined) ?? {}
   const payload = raw['payload'] as Record<string, unknown> | undefined
+  const title = String(
+    display['title'] ??
+      raw['action_description'] ??
+      raw['action_label'] ??
+      raw['title'] ??
+      raw['approval_type'] ??
+      'Pending approval'
+  )
+  const detail =
+    (typeof display['subtitle'] === 'string' && display['subtitle']) ||
+    (typeof raw['approval_phrase'] === 'string' ? raw['approval_phrase'] : undefined) ||
+    undefined
   return {
     id: String(raw['id'] ?? raw['approval_id'] ?? ''),
     status: String(raw['status'] ?? 'pending'),
-    title: String(display['title'] ?? raw['title'] ?? raw['approval_type'] ?? 'Pending approval'),
-    detail: typeof display['subtitle'] === 'string' ? display['subtitle'] : undefined,
-    approvalType: typeof raw['approval_type'] === 'string' ? raw['approval_type'] : typeof payload?.['type'] === 'string' ? String(payload['type']) : undefined,
+    title,
+    detail,
+    approvalType:
+      typeof raw['approval_type'] === 'string'
+        ? raw['approval_type']
+        : typeof payload?.['type'] === 'string'
+          ? String(payload['type'])
+          : typeof raw['host'] === 'string'
+            ? String(raw['host'])
+            : undefined,
     raw
   }
 }
 
 function mapConnector(raw: unknown, index: number): MuseConnector {
   const r = (raw ?? {}) as Record<string, unknown>
+  const state = typeof r['state'] === 'string' ? r['state'].toLowerCase() : ''
+  const connected = Boolean(
+    r['connected'] ??
+      r['is_connected'] ??
+      (r['status'] === 'connected' || state === 'connected' || state === 'active')
+  )
   return {
     id: String(r['id'] ?? r['connector_id'] ?? `connector-${index}`),
     name: String(r['name'] ?? r['title'] ?? r['id'] ?? `Connector ${index + 1}`),
-    connected: Boolean(r['connected'] ?? r['is_connected'] ?? r['status'] === 'connected'),
+    connected,
     description: typeof r['description'] === 'string' ? r['description'] : undefined,
     raw
   }
@@ -346,6 +371,7 @@ function extractText(result: unknown): string {
     if (typeof r[key] === 'string' && (r[key] as string).trim()) return r[key] as string
   }
   if (r['ok'] === true && r['mode'] === 'dom') {
+    if (typeof r['reply'] === 'string' && (r['reply'] as string).trim()) return r['reply'] as string
     return 'Message submitted in the muse.ai page (DOM fallback). Watch the web session for the streaming reply.'
   }
   return ''

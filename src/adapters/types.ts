@@ -139,7 +139,7 @@ export interface PlatformAdapter {
   ensureSession?(accountId: string, botId?: string): Promise<void>
 }
 
-export type AdapterErrorCode = 'not-connected' | 'unknown-account' | 'unsupported' | 'network'
+export type AdapterErrorCode = 'not-connected' | 'unknown-account' | 'unsupported' | 'network' | 'timeout'
 
 export class AdapterError extends Error {
   readonly code: AdapterErrorCode

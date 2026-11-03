@@ -62,6 +62,12 @@ export class MuseSessionManager {
 
   async ensure(botId: string, accountId: string, opts?: { show?: boolean; bounds?: WebViewBounds }): Promise<MuseSessionStatus> {
     let session = this.sessions.get(accountId)
+    // Recreate if the underlying WebContentsView was destroyed externally.
+    if (session && !this.views.getView(session.viewId)) {
+      if (session.pollTimer) clearInterval(session.pollTimer)
+      this.sessions.delete(accountId)
+      session = undefined
+    }
     if (!session) {
       const info = this.views.create({
         botId,
@@ -194,7 +200,97 @@ export class MuseSessionManager {
 
   async rpc(accountId: string, method: string, params?: unknown): Promise<unknown> {
     await this.ensure('muse', accountId)
+    if (method === 'chat.stream') {
+      return this.chatStreamAndCollect(accountId, params)
+    }
     return this.rpcRaw(accountId, method, params)
+  }
+
+  /**
+   * chat.stream is streamMode=subscription: the RPC ack is only
+   * {message_id,session_id}. Poll chat.history for the assistant reply.
+   */
+  private async chatStreamAndCollect(accountId: string, params: unknown): Promise<unknown> {
+    const ack = (await this.rpcRaw(accountId, 'chat.stream', params)) as Record<string, unknown>
+
+    // DOM fallback path already scraped page text.
+    if (ack && ack['ok'] === true && ack['mode'] === 'dom') {
+      const reply = typeof ack['reply'] === 'string' ? (ack['reply'] as string) : ''
+      return { ...ack, text: reply, display_text: reply, reply }
+    }
+
+    const sessionId = typeof ack?.['session_id'] === 'string' ? (ack['session_id'] as string) : ''
+    const messageId = typeof ack?.['message_id'] === 'string' ? (ack['message_id'] as string) : ''
+    if (!sessionId || !messageId) {
+      return ack
+    }
+
+    const reply = await this.waitForAssistantReply(accountId, sessionId, messageId)
+    if (!reply) return ack
+    return { ...ack, text: reply, display_text: reply, reply }
+  }
+
+  private async waitForAssistantReply(
+    accountId: string,
+    sessionId: string,
+    userMessageId: string,
+    timeoutMs = 90_000
+  ): Promise<string> {
+    const started = Date.now()
+    let userAt = 0
+    let best = ''
+
+    while (Date.now() - started < timeoutMs) {
+      let hist: unknown
+      try {
+        hist = await this.rpcRaw(accountId, 'chat.history', { session_id: sessionId, limit: 30 })
+      } catch {
+        await sleep(800)
+        continue
+      }
+      const events = extractChatEvents(hist)
+      if (!userAt) {
+        const userEvt = events.find((e) => e.messageId === userMessageId)
+        if (userEvt) userAt = userEvt.occurredAt
+      }
+      const assistants = events.filter(
+        (e) =>
+          e.eventName === 'message.assistant' &&
+          e.text.trim() &&
+          (userAt ? e.occurredAt > userAt : e.messageId !== userMessageId)
+      )
+      // Newest assistant after the user turn.
+      assistants.sort((a, b) => b.occurredAt - a.occurredAt)
+      const top = assistants[0]
+      if (top) {
+        best = top.text
+        // Prefer a settled reply (ready flag) or stop once we have text and
+        // nothing changed for a couple polls — history is eventual.
+        if (top.ready || best.length > 0) {
+          // Give streaming a moment to finish if not marked ready.
+          if (top.ready) return best
+          await sleep(1200)
+          // one more read
+          try {
+            hist = await this.rpcRaw(accountId, 'chat.history', { session_id: sessionId, limit: 30 })
+            const again = extractChatEvents(hist)
+              .filter(
+                (e) =>
+                  e.eventName === 'message.assistant' &&
+                  e.text.trim() &&
+                  (userAt ? e.occurredAt > userAt : true)
+              )
+              .sort((a, b) => b.occurredAt - a.occurredAt)[0]
+            if (again?.text) return again.text
+          } catch {
+            /* ignore */
+          }
+          return best
+        }
+      }
+      await sleep(800)
+    }
+    return best
   }
 
   private async rpcRaw(accountId: string, method: string, params?: unknown): Promise<unknown> {
@@ -258,6 +354,13 @@ export class MuseSessionManager {
     this.views.destroy(session.viewId)
     this.sessions.delete(accountId)
   }
+
+  /** Tear down the view and wipe the persist partition (full sign-out). */
+  async signOut(accountId: string): Promise<void> {
+    this.destroyAccount(accountId)
+    await this.views.clearPartition(accountId)
+    this.emit({ type: 'login', accountId, signedIn: false })
+  }
 }
 
 function extractChatText(params: unknown): string {
@@ -286,6 +389,39 @@ function extractReplyText(result: unknown): string {
   } catch {
     return ''
   }
+}
+
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+interface ChatEventLite {
+  messageId: string
+  eventName: string
+  text: string
+  occurredAt: number
+  ready: boolean
+}
+
+function extractChatEvents(raw: unknown): ChatEventLite[] {
+  if (!raw || typeof raw !== 'object') return []
+  const obj = raw as Record<string, unknown>
+  const list =
+    (obj['chat_events'] as unknown[]) ||
+    (obj['events'] as unknown[]) ||
+    (Array.isArray(raw) ? (raw as unknown[]) : [])
+  if (!Array.isArray(list)) return []
+  return list.map((item) => {
+    const e = (item ?? {}) as Record<string, unknown>
+    return {
+      messageId: String(e['message_id'] ?? e['id'] ?? ''),
+      eventName: String(e['event_name'] ?? e['type'] ?? ''),
+      text: String(e['display_text'] ?? e['text'] ?? e['content'] ?? ''),
+      occurredAt: Number(e['occurred_at_ms'] ?? e['created_at_ms'] ?? 0) || 0,
+      ready: e['display_text_ready'] === true || e['ready'] === true
+    }
+  })
 }
 
 export function normalizeApprovals(raw: unknown): Array<Record<string, unknown>> {

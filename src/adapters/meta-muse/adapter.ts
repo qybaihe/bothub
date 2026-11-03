@@ -239,7 +239,13 @@ export class MuseAdapter implements PlatformAdapter {
       })) as unknown
 
       const receipt: SendReceipt = { messageId: createId('mm_out'), acceptedAt: Date.now() }
-      const text = extractText(result) || 'Sent via Muse. If no reply appears, open the web session — the page may still be streaming.'
+      const text = extractText(result)
+      if (!text) {
+        throw new AdapterError(
+          'timeout',
+          'Muse accepted the message but no assistant reply arrived in time. Try again or open the web session.'
+        )
+      }
 
       // If main also emits stream events, we may double-post; prefer immediate message for RPC return.
       this.emit({
@@ -367,12 +373,16 @@ function extractText(result: unknown): string {
   if (typeof result === 'string') return result
   if (typeof result !== 'object') return String(result)
   const r = result as Record<string, unknown>
-  for (const key of ['text', 'message', 'content', 'reply']) {
+  for (const key of ['text', 'display_text', 'message', 'content', 'reply']) {
     if (typeof r[key] === 'string' && (r[key] as string).trim()) return r[key] as string
   }
   if (r['ok'] === true && r['mode'] === 'dom') {
     if (typeof r['reply'] === 'string' && (r['reply'] as string).trim()) return r['reply'] as string
     return 'Message submitted in the muse.ai page (DOM fallback). Watch the web session for the streaming reply.'
+  }
+  // Ack-only shape means the session manager could not collect an assistant reply yet.
+  if (typeof r['message_id'] === 'string' && typeof r['session_id'] === 'string') {
+    return ''
   }
   return ''
 }

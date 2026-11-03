@@ -179,8 +179,10 @@ export const MUSE_HOOK_SCRIPT = String.raw`
   let n = 0;
   const timer = setInterval(() => {
     n += 1;
-    if (state.hook === 'sendRequest' || n > 60) clearInterval(timer);
-    else discover();
+    if (state.hook === 'sendRequest') clearInterval(timer);
+    else if (n % 2 === 0) discover();
+    // Keep trying for a long cold-start (VM wake / gateway bootstrap).
+    if (n > 600) clearInterval(timer);
   }, 1000);
 
   return window.__bothubMuse.getStatus();

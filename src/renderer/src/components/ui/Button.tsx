@@ -2,18 +2,20 @@ import type { ButtonHTMLAttributes, Ref } from 'react'
 import { cn } from '@/lib/cn'
 
 const VARIANTS = {
-  primary:
-    'bg-accent-600 text-white shadow-soft hover:bg-accent-700 disabled:bg-accent-300 disabled:shadow-none',
-  secondary:
-    'border border-line-strong bg-surface text-ink shadow-soft hover:bg-surface-hover disabled:text-ink-faint',
-  ghost: 'text-ink-secondary hover:bg-surface-hover hover:text-ink disabled:text-ink-faint',
-  danger: 'text-status-error-ink hover:bg-status-error/10'
+  /** One per surface: send, create, save. */
+  primary: 'bg-accent-600 text-white hover:bg-accent-700 disabled:opacity-35',
+  /** Soft pill on the hover tint — every other action. */
+  secondary: 'bg-hover text-ink hover:bg-active disabled:opacity-35',
+  ghost: 'text-ink-secondary hover:bg-hover hover:text-ink disabled:opacity-35',
+  danger: 'text-status-error hover:bg-status-error/10 disabled:opacity-35',
+  /** Destructive action waiting for a second click. */
+  'danger-confirm': 'bg-status-error/10 text-status-error hover:bg-status-error/15'
 } as const
 
 const SIZES = {
-  sm: 'h-7 gap-1.5 rounded-md px-2.5 text-caption [&_svg]:size-3.5',
-  md: 'h-8 gap-2 rounded-lg px-3 text-ui [&_svg]:size-4',
-  lg: 'h-9 gap-2 rounded-lg px-3.5 text-ui [&_svg]:size-4'
+  sm: 'h-7 gap-1.5 px-3 text-[12px] [&_svg]:size-3.5',
+  md: 'h-9 gap-2 px-4 text-[14px] [&_svg]:size-4',
+  lg: 'h-10 gap-2 px-5 text-[14px] [&_svg]:size-4'
 } as const
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -22,6 +24,7 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   ref?: Ref<HTMLButtonElement>
 }
 
+/** Pill-shaped button; presses on the tap spring. */
 export function Button({
   variant = 'secondary',
   size = 'md',
@@ -33,7 +36,7 @@ export function Button({
     <button
       type={type}
       className={cn(
-        'no-drag inline-flex shrink-0 items-center justify-center font-medium whitespace-nowrap transition-[background-color,color,transform,box-shadow] duration-150 active:scale-[0.98] disabled:pointer-events-none disabled:active:scale-100',
+        'no-drag press inline-flex shrink-0 items-center justify-center rounded-full font-medium whitespace-nowrap disabled:pointer-events-none',
         VARIANTS[variant],
         SIZES[size],
         className

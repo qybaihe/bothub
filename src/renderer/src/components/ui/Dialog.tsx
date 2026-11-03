@@ -9,47 +9,65 @@ interface DialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   title: string
+  /** Screen-reader description; shown only when `showDescription` is set. */
   description?: string
+  showDescription?: boolean
+  /** Rendered left of the title, e.g. a back button. */
+  headerStart?: ReactNode
   children: ReactNode
   footer?: ReactNode
   className?: string
+  /** Keep focus where it is when the dialog opens (the body focuses its own field). */
+  onOpenAutoFocus?: (event: Event) => void
 }
 
-/** Centered modal on a light, blurred scrim. Focus trap and Esc come from Radix. */
-export function Dialog({ open, onOpenChange, title, description, children, footer, className }: DialogProps) {
+/**
+ * Centered modal. Rises on the shape spring and sinks out in .16s; Radix keeps
+ * it mounted until the exit animation ends. Esc, the scrim and the close
+ * button all dismiss it.
+ */
+export function Dialog({
+  open,
+  onOpenChange,
+  title,
+  description,
+  showDescription = false,
+  headerStart,
+  children,
+  footer,
+  className,
+  onOpenAutoFocus
+}: DialogProps) {
   useOverlayLock(open)
   return (
     <RadixDialog.Root open={open} onOpenChange={onOpenChange}>
       <RadixDialog.Portal>
-        <RadixDialog.Overlay className="no-drag fixed inset-0 z-40 animate-fade-in bg-ink/15 backdrop-blur-[2px]" />
+        <RadixDialog.Overlay className="no-drag fixed inset-0 z-40 bg-black/25 data-[state=closed]:animate-scrim-out data-[state=open]:animate-scrim-in" />
         <RadixDialog.Content
+          onOpenAutoFocus={onOpenAutoFocus}
           className={cn(
-            'no-drag fixed top-1/2 left-1/2 z-50 flex max-h-[min(88vh,760px)] w-[min(92vw,580px)] -translate-x-1/2 -translate-y-1/2 flex-col',
-            'animate-pop-in rounded-2xl border border-line bg-surface shadow-pop outline-none',
+            'no-drag fixed top-1/2 left-1/2 z-50 flex max-h-[min(88vh,760px)] w-[min(92vw,560px)] -translate-x-1/2 -translate-y-1/2 flex-col',
+            'rounded-2xl border-[0.5px] border-line-strong bg-main shadow-dialog outline-none',
+            'data-[state=closed]:animate-dialog-sink data-[state=open]:animate-dialog-rise',
             className
           )}
         >
-          <header className="flex items-start gap-3 px-6 pt-5 pb-4">
-            <div className="min-w-0 flex-1">
-              <RadixDialog.Title className="text-base font-semibold tracking-tight">{title}</RadixDialog.Title>
-              {description ? (
-                <RadixDialog.Description className="mt-0.5 text-ui text-ink-muted">{description}</RadixDialog.Description>
-              ) : (
-                <RadixDialog.Description className="sr-only">{title}</RadixDialog.Description>
-              )}
-            </div>
+          <header className="flex h-14 shrink-0 items-center gap-1 px-4">
+            {headerStart}
+            <RadixDialog.Title className="min-w-0 flex-1 truncate px-1 text-[15px] leading-5 font-semibold tracking-tight">
+              {title}
+            </RadixDialog.Title>
             <RadixDialog.Close asChild>
-              <IconButton label="Close" size="sm" className="-mr-2">
+              <IconButton label="Close" size="sm" className="-mr-1">
                 <X />
               </IconButton>
             </RadixDialog.Close>
           </header>
-          <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-5">{children}</div>
-          {footer && (
-            <footer className="flex items-center gap-2 rounded-b-2xl border-t border-line bg-canvas/60 px-6 py-3.5">
-              {footer}
-            </footer>
-          )}
+          <RadixDialog.Description className={showDescription ? 'px-5 pb-3 text-[13px] text-ink-secondary' : 'sr-only'}>
+            {description ?? title}
+          </RadixDialog.Description>
+          <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-5">{children}</div>
+          {footer && <footer className="flex shrink-0 items-center justify-end gap-2 px-5 pb-5">{footer}</footer>}
         </RadixDialog.Content>
       </RadixDialog.Portal>
     </RadixDialog.Root>

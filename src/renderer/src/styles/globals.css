@@ -55,33 +55,95 @@
   --color-status-offline-ink: #6b6b75;
   --color-status-error-ink: #c32f37;
 
-  /* Elevation */
-  --shadow-hairline: 0 0 0 1px rgb(23 23 28 / 0.04);
-  --shadow-soft: 0 1px 2px rgb(23 23 28 / 0.04), 0 1px 1px rgb(23 23 28 / 0.02);
-  --shadow-card: 0 1px 2px rgb(23 23 28 / 0.04), 0 6px 16px -6px rgb(23 23 28 / 0.08);
-  --shadow-pop: 0 16px 40px -12px rgb(23 23 28 / 0.18), 0 4px 12px -4px rgb(23 23 28 / 0.08);
+  /* Elevation — flat cards use a 1px line; floating surfaces a .5px hairline. */
+  --shadow-hairline: 0 0 0 1px rgb(20 20 20 / 0.04);
+  --shadow-soft: 0 1px 2px rgb(0 0 0 / 0.04);
+  --shadow-float: 0 2px 8px -1px rgb(0 0 0 / 0.06), 0 1px 2px rgb(0 0 0 / 0.04);
+  --shadow-card: 0 2px 8px -1px rgb(0 0 0 / 0.05), 0 1px 2px rgb(0 0 0 / 0.03);
+  --shadow-pop: 0 10px 20px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --shadow-toast: 0 8px 28px rgb(0 0 0 / 0.14);
+  --shadow-dialog: 0 24px 80px rgb(0 0 0 / 0.24);
 
-  /* Motion */
-  --animate-fade-in: fade-in 160ms ease-out;
-  --animate-pop-in: pop-in 180ms cubic-bezier(0.16, 1, 0.3, 1);
+  /* Motion — springs sampled into CSS linear() (ω / ζ in comments).
+     Shapes (size, position, scale) move on springs; colors and opacity use
+     short fixed durations: .12s hover, .16s exit, .22s veil. */
+  --ease-spring-shape: linear(0, 0.051, 0.169, 0.315, 0.464, 0.6, 0.716, 0.81, 0.882, 0.935, 0.972, 0.996, 1.01, 1.017, 1.02, 1.019, 1.017, 1.015, 1.012, 1.009, 1.006, 1.004, 1.003, 1.002, 1); /* ω=20 ζ=.78 ≈420ms */
+  --ease-spring-tap: linear(0, 0.054, 0.178, 0.328, 0.478, 0.614, 0.728, 0.819, 0.887, 0.937, 0.971, 0.993, 1.006, 1.012, 1.015, 1.015, 1.013, 1.011, 1.009, 1.007, 1.005, 1.003, 1.002, 1.001, 1); /* ω=30 ζ=.8 ≈290ms */
+  --ease-spring-pop: linear(0, 0.07, 0.239, 0.453, 0.669, 0.858, 1.004, 1.103, 1.156, 1.171, 1.159, 1.13, 1.093, 1.057, 1.024, 0.999, 0.982, 0.973, 0.971, 0.973, 0.978, 0.984, 0.99, 0.996, 1); /* ω=22.4 ζ=.49 ≈430ms */
+  --ease-spring-glide: linear(0, 0.06, 0.188, 0.332, 0.469, 0.587, 0.685, 0.763, 0.824, 0.87, 0.905, 0.931, 0.95, 0.964, 0.974, 0.981, 0.987, 0.991, 0.993, 0.995, 0.997, 0.998, 0.998, 0.999, 1); /* ω=31.6 ζ=1 ≈300ms */
+  --ease-exit: cubic-bezier(0.4, 0, 1, 1);
+
+  --animate-fade-in: fade-in 220ms ease-out;
+  --animate-veil-in: veil-in 220ms ease-out both;
+  --animate-pop-in: pop-drop 290ms var(--ease-spring-tap), veil-in 140ms ease-out;
+  --animate-pop-drop: pop-drop 290ms var(--ease-spring-tap), veil-in 140ms ease-out;
+  --animate-pop-lift: pop-lift 290ms var(--ease-spring-tap), veil-in 140ms ease-out;
+  --animate-pop-out: pop-out 120ms var(--ease-exit) forwards;
+  --animate-dialog-rise: dialog-rise 420ms var(--ease-spring-shape), veil-in 200ms ease-out;
+  --animate-dialog-sink: dialog-sink 160ms var(--ease-exit) forwards;
+  --animate-scrim-in: fade-in 220ms ease-out;
+  --animate-scrim-out: fade-out 160ms ease-in forwards;
+  --animate-step-in: step-in 420ms var(--ease-spring-shape) both, veil-in 220ms ease-out both;
+  --animate-mark-pop: mark-pop 430ms var(--ease-spring-pop) both;
   --animate-typing: typing 1.2s ease-in-out infinite;
+  --animate-shimmer: shimmer 1.6s linear infinite;
 
+  /* Keyframes animate transform/opacity only; positioned elements use the
+     independent translate property, so the two never fight. */
   @keyframes fade-in {
     from {
       opacity: 0;
     }
+  }
+  @keyframes fade-out {
     to {
-      opacity: 1;
+      opacity: 0;
     }
   }
-  @keyframes pop-in {
+  @keyframes veil-in {
     from {
       opacity: 0;
-      transform: translateY(4px) scale(0.98);
+      filter: blur(6px);
     }
+  }
+  @keyframes pop-drop {
+    from {
+      transform: translateY(-4px) scale(0.96);
+    }
+  }
+  @keyframes pop-lift {
+    from {
+      transform: translateY(4px) scale(0.96);
+    }
+  }
+  @keyframes pop-out {
     to {
-      opacity: 1;
-      transform: translateY(0) scale(1);
+      opacity: 0;
+      transform: scale(0.97);
+      filter: blur(2px);
+    }
+  }
+  @keyframes dialog-rise {
+    from {
+      transform: translateY(12px) scale(0.96);
+    }
+  }
+  @keyframes dialog-sink {
+    to {
+      opacity: 0;
+      transform: translateY(6px) scale(0.975);
+      filter: blur(3px);
+    }
+  }
+  @keyframes step-in {
+    from {
+      transform: translateY(10px) scale(0.97);
+    }
+  }
+  @keyframes mark-pop {
+    from {
+      transform: scale(0.72);
+      opacity: 0.4;
     }
   }
   @keyframes typing {
@@ -94,6 +156,14 @@
     30% {
       opacity: 1;
       transform: translateY(-2px);
+    }
+  }
+  @keyframes shimmer {
+    from {
+      background-position: 150% 0;
+    }
+    to {
+      background-position: -50% 0;
     }
   }
 }
@@ -116,8 +186,14 @@
   }
 
   :focus-visible {
-    outline: 2px solid var(--color-accent-400);
+    outline: 2px solid var(--color-accent-600);
     outline-offset: 2px;
+  }
+
+  /* Text fields show their own focus treatment. */
+  input:focus-visible,
+  textarea:focus-visible {
+    outline: none;
   }
 
   button {
@@ -129,6 +205,52 @@
     scrollbar-width: thin;
     scrollbar-color: var(--color-line-strong) transparent;
   }
+}
+
+/*
+ * Interaction states shared by every control: hover tints in .12s, a press
+ * scales on the tap spring (.96 for text buttons, .9 for icon buttons), and
+ * disabled controls neither tint nor press.
+ */
+@utility press {
+  transition:
+    scale 290ms var(--ease-spring-tap),
+    background-color 0.12s ease,
+    color 0.12s ease,
+    border-color 0.12s ease,
+    box-shadow 0.12s ease,
+    opacity 0.12s ease;
+  &:active:not(:disabled):not([aria-disabled='true']) {
+    scale: 0.96;
+  }
+}
+
+@utility press-icon {
+  transition:
+    scale 290ms var(--ease-spring-tap),
+    background-color 0.12s ease,
+    color 0.12s ease,
+    opacity 0.12s ease;
+  &:active:not(:disabled):not([aria-disabled='true']) {
+    scale: 0.9;
+  }
+}
+
+/* Text that is being worked on: a soft light sweeps across it. */
+@utility shimmer-text {
+  background: linear-gradient(
+      90deg,
+      var(--color-ink-muted) 0%,
+      var(--color-ink-muted) 40%,
+      var(--color-ink) 50%,
+      var(--color-ink-muted) 60%,
+      var(--color-ink-muted) 100%
+    )
+    0 0 / 250% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: var(--animate-shimmer);
 }
 
 /* Electron window chrome helpers (no-ops in a regular browser). */

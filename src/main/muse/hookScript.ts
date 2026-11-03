@@ -1,12 +1,16 @@
 /**
  * Injected into the muse.ai page (main world) to locate Hatch `sendRequest`
  * and expose a small bridge on window.__bothubMuse.
+ *
+ * Discovery order:
+ * 1. Well-known globals (window.sendRequest / hatch / __HATCH__)
+ * 2. React fiber props (Hatch puts sendRequest on context/providers)
+ * 3. Light webpack/global walk
+ * 4. DOM composer fallback for chat.stream only
  */
 export const MUSE_HOOK_SCRIPT = String.raw`
 (() => {
-  if (window.__bothubMuse && window.__bothubMuse.__installed) return window.__bothubMuse.getStatus();
-
-  const state = {
+  const state = (window.__bothubMuse && window.__bothubMuse.__state) || {
     ready: false,
     hook: 'none',
     sendRequest: null,
@@ -20,11 +24,46 @@ export const MUSE_HOOK_SCRIPT = String.raw`
     state.ready = true;
     state.hook = 'sendRequest';
     state.path = path;
+    state.lastError = null;
     return true;
   }
 
+  function scanReactFiber() {
+    try {
+      const rootEl = document.querySelector('#__next') || document.body;
+      if (!rootEl) return false;
+      const fiberKey = Object.keys(rootEl).find(function (k) {
+        return k.indexOf('__reactFiber') === 0 || k.indexOf('__reactContainer') === 0;
+      });
+      if (!fiberKey) return false;
+      const queue = [rootEl[fiberKey]];
+      const seen = typeof WeakSet !== 'undefined' ? new WeakSet() : null;
+      let checked = 0;
+      while (queue.length && checked < 25000) {
+        const fiber = queue.shift();
+        if (!fiber) continue;
+        if (seen) {
+          if (seen.has(fiber)) continue;
+          seen.add(fiber);
+        }
+        checked += 1;
+        const props = fiber.memoizedProps;
+        if (props && typeof props === 'object') {
+          if (typeof props.sendRequest === 'function' && tryCandidate(props.sendRequest, 'reactFiber.props.sendRequest')) return true;
+          if (props.value && typeof props.value.sendRequest === 'function' && tryCandidate(props.value.sendRequest, 'reactFiber.props.value.sendRequest')) return true;
+          if (props.gateway && typeof props.gateway.sendRequest === 'function' && tryCandidate(props.gateway.sendRequest, 'reactFiber.props.gateway.sendRequest')) return true;
+        }
+        if (fiber.child) queue.push(fiber.child);
+        if (fiber.sibling) queue.push(fiber.sibling);
+      }
+    } catch (err) {
+      state.lastError = String(err && err.message ? err.message : err);
+    }
+    return false;
+  }
+
   function walk(root, path, depth, seen) {
-    if (!root || depth > 5) return false;
+    if (!root || depth > 4) return false;
     if (typeof root !== 'object' && typeof root !== 'function') return false;
     if (seen.has(root)) return false;
     seen.add(root);
@@ -57,6 +96,7 @@ export const MUSE_HOOK_SCRIPT = String.raw`
   }
 
   function scanDomAutomation() {
+    if (state.hook === 'sendRequest' && state.sendRequest) return true;
     state.hook = 'dom';
     state.ready = true;
     state.sendRequest = null;
@@ -68,6 +108,7 @@ export const MUSE_HOOK_SCRIPT = String.raw`
       if (typeof window.sendRequest === 'function' && tryCandidate(window.sendRequest, 'window.sendRequest')) return;
       if (window.hatch && tryCandidate(window.hatch.sendRequest, 'window.hatch.sendRequest')) return;
       if (window.__HATCH__ && tryCandidate(window.__HATCH__.sendRequest, 'window.__HATCH__.sendRequest')) return;
+      if (scanReactFiber()) return;
       if (scanWebpack()) return;
       scanDomAutomation();
     } catch (err) {
@@ -78,12 +119,13 @@ export const MUSE_HOOK_SCRIPT = String.raw`
 
   window.__bothubMuse = {
     __installed: true,
+    __state: state,
     getStatus() {
       return { ready: state.ready, hook: state.hook, path: state.path, lastError: state.lastError };
     },
     rediscover() { discover(); return this.getStatus(); },
     async sendRequest(method, params) {
-      if (!state.sendRequest) discover();
+      if (!state.sendRequest || state.hook !== 'sendRequest') discover();
       if (!state.sendRequest) {
         const err = new Error('sendRequest not found; use DOM fallback');
         err.code = 'NO_SEND_REQUEST';
@@ -114,18 +156,30 @@ export const MUSE_HOOK_SCRIPT = String.raw`
       const btn =
         document.querySelector('button[data-hatch-send]') ||
         document.querySelector('button[aria-label*="Send" i]') ||
-        buttons.find((b) => /send/i.test((b.getAttribute('aria-label') || '') + (b.textContent || '')));
+        buttons.find((b) => /send|发送/i.test((b.getAttribute('aria-label') || '') + (b.textContent || '')));
       if (btn) btn.click();
       else el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true }));
-      return { ok: true, mode: 'dom' };
+      const before = (document.body && document.body.innerText) ? document.body.innerText.length : 0;
+      let reply = '';
+      for (let i = 0; i < 40; i++) {
+        await new Promise((r) => setTimeout(r, 500));
+        const pageText = (document.body && document.body.innerText) ? document.body.innerText : '';
+        if (pageText.length > before + 20) {
+          reply = pageText.slice(-1200);
+          break;
+        }
+      }
+      return { ok: true, mode: 'dom', reply };
     }
   };
 
+  // Always rediscover: gateway may come up after first paint, and an early
+  // "dom" result must not permanently block sendRequest.
   discover();
   let n = 0;
   const timer = setInterval(() => {
     n += 1;
-    if (state.hook === 'sendRequest' || n > 40) clearInterval(timer);
+    if (state.hook === 'sendRequest' || n > 60) clearInterval(timer);
     else discover();
   }, 1000);
 
@@ -136,6 +190,7 @@ export const MUSE_HOOK_SCRIPT = String.raw`
 export function museRpcScript(method: string, paramsJson: string): string {
   return `(async () => {
   if (!window.__bothubMuse) throw new Error('Muse hook not installed');
+  if (window.__bothubMuse.rediscover) window.__bothubMuse.rediscover();
   return await window.__bothubMuse.sendRequest(${JSON.stringify(method)}, ${paramsJson});
 })()`
 }

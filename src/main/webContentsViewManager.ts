@@ -92,7 +92,14 @@ export class WebContentsViewManager {
 
     const partition = partitionForAccount(request.accountId)
     const view = new WebContentsView({
-      webPreferences: { partition, sandbox: true, contextIsolation: true, nodeIntegration: false }
+      webPreferences: {
+        partition,
+        sandbox: true,
+        contextIsolation: true,
+        nodeIntegration: false,
+        // Detached views must keep timers/rAF alive (Muse streams SSR via rAF).
+        backgroundThrottling: false
+      }
     })
     view.setBackgroundColor('#ffffff')
 

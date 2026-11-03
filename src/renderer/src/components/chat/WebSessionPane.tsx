@@ -1,6 +1,6 @@
 import { useRef } from 'react'
 import { getPlatform } from '@adapters/platforms'
-import { AlertCircle, Globe, Loader2 } from 'lucide-react'
+import { AlertCircle, Globe } from 'lucide-react'
 import { useWebSessionView } from '@/hooks/useWebSessionView'
 import type { Bot, BotAccount } from '@/types'
 
@@ -25,25 +25,17 @@ export function WebSessionPane({ bot, account }: WebSessionPaneProps) {
   })
 
   return (
-    <div ref={containerRef} className="relative flex min-h-0 flex-1 items-center justify-center bg-canvas/50">
-      <div className="flex max-w-sm flex-col items-center gap-2 px-6 text-center text-ui text-ink-muted">
+    <div ref={containerRef} className="relative flex min-h-0 flex-1 items-center justify-center">
+      <div className="flex max-w-sm animate-veil-in flex-col items-center gap-2 px-6 text-center text-[13px] text-ink-muted">
         {state.status === 'unsupported' && (
           <>
-            <Globe className="size-6 text-ink-faint" aria-hidden />
-            <p className="font-medium text-ink-secondary">Web sessions need the desktop app</p>
-            <p>
-              Embedded {platform.name} sessions use Electron&apos;s WebContentsView. Run <code>npm run dev</code> to
-              try them.
-            </p>
+            <Globe className="size-5 text-ink-faint" aria-hidden />
+            <p>Web sessions open in the desktop app</p>
           </>
         )}
-        {state.status === 'loading' && (
-          <p className="flex items-center gap-2">
-            <Loader2 className="size-4 animate-spin" aria-hidden /> Opening web session…
-          </p>
-        )}
+        {state.status === 'loading' && <p className="shimmer-text">Opening {platform.name}…</p>}
         {state.status === 'error' && (
-          <p className="flex items-center gap-2 text-status-error-ink">
+          <p className="flex items-center gap-2 text-status-error">
             <AlertCircle className="size-4" aria-hidden /> {state.message}
           </p>
         )}

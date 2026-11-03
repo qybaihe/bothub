@@ -1,5 +1,6 @@
 import { Fragment, useLayoutEffect, useRef } from 'react'
 import { BotAvatar } from '@/components/ui/Avatar'
+import { cn } from '@/lib/cn'
 import { formatDayLabel, isSameDay } from '@/lib/format'
 import type { Bot, BotAccount, ChatMessage } from '@/types'
 import { MessageBubble } from './MessageBubble'
@@ -58,7 +59,7 @@ export function MessageList({ bot, messages, accounts, typing, onRetry }: Messag
       }}
       className="min-h-0 flex-1 overflow-y-auto"
     >
-      <ol className="mx-auto flex max-w-[960px] flex-col px-8 py-6" aria-label={`Conversation with ${bot.name}`}>
+      <ol className="mx-auto flex max-w-[860px] flex-col px-8 py-6" aria-label={`Conversation with ${bot.name}`}>
         {messages.map((message, index) => {
           const prev = messages[index - 1]
           const next = messages[index + 1]
@@ -74,11 +75,11 @@ export function MessageList({ bot, messages, accounts, typing, onRetry }: Messag
                   {formatDayLabel(message.createdAt)}
                 </li>
               )}
-              <li className={isFirstInRun && !newDay ? 'mt-4' : 'mt-1'}>
+              <li className={cn('group/msg', isFirstInRun && !newDay ? 'mt-3' : 'mt-1')}>
                 <div className="flex items-start gap-2.5">
                   {isBot && (
                     <span className="w-7 shrink-0">
-                      {isFirstInRun && <BotAvatar emoji={bot.emoji} seed={bot.id} platformId={bot.platformId} size="sm" />}
+                      {isFirstInRun && <BotAvatar emoji={bot.emoji} seed={bot.id} avatar={bot.avatar} platformId={bot.platformId} size="sm" />}
                     </span>
                   )}
                   <div className="min-w-0 flex-1">

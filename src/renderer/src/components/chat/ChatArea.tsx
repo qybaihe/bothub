@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from 'react'
 import type { AttachmentMeta } from '@adapters/types'
-import { Plus, Sparkles } from 'lucide-react'
+import { Plus } from 'lucide-react'
 import { BotAvatar } from '@/components/ui/Avatar'
 import { Button } from '@/components/ui/Button'
 import { getBotAccounts } from '@/lib/selectors'
@@ -34,35 +34,21 @@ function ConversationIntro({
   onMuseLogin?: () => void
 }) {
   return (
-    <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 px-8 text-center">
-      <BotAvatar emoji={bot.emoji} seed={bot.id} platformId={bot.platformId} size="lg" />
-      <div>
-        <h2 className="text-base font-semibold tracking-tight">{bot.name}</h2>
-        {bot.description ? (
-          <p className="mt-1 max-w-sm text-[13px] text-ink-muted">{bot.description}</p>
-        ) : null}
+    <div className="flex min-h-0 flex-1 animate-veil-in flex-col items-center justify-center gap-5 px-8 pb-6 text-center">
+      <div className="flex flex-col items-center gap-3">
+        <BotAvatar emoji={bot.emoji} seed={bot.id} avatar={bot.avatar} platformId={bot.platformId} size="lg" />
+        <h2 className="text-[17px] leading-6 font-medium tracking-tight text-ink">{bot.name}</h2>
       </div>
       {needsMuseLogin && onMuseLogin ? (
-        <button
-          type="button"
-          onClick={onMuseLogin}
-          className="inline-flex h-10 items-center gap-2 rounded-full bg-accent-600 px-5 text-[13px] font-semibold text-white shadow-soft transition-transform hover:bg-accent-700 active:scale-[0.98]"
-        >
+        <Button variant="primary" size="lg" onClick={onMuseLogin}>
           使用 Muse 登录
-        </button>
+        </Button>
       ) : (
-        <div className="flex flex-wrap justify-center gap-2">
+        <div className="flex max-w-xl flex-wrap justify-center gap-2">
           {STARTERS.map((starter) => (
-            <button
-              key={starter}
-              type="button"
-              disabled={!canSend}
-              onClick={() => onPick(starter)}
-              className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface px-3 py-1.5 text-[13px] text-ink-secondary shadow-soft transition-colors hover:border-accent-200 hover:bg-accent-50 hover:text-accent-700 disabled:opacity-50"
-            >
-              <Sparkles className="size-3.5 text-accent-500" aria-hidden />
+            <Button key={starter} size="sm" disabled={!canSend} onClick={() => onPick(starter)} className="h-8 text-[13px] font-normal">
               {starter}
-            </button>
+            </Button>
           ))}
         </div>
       )}
@@ -122,6 +108,13 @@ export function ChatArea() {
     )
   }
 
+  const needsMuseLogin =
+    bot.platformId === 'meta-muse' &&
+    !!activeAccount &&
+    activeAccount.status !== 'online' &&
+    activeAccount.status !== 'busy' &&
+    activeAccount.status !== 'attention'
+
   const canSend =
     activeAccount?.status === 'online' ||
     activeAccount?.status === 'busy' ||
@@ -138,20 +131,22 @@ export function ChatArea() {
             <ConversationIntro
               bot={bot}
               canSend={canSend}
-              needsMuseLogin={
-                bot.platformId === 'meta-muse' &&
-                !!activeAccount &&
-                activeAccount.status !== 'online' &&
-                activeAccount.status !== 'busy' &&
-                activeAccount.status !== 'attention'
-              }
+              needsMuseLogin={needsMuseLogin}
               onPick={(text) => onSend(text)}
               onMuseLogin={activeAccount ? () => onMuseLogin(activeAccount.id) : undefined}
             />
           ) : (
             <MessageList bot={bot} messages={messages} accounts={accounts} typing={typing} onRetry={onRetry} />
           )}
-          <Composer key={bot.id} bot={bot} account={activeAccount} onSend={onSend} onConnect={onConnect} onMuseLogin={onMuseLogin} />
+          <Composer
+            key={bot.id}
+            bot={bot}
+            account={activeAccount}
+            onSend={onSend}
+            onConnect={onConnect}
+            onMuseLogin={onMuseLogin}
+            hideNotice={needsMuseLogin && messages.length === 0 && !typing}
+          />
         </>
       )}
     </div>

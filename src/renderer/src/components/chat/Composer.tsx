@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type DragEvent, type KeyboardEvent } from 'react'
 import type { AttachmentMeta } from '@adapters/types'
 import { createId } from '@shared/id'
-import { ArrowUp, FileText, Loader2, LogIn, Paperclip, PlugZap, X } from 'lucide-react'
+import { ArrowUp, FileText, Loader2, LogIn, Plus, PlugZap, X } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { IconButton } from '@/components/ui/IconButton'
 import { cn } from '@/lib/cn'
@@ -14,6 +14,8 @@ interface ComposerProps {
   onSend: (text: string, attachments: AttachmentMeta[]) => void
   onConnect: (accountId: string) => void
   onMuseLogin?: (accountId: string) => void
+  /** The empty conversation already shows its own sign-in action. */
+  hideNotice?: boolean
 }
 
 const MAX_HEIGHT_PX = 200
@@ -41,10 +43,8 @@ function ConnectionNotice({
   return (
     <div
       className={cn(
-        'mb-2 flex flex-wrap items-center gap-2 rounded-xl border px-3 py-2.5',
-        isError
-          ? 'border-status-error/25 bg-status-error/5 text-status-error-ink'
-          : 'border-line bg-canvas text-ink'
+        'mb-2 flex animate-step-in flex-wrap items-center gap-2 rounded-xl border py-1.5 pr-1.5 pl-3',
+        isError ? 'border-status-error/20 bg-status-error/5 text-status-error' : 'border-line bg-surface text-ink'
       )}
       role="status"
     >
@@ -53,7 +53,7 @@ function ConnectionNotice({
       ) : (
         <PlugZap className="size-4 shrink-0 text-ink-muted" aria-hidden />
       )}
-      <span className="min-w-0 flex-1 text-[13px] font-medium">
+      <span className="min-w-0 flex-1 text-[13px]">
         {isError
           ? (account.statusDetail ?? '连接出错')
           : isMuse
@@ -80,7 +80,7 @@ function ConnectionNotice({
   )
 }
 
-export function Composer({ bot, account, onSend, onConnect, onMuseLogin }: ComposerProps) {
+export function Composer({ bot, account, onSend, onConnect, onMuseLogin, hideNotice = false }: ComposerProps) {
   const [text, setText] = useState('')
   const [attachments, setAttachments] = useState<AttachmentMeta[]>([])
   const [dragging, setDragging] = useState(false)
@@ -88,6 +88,8 @@ export function Composer({ bot, account, onSend, onConnect, onMuseLogin }: Compo
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const connected = account?.status === 'online' || account?.status === 'busy'
+  const [multiline, setMultiline] = useState(false)
+  const expanded = multiline || attachments.length > 0
   const hasContent = text.trim().length > 0 || attachments.length > 0
   const canSend = connected && hasContent
 
@@ -103,6 +105,7 @@ export function Composer({ bot, account, onSend, onConnect, onMuseLogin }: Compo
     if (!el) return
     el.style.height = 'auto'
     el.style.height = `${Math.min(el.scrollHeight, MAX_HEIGHT_PX)}px`
+    setMultiline(el.scrollHeight > 40)
   }
 
   const submit = () => {
@@ -134,8 +137,8 @@ export function Composer({ bot, account, onSend, onConnect, onMuseLogin }: Compo
 
   return (
     <div className="shrink-0 px-6 pt-2 pb-5">
-      <div className="mx-auto max-w-[960px] px-2">
-        {account && !connected && (
+      <div className="mx-auto max-w-[860px] px-2">
+        {account && !connected && !hideNotice && (
           <ConnectionNotice
             account={account}
             onConnect={() => onConnect(account.id)}
@@ -153,26 +156,27 @@ export function Composer({ bot, account, onSend, onConnect, onMuseLogin }: Compo
           onDragLeave={() => setDragging(false)}
           onDrop={onDrop}
           className={cn(
-            'rounded-[18px] border border-line-strong bg-surface shadow-card transition-[border-color,box-shadow]',
-            'focus-within:border-ink/25',
-            dragging && 'border-accent-400 ring-4 ring-accent-100'
+            'border border-line-strong bg-surface p-[7px] shadow-card transition-[border-color,box-shadow,border-radius] duration-200',
+            expanded ? 'rounded-[18px]' : 'rounded-[22px]',
+            'focus-within:border-ink/20',
+            dragging && 'border-accent-600 ring-4 ring-accent-100'
           )}
         >
           {attachments.length > 0 && (
-            <ul className="flex flex-wrap gap-1.5 px-3 pt-3" aria-label="Attachments">
+            <ul className="flex flex-wrap gap-1.5 px-1 pt-0.5 pb-1.5" aria-label="Attachments">
               {attachments.map((file) => (
                 <li
                   key={file.id}
-                  className="flex items-center gap-2 rounded-lg border border-line bg-canvas py-1 pr-1 pl-2 text-caption"
+                  className="flex animate-mark-pop items-center gap-2 rounded-lg bg-hover py-1 pr-1 pl-2 text-[12px]"
                 >
-                  <FileText className="size-3.5 text-accent-600" aria-hidden />
-                  <span className="max-w-40 truncate font-medium text-ink">{file.name}</span>
-                  <span className="text-ink-muted">{formatBytes(file.size)}</span>
+                  <FileText className="size-3.5 text-ink-secondary" aria-hidden />
+                  <span className="max-w-40 truncate text-ink">{file.name}</span>
+                  <span className="text-ink-muted tabular-nums">{formatBytes(file.size)}</span>
                   <button
                     type="button"
                     aria-label={`Remove ${file.name}`}
                     onClick={() => setAttachments((current) => current.filter((f) => f.id !== file.id))}
-                    className="grid size-5 place-items-center rounded-md text-ink-muted hover:bg-surface-hover hover:text-ink"
+                    className="press-icon grid size-5 place-items-center rounded-md text-ink-muted hover:bg-active hover:text-ink"
                   >
                     <X className="size-3" />
                   </button>
@@ -181,27 +185,7 @@ export function Composer({ bot, account, onSend, onConnect, onMuseLogin }: Compo
             </ul>
           )}
 
-          <textarea
-            ref={textareaRef}
-            value={text}
-            rows={1}
-            onChange={(event) => {
-              setText(event.target.value)
-              resize()
-            }}
-            onKeyDown={onKeyDown}
-            onPaste={(event) => {
-              if (event.clipboardData.files.length > 0) {
-                event.preventDefault()
-                addFiles(event.clipboardData.files)
-              }
-            }}
-            placeholder={`Message ${bot.name}…`}
-            aria-label={`Message ${bot.name}`}
-            className="block max-h-[200px] min-h-11 w-full resize-none bg-transparent px-4 pt-3 pb-1 text-[13.5px] leading-[1.55] text-ink outline-none placeholder:text-ink-muted"
-          />
-
-          <div className="flex items-center gap-2 px-2.5 pb-2.5">
+          <div className="flex items-end gap-1">
             <input
               ref={fileInputRef}
               type="file"
@@ -213,27 +197,36 @@ export function Composer({ bot, account, onSend, onConnect, onMuseLogin }: Compo
               }}
             />
             <IconButton label="Attach files" onClick={() => fileInputRef.current?.click()}>
-              <Paperclip />
+              <Plus />
             </IconButton>
-            {account && (
-              <span className="truncate text-caption text-ink-muted">
-                as <span className="font-medium text-ink-secondary">{account.displayName}</span>
-              </span>
-            )}
-            <span className="ml-auto hidden text-caption text-ink-faint sm:inline">
-              Enter to send · Shift + Enter for a new line
-            </span>
+            <textarea
+              ref={textareaRef}
+              value={text}
+              rows={1}
+              onChange={(event) => {
+                setText(event.target.value)
+                resize()
+              }}
+              onKeyDown={onKeyDown}
+              onPaste={(event) => {
+                if (event.clipboardData.files.length > 0) {
+                  event.preventDefault()
+                  addFiles(event.clipboardData.files)
+                }
+              }}
+              placeholder={`Message ${bot.name}`}
+              aria-label={`Message ${bot.name}`}
+              className="block max-h-[200px] min-h-8 flex-1 resize-none bg-transparent px-1 py-[5px] text-[14px] leading-[22px] text-ink outline-none placeholder:text-ink-muted"
+            />
             <button
               type="button"
               onClick={submit}
               disabled={!canSend}
               aria-label="Send message"
-              title="Send"
+              title="Send (Enter)"
               className={cn(
-                'grid size-8 shrink-0 place-items-center rounded-full transition-colors',
-                canSend
-                  ? 'bg-accent-600 text-white shadow-soft hover:bg-accent-700'
-                  : 'bg-sunken text-ink-faint'
+                'press-icon grid size-8 shrink-0 place-items-center rounded-full',
+                canSend ? 'bg-accent-600 text-white hover:bg-accent-700' : 'bg-hover text-ink-faint'
               )}
             >
               <ArrowUp className="size-4" strokeWidth={2.25} />

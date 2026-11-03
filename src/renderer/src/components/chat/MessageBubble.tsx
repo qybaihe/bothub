@@ -80,7 +80,7 @@ export const MessageBubble = memo(function MessageBubble({
       {message.text && (
         <div
           className={cn(
-            'max-w-[78%] rounded-[12px] px-3.5 py-2.5 text-[14px] leading-[1.6]',
+            'max-w-[78%] rounded-[18px] px-3.5 py-2 text-[14px] leading-6',
             mine ? 'bg-bubble-user text-white whitespace-pre-wrap break-words' : 'bg-bubble text-ink',
             message.delivery === 'sending' && 'opacity-70',
             message.delivery === 'failed' && 'bg-status-error/10 text-ink ring-1 ring-status-error/30'
@@ -91,8 +91,16 @@ export const MessageBubble = memo(function MessageBubble({
       )}
 
       {(isLastInRun || message.delivery === 'failed') && (
-        <div className="mt-1 flex items-center gap-1.5 px-1 text-caption text-ink-muted">
-          {accountLabel && <span className="font-medium text-ink-secondary">{accountLabel}</span>}
+        <div
+          className={cn(
+            'mt-1 flex h-4 items-center gap-1.5 px-2 text-[11px] text-ink-muted transition-opacity duration-150',
+            // Time and delivery stay out of the way until the message is hovered.
+            message.delivery === 'failed' || message.delivery === 'sending'
+              ? 'opacity-100'
+              : 'opacity-0 group-hover/msg:opacity-100 group-focus-within/msg:opacity-100'
+          )}
+        >
+          {accountLabel && <span className="text-ink-secondary">{accountLabel}</span>}
           {accountLabel && <span aria-hidden>·</span>}
           <time dateTime={new Date(message.createdAt).toISOString()} className="tabular-nums">
             {formatClock(message.createdAt)}

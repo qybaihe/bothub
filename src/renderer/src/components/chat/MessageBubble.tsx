@@ -159,7 +159,7 @@ export const MessageBubble = memo(function MessageBubble({
         <div
           className={cn(
             'max-w-[78%] rounded-[18px] px-3.5 py-2 text-[14px] leading-6',
-            mine ? 'bg-bubble-user text-white whitespace-pre-wrap break-words' : 'bg-bubble text-ink',
+            mine ? 'bg-bubble-user text-canvas whitespace-pre-wrap break-words' : 'bg-bubble text-ink',
             message.delivery === 'sending' && 'opacity-70',
             message.delivery === 'failed' && 'bg-status-error/10 text-ink ring-1 ring-status-error/30'
           )}

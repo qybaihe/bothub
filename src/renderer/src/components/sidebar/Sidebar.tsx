@@ -1,7 +1,9 @@
 import { useEffect, useState, type KeyboardEvent } from 'react'
-import { Plus, RefreshCw, Search } from 'lucide-react'
+import { Check, Plus, RefreshCw, Search } from 'lucide-react'
 import { IconButton } from '@/components/ui/IconButton'
-import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from '@/components/ui/Menu'
+import { Menu, MenuContent, MenuItem, MenuLabel, MenuSeparator, MenuTrigger } from '@/components/ui/Menu'
+import { useT } from '@/lib/i18n'
+import { usePrefsStore, type Locale, type ThemePref } from '@/store/prefsStore'
 import { getBridge, runtimePlatform } from '@/lib/bridge'
 import { cn } from '@/lib/cn'
 import { shortcutLabel } from '@/lib/shortcuts'
@@ -15,7 +17,7 @@ interface SidebarProps {
 function BrandMark() {
   return (
     <span className="grid size-6 place-items-center rounded-[7px] bg-ink" aria-hidden>
-      <svg viewBox="0 0 16 16" className="size-3.5 text-white" fill="none">
+      <svg viewBox="0 0 16 16" className="size-3.5 text-canvas" fill="none">
         <rect x="2.5" y="4" width="11" height="8.5" rx="3" stroke="currentColor" strokeWidth="1.6" />
         <circle cx="6.2" cy="8.25" r="1" fill="currentColor" />
         <circle cx="9.8" cy="8.25" r="1" fill="currentColor" />
@@ -30,6 +32,20 @@ function BrandMenu() {
   const [version, setVersion] = useState('')
   const [checking, setChecking] = useState(false)
   const updates = getBridge()?.updates
+  const t = useT()
+  const theme = usePrefsStore((s) => s.theme)
+  const setTheme = usePrefsStore((s) => s.setTheme)
+  const locale = usePrefsStore((s) => s.locale)
+  const setLocale = usePrefsStore((s) => s.setLocale)
+  const THEMES: ReadonlyArray<[ThemePref, string]> = [
+    ['system', 'Match system'],
+    ['light', 'Light'],
+    ['dark', 'Dark']
+  ]
+  const LOCALES: ReadonlyArray<[Locale, string]> = [
+    ['zh', '简体中文'],
+    ['en', 'English']
+  ]
 
   useEffect(() => {
     if (!updates) return
@@ -46,7 +62,23 @@ function BrandMenu() {
         <BrandMark />
         <span className="truncate text-[15px] font-semibold tracking-tight text-ink">BotHub</span>
       </MenuTrigger>
-      <MenuContent align="start">
+      <MenuContent align="start" className="min-w-48">
+        <MenuLabel>{t('Appearance')}</MenuLabel>
+        {THEMES.map(([id, label]) => (
+          <MenuItem key={id} onSelect={() => setTheme(id)}>
+            <Check aria-hidden className={cn(theme !== id && 'invisible')} />
+            {t(label)}
+          </MenuItem>
+        ))}
+        <MenuSeparator />
+        <MenuLabel>{t('Language')}</MenuLabel>
+        {LOCALES.map(([id, label]) => (
+          <MenuItem key={id} onSelect={() => setLocale(id)}>
+            <Check aria-hidden className={cn(locale !== id && 'invisible')} />
+            {label}
+          </MenuItem>
+        ))}
+        <MenuSeparator />
         <MenuItem
           disabled={checking || !updates}
           onSelect={() => {
@@ -55,7 +87,7 @@ function BrandMenu() {
           }}
         >
           <RefreshCw className={cn(checking && 'animate-spin')} aria-hidden />
-          Check for updates
+          {t('Check for updates')}
         </MenuItem>
         {version ? (
           <>

@@ -6,12 +6,15 @@ import { initials } from '@/lib/format'
 import { StatusDot } from './Status'
 
 /** Soft tints for bot tiles; content colors, not brand colors. */
+const TINTS_DARK = ['#2c2a45', '#21352b', '#3a2f20', '#22303f', '#3a2730', '#2b2b30', '#213536']
 const TINTS = ['#f0efff', '#eaf5ef', '#fdf2e4', '#ebf2fb', '#fbedf1', '#f1f1f4', '#eef6f6']
 
 function tintFor(seed: string): string {
   let hash = 0
   for (let i = 0; i < seed.length; i++) hash = (hash * 33 + seed.charCodeAt(i)) >>> 0
-  return TINTS[hash % TINTS.length]!
+  const dark = typeof document !== "undefined" && document.documentElement.dataset.theme === "dark"
+  const list = dark ? TINTS_DARK : TINTS
+  return list[hash % list.length]!
 }
 
 const BOT_SIZES = {

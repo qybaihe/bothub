@@ -9,6 +9,7 @@ import { UpdateBanner } from '@/components/update/UpdateBanner'
 import { useGlobalShortcuts } from '@/lib/shortcuts'
 import { startAdapterBridge } from '@/services/adapterBridge'
 import { useBotStore } from '@/store/botStore'
+import { startPrefsSync } from '@/store/prefsStore'
 
 export default function App() {
   // Details only make sense next to a selected bot.
@@ -27,6 +28,7 @@ export default function App() {
     }
     return stop
   }, [])
+  useEffect(() => startPrefsSync(), [])
   useGlobalShortcuts()
 
   // Test harness for CDP/E2E scripts (dev, or ?e2e=1 / localStorage BOTHUB_E2E).

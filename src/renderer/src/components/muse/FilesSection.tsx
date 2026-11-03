@@ -151,7 +151,7 @@ export function FilesSection({ accountId }: { accountId: string }) {
               onClick={() => setFilter(id)}
               className={cn(
                 'press h-6 rounded-full px-2.5 text-[11px] font-medium transition-colors',
-                filter === id ? 'bg-ink text-white' : 'bg-hover text-ink-secondary hover:text-ink'
+                filter === id ? 'bg-ink text-canvas' : 'bg-hover text-ink-secondary hover:text-ink'
               )}
             >
               {label}

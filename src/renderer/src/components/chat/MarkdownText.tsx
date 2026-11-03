@@ -23,7 +23,7 @@ function renderInline(text: string, keyPrefix: string): ReactNode[] {
       nodes.push(
         <code
           key={`${keyPrefix}-c-${i}`}
-          className="rounded bg-black/5 px-1 py-0.5 font-mono text-[0.9em]"
+          className="rounded bg-sunken px-1 py-0.5 font-mono text-[0.9em]"
         >
           {token.slice(1, -1)}
         </code>
@@ -58,7 +58,7 @@ function renderBlocks(text: string): ReactNode[] {
       blocks.push(
         <pre
           key={`code-${block++}`}
-          className="my-2 overflow-x-auto rounded-lg bg-black/[0.04] px-3 py-2 font-mono text-[12.5px] leading-relaxed"
+          className="my-2 overflow-x-auto rounded-lg bg-sunken px-3 py-2 font-mono text-[12.5px] leading-relaxed"
           data-lang={lang || undefined}
         >
           <code>{code.join('\n')}</code>

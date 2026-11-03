@@ -286,3 +286,37 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Dark theme: same token names, re-pointed. `dark:` variant follows data-theme. */
+@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --color-canvas: #141415;
+  --color-main: #1b1b1d;
+  --color-bubble: #2a2a2d;
+  --color-bubble-user: #ececec;
+  --color-hover: rgb(255 255 255 / 0.07);
+  --color-active: rgb(255 255 255 / 0.13);
+  --color-surface: #222225;
+  --color-surface-hover: rgb(255 255 255 / 0.07);
+  --color-sunken: rgb(255 255 255 / 0.06);
+  --color-line: rgb(255 255 255 / 0.08);
+  --color-line-strong: rgb(255 255 255 / 0.16);
+  --color-ink: #ececec;
+  --color-ink-secondary: rgb(236 236 236 / 0.68);
+  --color-ink-muted: rgb(236 236 236 / 0.48);
+  --color-ink-faint: rgb(236 236 236 / 0.3);
+  --color-accent-50: rgb(96 121 254 / 0.12);
+  --color-accent-100: rgb(96 121 254 / 0.2);
+  --color-status-online-ink: #4ade80;
+  --color-status-busy-ink: #7aa7ff;
+  --color-status-attention-ink: #ffb74d;
+  --color-status-offline-ink: #a5a5af;
+  --color-status-error-ink: #ff7b85;
+  --shadow-hairline: 0 0 0 1px rgb(255 255 255 / 0.05);
+  --shadow-float: 0 2px 10px -1px rgb(0 0 0 / 0.5), 0 0 0 0.5px rgb(255 255 255 / 0.06);
+  --shadow-card: 0 2px 10px -1px rgb(0 0 0 / 0.45);
+  --shadow-pop: 0 12px 28px -4px rgb(0 0 0 / 0.6), 0 0 0 0.5px rgb(255 255 255 / 0.08);
+  --shadow-dialog: 0 24px 80px rgb(0 0 0 / 0.6), 0 0 0 0.5px rgb(255 255 255 / 0.08);
+}

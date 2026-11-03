@@ -1,18 +1,23 @@
 import { useEffect, useRef } from 'react'
 import { Search, X } from 'lucide-react'
-import { runtimePlatform } from '@/lib/bridge'
 
 interface SearchFieldProps {
   value: string
   onChange: (value: string) => void
+  autoFocus?: boolean
+  onEscape?: () => void
 }
 
-const isMacLike = runtimePlatform === 'darwin' || /Mac/i.test(navigator.platform)
-
-export function SearchField({ value, onChange }: SearchFieldProps) {
+export function SearchField({ value, onChange, autoFocus, onEscape }: SearchFieldProps) {
   const inputRef = useRef<HTMLInputElement>(null)
 
-  // ⌘K / Ctrl+K focuses the search field from anywhere.
+  useEffect(() => {
+    if (autoFocus) {
+      inputRef.current?.focus()
+      inputRef.current?.select()
+    }
+  }, [autoFocus])
+
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
@@ -26,8 +31,8 @@ export function SearchField({ value, onChange }: SearchFieldProps) {
   }, [])
 
   return (
-    <label className="group relative flex h-8 items-center rounded-lg border border-line bg-surface shadow-soft transition-colors focus-within:border-accent-300 focus-within:ring-3 focus-within:ring-accent-100">
-      <Search aria-hidden className="pointer-events-none absolute left-2.5 size-3.5 text-ink-muted" />
+    <label className="group relative flex h-9 items-center rounded-full border border-line bg-surface px-1 shadow-soft transition-colors focus-within:border-accent-300 focus-within:ring-3 focus-within:ring-accent-100">
+      <Search aria-hidden className="pointer-events-none absolute left-3 size-3.5 text-ink-muted" />
       <input
         ref={inputRef}
         type="search"
@@ -36,12 +41,13 @@ export function SearchField({ value, onChange }: SearchFieldProps) {
         onKeyDown={(event) => {
           if (event.key === 'Escape') {
             onChange('')
+            onEscape?.()
             event.currentTarget.blur()
           }
         }}
-        placeholder="Search bots or accounts"
+        placeholder="Search"
         aria-label="Search bots or accounts"
-        className="h-full w-full bg-transparent pr-12 pl-8 text-ui text-ink outline-none placeholder:text-ink-muted [&::-webkit-search-cancel-button]:hidden"
+        className="h-full w-full bg-transparent pr-9 pl-9 text-ui text-ink outline-none placeholder:text-ink-muted [&::-webkit-search-cancel-button]:hidden"
       />
       {value ? (
         <button
@@ -51,15 +57,11 @@ export function SearchField({ value, onChange }: SearchFieldProps) {
             onChange('')
             inputRef.current?.focus()
           }}
-          className="absolute right-1.5 grid size-5 place-items-center rounded-md text-ink-muted hover:bg-surface-hover hover:text-ink"
+          className="absolute right-1.5 grid size-6 place-items-center rounded-full text-ink-muted hover:bg-hover hover:text-ink"
         >
           <X className="size-3.5" />
         </button>
-      ) : (
-        <kbd className="pointer-events-none absolute right-2 rounded border border-line bg-canvas px-1 font-sans text-[10px] leading-4 font-medium text-ink-muted">
-          {isMacLike ? '⌘K' : 'Ctrl K'}
-        </kbd>
-      )}
+      ) : null}
     </label>
   )
 }

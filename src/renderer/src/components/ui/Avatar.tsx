@@ -17,13 +17,15 @@ function tintFor(seed: string): string {
 const BOT_SIZES = {
   sm: 'size-7 rounded-full text-sm',
   md: 'size-9 rounded-full text-lg',
-  lg: 'size-16 rounded-full text-[30px]'
+  lg: 'size-16 rounded-full text-[30px]',
+  xl: 'size-12 rounded-[14px] text-[22px]'
 } as const
 
 const DOT_SIZES = {
   sm: 'size-2 ring-[1.5px]',
   md: 'size-2.5 ring-2',
-  lg: 'size-3.5 ring-[3px]'
+  lg: 'size-3.5 ring-[3px]',
+  xl: 'size-3 ring-[2.5px]'
 } as const
 
 interface BotAvatarProps {

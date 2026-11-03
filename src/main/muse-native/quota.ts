@@ -271,22 +271,5 @@ export async function fetchSubscription(
   throw new MuseQuotaError(`quota: HTTP ${lastStatus}`, 'http')
 }
 
-/** Optional invite remaining (control-plane HTTPS). */
-export async function fetchInviteSummary(
-  fetchFn: FetchFn
-): Promise<{ usesRemaining: number | null; rewardLabel: string | null } | null> {
-  try {
-    const res = await fetchFn(ORIGIN + '/api/hatch/invite', {
-      method: 'GET',
-      headers: { Accept: 'application/json', Origin: ORIGIN, Referer: ORIGIN + '/' }
-    })
-    if (!res.ok) return null
-    const json = obj(await res.json())
-    return {
-      usesRemaining: num(json['uses_remaining'] ?? json['usesRemaining']),
-      rewardLabel: str(json['reward'] || json['reward_label'] || json['description']) || null
-    }
-  } catch {
-    return null
-  }
-}
+/** @deprecated Prefer invite.ts; kept for quota poll compatibility. */
+export { fetchInviteSummary } from './invite'

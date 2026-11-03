@@ -9,6 +9,8 @@ import { SkillsSection } from '@/components/muse/SkillsSection'
 import { ConnectorsSection } from '@/components/muse/ConnectorsSection'
 import { FilesSection } from '@/components/muse/FilesSection'
 import { InviteSection } from '@/components/muse/InviteSection'
+import { PeersSection } from '@/components/muse/PeersSection'
+import { ProxySection } from '@/components/muse/ProxySection'
 import { QuotaSection } from '@/components/muse/QuotaSection'
 import { SchedulesSection } from '@/components/muse/SchedulesSection'
 import { SessionsSection } from '@/components/muse/SessionsSection'
@@ -192,6 +194,7 @@ export function InfoPanel() {
                     <SessionsSection accountId={bot.activeAccountId} />
                     <SchedulesSection accountId={bot.activeAccountId} />
                     <ApprovalsSection accountId={bot.activeAccountId} />
+                    <ProxySection accountId={bot.activeAccountId} />
                     <PermissionsSection accountId={bot.activeAccountId} />
                     <MemorySection accountId={bot.activeAccountId} />
                     <SkillsSection accountId={bot.activeAccountId} />
@@ -210,13 +213,15 @@ export function InfoPanel() {
             ) : tab === 'members' ? (
               <>
                 {bot.platformId === 'meta-muse' && bot.activeAccountId ? (
-                  <InviteSection accountId={bot.activeAccountId} />
-                ) : null}
-                <Section title={t('Members')}>
-                  <EmptyLine>
-                    {t('Only you use this bot. Muse Trusted Network (shared contacts) isn\'t connected in BotHub yet.')}
-                  </EmptyLine>
-                </Section>
+                  <>
+                    <PeersSection accountId={bot.activeAccountId} />
+                    <InviteSection accountId={bot.activeAccountId} />
+                  </>
+                ) : (
+                  <Section title={t('Members')}>
+                    <EmptyLine>{t('Only you use this bot.')}</EmptyLine>
+                  </Section>
+                )}
               </>
             ) : (
               <Section title={t('Computer')}>

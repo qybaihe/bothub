@@ -1,4 +1,4 @@
-import { BrowserWindow, session as electronSession } from 'electron'
+import { BrowserWindow, Notification, session as electronSession } from 'electron'
 import type { MuseMainEvent, MuseSessionStatus, WebViewBounds } from '@shared/ipc'
 import { partitionForAccount, WebContentsViewManager } from '../webContentsViewManager'
 import { MUSE_HOOK_SCRIPT, museDomSendScript, museRpcScript } from './hookScript'
@@ -379,6 +379,24 @@ export class MuseSessionManager {
   }
 
 
+  /** Desktop toast when the main window is blurred (approvals / new reply). Never auto-approves. */
+  private maybeNotify(title: string, body: string): void {
+    try {
+      if (this.window.isDestroyed() || this.window.isFocused()) return
+      if (!Notification.isSupported()) return
+      const n = new Notification({ title, body: body.slice(0, 180), silent: false })
+      n.on('click', () => {
+        if (!this.window.isDestroyed()) {
+          this.window.show()
+          this.window.focus()
+        }
+      })
+      n.show()
+    } catch (error) {
+      console.warn('[muse] notify', error instanceof Error ? error.message : error)
+    }
+  }
+
   /** Pull Sentinel approvals and emit (official: query on needs_approval / 5s stale). */
   async refreshApprovals(accountId: string): Promise<void> {
     const session = this.sessions.get(accountId)
@@ -394,9 +412,15 @@ export class MuseSessionManager {
       } else {
         return
       }
+      const prevCount = session.status.pendingApprovals
       session.status.pendingApprovals = pending.length
       this.emit({ type: 'approvals', accountId, pending })
       this.emitStatus(accountId)
+      if (pending.length > 0 && pending.length >= prevCount) {
+        const first = pending[0] as { host?: string; title?: string; detail?: string }
+        const label = first?.host || first?.title || '权限请求'
+        this.maybeNotify('Muse 需要确认', String(first?.detail || label))
+      }
     } catch (error) {
       console.warn('[muse] refreshApprovals', error instanceof Error ? error.message : error)
     }
@@ -571,6 +595,9 @@ export class MuseSessionManager {
             tools: u.tools,
             media: u.media
           })
+          if (u.done && u.text.trim()) {
+            this.maybeNotify('Muse', u.text.trim().slice(0, 120))
+          }
         }
       },
       { timeoutMs: 600_000, settleMs: 1500 }

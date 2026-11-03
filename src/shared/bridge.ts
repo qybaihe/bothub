@@ -4,6 +4,7 @@ import type {
   MuseMainEvent,
   MuseRpcRequest,
   MuseSessionStatus,
+  UpdateStatusEvent,
   WebViewBounds,
   WebViewInfo
 } from './ipc'
@@ -39,6 +40,13 @@ export interface MuseBridge {
   signOut(accountId: string): Promise<void>
 }
 
+export interface UpdateBridge {
+  check(): Promise<{ ok: true }>
+  install(): Promise<{ ok: true }>
+  version(): Promise<string>
+  onEvent(listener: (event: UpdateStatusEvent) => void): () => void
+}
+
 export interface BotHubBridge {
   /** Node-style platform string, e.g. "darwin", "win32", "linux". */
   readonly platform: string
@@ -49,4 +57,5 @@ export interface BotHubBridge {
   }
   readonly webViews: WebViewBridge
   readonly muse: MuseBridge
+  readonly updates: UpdateBridge
 }

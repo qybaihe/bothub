@@ -1,6 +1,12 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import type { BotHubBridge } from '@shared/bridge'
-import { MUSE_CHANNELS, WEB_VIEW_CHANNELS, type MuseMainEvent } from '@shared/ipc'
+import {
+  MUSE_CHANNELS,
+  UPDATE_CHANNELS,
+  WEB_VIEW_CHANNELS,
+  type MuseMainEvent,
+  type UpdateStatusEvent
+} from '@shared/ipc'
 
 const bridge: BotHubBridge = {
   platform: process.platform,
@@ -27,6 +33,16 @@ const bridge: BotHubBridge = {
       return () => ipcRenderer.removeListener(MUSE_CHANNELS.event, handler)
     },
     signOut: (accountId) => ipcRenderer.invoke(MUSE_CHANNELS.signOut, accountId)
+  },
+  updates: {
+    check: () => ipcRenderer.invoke(UPDATE_CHANNELS.check),
+    install: () => ipcRenderer.invoke(UPDATE_CHANNELS.install),
+    version: () => ipcRenderer.invoke(UPDATE_CHANNELS.version),
+    onEvent: (listener) => {
+      const handler = (_event: unknown, payload: UpdateStatusEvent) => listener(payload)
+      ipcRenderer.on(UPDATE_CHANNELS.event, handler)
+      return () => ipcRenderer.removeListener(UPDATE_CHANNELS.event, handler)
+    }
   }
 }
 

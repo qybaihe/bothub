@@ -1,9 +1,10 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { ConnectionStatus } from '@adapters/types'
-import { Plus } from 'lucide-react'
+import { MoreHorizontal, Plus, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
+import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from '@/components/ui/Menu'
 import { StatusDot } from '@/components/ui/Status'
-import { runtimePlatform } from '@/lib/bridge'
+import { getBridge, runtimePlatform } from '@/lib/bridge'
 import { cn } from '@/lib/cn'
 import { getBotStatus } from '@/lib/selectors'
 import { useBotStore } from '@/store/botStore'
@@ -34,6 +35,18 @@ export function Sidebar({ onAddBot }: SidebarProps) {
   const setSearch = useBotStore((s) => s.setSearch)
   const bots = useBotStore((s) => s.bots)
   const accounts = useBotStore((s) => s.accounts)
+  const [version, setVersion] = useState('')
+  const [checking, setChecking] = useState(false)
+
+  useEffect(() => {
+    const bridge = getBridge()
+    if (!bridge?.updates) return
+    void bridge.updates.version().then(setVersion)
+    return bridge.updates.onEvent((event) => {
+      if (event.type === 'checking') setChecking(true)
+      else setChecking(false)
+    })
+  }, [])
 
   const summary = useMemo(() => {
     const counts: Record<ConnectionStatus, number> = { online: 0, busy: 0, attention: 0, offline: 0, error: 0 }
@@ -51,6 +64,33 @@ export function Sidebar({ onAddBot }: SidebarProps) {
       >
         <BrandMark />
         <span className="text-sm font-semibold tracking-tight">BotHub</span>
+        <div className="ml-auto no-drag">
+          <Menu>
+            <MenuTrigger asChild>
+              <Button variant="ghost" size="sm" aria-label="App menu" className="rounded-full px-2">
+                <MoreHorizontal className="size-4" />
+              </Button>
+            </MenuTrigger>
+            <MenuContent align="end">
+              <MenuItem
+                disabled={checking || !getBridge()?.updates}
+                onSelect={() => {
+                  setChecking(true)
+                  void getBridge()?.updates.check()
+                }}
+              >
+                <RefreshCw className={cn('size-4', checking && 'animate-spin')} aria-hidden />
+                Check for updates
+              </MenuItem>
+              {version ? (
+                <>
+                  <MenuSeparator />
+                  <MenuItem disabled>Version {version}</MenuItem>
+                </>
+              ) : null}
+            </MenuContent>
+          </Menu>
+        </div>
       </header>
 
       <div className="px-3 pt-1 pb-3">

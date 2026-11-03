@@ -2,6 +2,7 @@ import { join } from 'node:path'
 import { app, BrowserWindow, shell } from 'electron'
 import { attachWebViewManager, registerWebViewIpc } from './webViewIpc'
 import { attachMuseSessionManager, registerMuseIpc } from './muse/museIpc'
+import { registerUpdaterIpc, startAutoUpdater } from './updater'
 
 const isMac = process.platform === 'darwin'
 
@@ -53,7 +54,9 @@ function createMainWindow(): BrowserWindow {
 app.whenReady().then(() => {
   registerWebViewIpc()
   registerMuseIpc()
+  registerUpdaterIpc()
   createMainWindow()
+  startAutoUpdater()
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createMainWindow()

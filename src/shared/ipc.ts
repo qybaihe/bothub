@@ -90,3 +90,24 @@ export type MuseMainEvent =
       done: boolean
     }
   | { type: 'login'; accountId: string; signedIn: boolean; handle?: string; displayName?: string }
+
+export const UPDATE_CHANNELS = {
+  check: 'bothub:update:check',
+  install: 'bothub:update:install',
+  version: 'bothub:update:version',
+  event: 'bothub:update:event'
+} as const
+
+export type UpdateStatusEvent =
+  | { type: 'checking' }
+  | { type: 'available'; version: string; releaseNotes?: string }
+  | { type: 'not-available'; version: string }
+  | {
+      type: 'downloading'
+      percent: number
+      bytesPerSecond: number
+      transferred: number
+      total: number
+    }
+  | { type: 'downloaded'; version: string; releaseNotes?: string }
+  | { type: 'error'; message: string }

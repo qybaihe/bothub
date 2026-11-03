@@ -122,6 +122,41 @@ export interface MuseMediaPart {
   mimeType?: string
 }
 
+export type MuseRichWidget =
+  | {
+      kind: 'shopping_results' | 'shopping_results_v2'
+      widgetId: string
+      products: Array<{ name: string; url?: string; imageUrl?: string; price?: string; retailer?: string }>
+    }
+  | {
+      kind: 'shopping_cart'
+      widgetId: string
+      retailerName?: string
+      subtotal?: string
+      items: Array<{ id: string; name: string; quantity: number; imageUrl?: string; linePrice?: string }>
+    }
+  | {
+      kind: 'local_map'
+      widgetId: string
+      html?: string
+      places: Array<{ id: string; name: string; latitude: number; longitude: number; category?: string }>
+    }
+  | {
+      kind: 'marketplace_map'
+      widgetId: string
+      listings: Array<{
+        id: string
+        name: string
+        url?: string
+        price?: string
+        imageUrl?: string
+        latitude?: number
+        longitude?: number
+      }>
+    }
+  | { kind: 'html'; widgetId: string; html: string; downloadable?: boolean }
+  | { kind: 'slides'; widgetId: string; label: string; path?: string; slug: string }
+
 export interface MuseOptionWidget {
   kind: 'option'
   widgetId: string
@@ -143,8 +178,8 @@ export interface AgentActivity {
 }
 
 export type AdapterEvent =
-  | { type: 'message'; message: IncomingMessage & { widgets?: MuseOptionWidget[]; tools?: MuseToolCall[]; media?: MuseMediaPart[] } }
-  | { type: 'message_delta'; messageId: string; conversationId: string; accountId: string; text: string; widgets?: MuseOptionWidget[]; tools?: MuseToolCall[]; media?: MuseMediaPart[] }
+  | { type: 'message'; message: IncomingMessage & { widgets?: MuseOptionWidget[]; richWidgets?: MuseRichWidget[]; tools?: MuseToolCall[]; media?: MuseMediaPart[] } }
+  | { type: 'message_delta'; messageId: string; conversationId: string; accountId: string; text: string; widgets?: MuseOptionWidget[]; richWidgets?: MuseRichWidget[]; tools?: MuseToolCall[]; media?: MuseMediaPart[] }
   | { type: 'typing'; conversationId: string; accountId: string; isTyping: boolean }
   | { type: 'status'; accountId: string; status: ConnectionStatus; detail?: string }
   | { type: 'activity'; accountId: string; activity: AgentActivity }

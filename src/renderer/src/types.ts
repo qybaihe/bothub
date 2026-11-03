@@ -72,6 +72,41 @@ export interface ChatMediaPart {
   mimeType?: string
 }
 
+export type ChatRichWidget =
+  | {
+      kind: 'shopping_results' | 'shopping_results_v2'
+      widgetId: string
+      products: Array<{ name: string; url?: string; imageUrl?: string; price?: string; retailer?: string }>
+    }
+  | {
+      kind: 'shopping_cart'
+      widgetId: string
+      retailerName?: string
+      subtotal?: string
+      items: Array<{ id: string; name: string; quantity: number; imageUrl?: string; linePrice?: string }>
+    }
+  | {
+      kind: 'local_map'
+      widgetId: string
+      html?: string
+      places: Array<{ id: string; name: string; latitude: number; longitude: number; category?: string }>
+    }
+  | {
+      kind: 'marketplace_map'
+      widgetId: string
+      listings: Array<{
+        id: string
+        name: string
+        url?: string
+        price?: string
+        imageUrl?: string
+        latitude?: number
+        longitude?: number
+      }>
+    }
+  | { kind: 'html'; widgetId: string; html: string; downloadable?: boolean }
+  | { kind: 'slides'; widgetId: string; label: string; path?: string; slug: string }
+
 export interface ChatOptionWidget {
   kind: 'option'
   widgetId: string
@@ -95,6 +130,8 @@ export interface ChatMessage {
   attachments?: AttachmentMeta[]
   /** Muse option chips (onboarding name picker, etc.). */
   widgets?: ChatOptionWidget[]
+  /** Read-only shopping/maps/html/slides widgets. */
+  richWidgets?: ChatRichWidget[]
   /** Live / completed tool calls for this assistant turn. */
   tools?: ChatToolCall[]
   /** Inbound image/file parts (not the same as user AttachmentMeta). */

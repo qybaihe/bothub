@@ -88,20 +88,44 @@ function mapConnector(raw: unknown, index: number): MuseConnector {
   }
 }
 
+const FILE_REF_BYTES = 0xa0_0000 // 10 MiB — official HatchAttachments non-image gate
+const VIDEO_REF_BYTES = 0x3c0_0000 // 60 MiB video
+
+function needsFileRef(mime: string, size: number): boolean {
+  const m = mime.toLowerCase()
+  if (m.startsWith('image/')) return false
+  if (m.startsWith('video/')) return size >= VIDEO_REF_BYTES
+  return size >= FILE_REF_BYTES
+}
+
 /** Map BotHub attachments → Muse chat.stream items (official HatchAttachments shapes). */
-function museChatItemsFromAttachments(
+async function museChatItemsFromAttachments(
+  muse: ReturnType<MuseAdapter['bridge']>,
+  accountId: string,
   attachments: OutgoingMessage['attachments']
-): Array<Record<string, unknown>> {
+): Promise<Array<Record<string, unknown>>> {
   if (!attachments?.length) return []
   const items: Array<Record<string, unknown>> = []
   for (const a of attachments) {
     if (!a.dataBase64) continue
     const mime = a.mimeType || 'application/octet-stream'
     const filename = a.name || 'file'
+    const size = typeof a.size === 'number' ? a.size : Math.floor((a.dataBase64.length * 3) / 4)
     if (mime.startsWith('image/')) {
       items.push({ type: 'image', mime_type: mime, data_base64: a.dataBase64, filename })
+    } else if (needsFileRef(mime, size) && muse.uploadWorkspaceFile) {
+      const uploaded = await muse.uploadWorkspaceFile(accountId, {
+        filename,
+        mimeType: mime,
+        dataBase64: a.dataBase64
+      })
+      items.push({
+        type: 'file_ref',
+        mime_type: mime,
+        path: uploaded.path,
+        filename: uploaded.filename
+      })
     } else {
-      // Large file_ref upload needs binary media write (not archived); send as inline file.
       items.push({ type: 'file', mime_type: mime, data_base64: a.dataBase64, filename })
     }
   }
@@ -177,6 +201,7 @@ export class MuseAdapter implements PlatformAdapter {
         const widgets = event.widgets as MuseOptionWidget[] | undefined
         const tools = event.tools as import('../types').MuseToolCall[] | undefined
         const media = event.media as import('../types').MuseMediaPart[] | undefined
+        const richWidgets = (event as { richWidgets?: import('../types').MuseRichWidget[] }).richWidgets
         if (!event.done) {
           this.emit({
             type: 'typing',
@@ -184,7 +209,7 @@ export class MuseAdapter implements PlatformAdapter {
             accountId: event.accountId,
             isTyping: true
           })
-          if (event.text || widgets?.length || tools?.length || media?.length) {
+          if (event.text || widgets?.length || richWidgets?.length || tools?.length || media?.length) {
             this.emit({
               type: 'message_delta',
               messageId: event.messageId,
@@ -192,6 +217,7 @@ export class MuseAdapter implements PlatformAdapter {
               accountId: event.accountId,
               text: event.text || '',
               widgets,
+              richWidgets,
               tools,
               media
             })
@@ -205,10 +231,11 @@ export class MuseAdapter implements PlatformAdapter {
             accountId: event.accountId,
             isTyping: false
           })
-          if (event.text || widgets?.length || tools?.length || media?.length) {
+          if (event.text || widgets?.length || richWidgets?.length || tools?.length || media?.length) {
             this.streamDelivered.add(`${event.accountId}:${conversationId}`)
             const message: IncomingMessage & {
               widgets?: MuseOptionWidget[]
+              richWidgets?: import('../types').MuseRichWidget[]
               tools?: import('../types').MuseToolCall[]
               media?: import('../types').MuseMediaPart[]
             } = {
@@ -218,6 +245,7 @@ export class MuseAdapter implements PlatformAdapter {
               text: event.text || '',
               createdAt: Date.now(),
               widgets,
+              richWidgets,
               tools,
               media
             }
@@ -341,7 +369,7 @@ export class MuseAdapter implements PlatformAdapter {
           // Main fills node_id (stable device id) + capabilities per transport.
           items: [
             ...(message.text.trim() ? [{ type: 'text', text: message.text }] : []),
-            ...museChatItemsFromAttachments(message.attachments)
+            ...await museChatItemsFromAttachments(this.bridge(), message.accountId, message.attachments)
           ]
         }
       })) as unknown

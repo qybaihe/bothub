@@ -72,7 +72,7 @@ export interface BotHubState {
   retryMessage: (botId: string, messageId: string) => Promise<void>
   receiveMessage: (message: IncomingMessage) => void
   /** Upsert a streaming assistant bubble (same id updated as deltas arrive). */
-  applyMessageDelta: (messageId: string, conversationId: string, accountId: string, text: string, widgets?: import('@/types').ChatOptionWidget[], tools?: import('@/types').ChatToolCall[], media?: import('@/types').ChatMediaPart[]) => void
+  applyMessageDelta: (messageId: string, conversationId: string, accountId: string, text: string, widgets?: import('@/types').ChatOptionWidget[], tools?: import('@/types').ChatToolCall[], media?: import('@/types').ChatMediaPart[], richWidgets?: import('@/types').ChatRichWidget[]) => void
   setTyping: (botId: string, isTyping: boolean) => void
   setActivity: (accountId: string, activity: import('@/types').BotActivity | null) => void
   setMessageWidgets: (botId: string, messageId: string, widgets: import('@/types').ChatOptionWidget[]) => void
@@ -480,6 +480,8 @@ export const useBotStore = create<BotHubState>()(
         const incomingTools = (incoming as { tools?: ChatMessage['tools'] }).tools
         const prevMedia = existingIdx >= 0 ? list[existingIdx]!.media : undefined
         const incomingMedia = (incoming as { media?: ChatMessage['media'] }).media
+        const prevRich = existingIdx >= 0 ? list[existingIdx]!.richWidgets : undefined
+        const incomingRich = (incoming as { richWidgets?: ChatMessage['richWidgets'] }).richWidgets
         const message: ChatMessage = {
           id: incoming.id,
           botId,
@@ -489,7 +491,8 @@ export const useBotStore = create<BotHubState>()(
           createdAt: existingIdx >= 0 ? list[existingIdx]!.createdAt : incoming.createdAt,
           widgets: incomingWidgets?.length ? incomingWidgets : prevWidgets,
           tools: incomingTools?.length ? incomingTools : prevTools,
-          media: incomingMedia?.length ? incomingMedia : prevMedia
+          media: incomingMedia?.length ? incomingMedia : prevMedia,
+          richWidgets: incomingRich?.length ? incomingRich : prevRich
         }
         const selected = state.selectedBotId === botId
         const isNew = existingIdx < 0
@@ -518,7 +521,7 @@ export const useBotStore = create<BotHubState>()(
         }
       }),
 
-    applyMessageDelta: (messageId, conversationId, accountId, text, widgets, tools, media) =>
+    applyMessageDelta: (messageId, conversationId, accountId, text, widgets, tools, media, richWidgets) =>
       set((state) => {
         const botId = conversationId
         if (!state.bots.some((b) => b.id === botId)) return state
@@ -541,11 +544,13 @@ export const useBotStore = create<BotHubState>()(
           const nextWidgets = widgets?.length ? widgets : prevMsg.widgets
           const nextTools = tools?.length ? tools : prevMsg.tools
           const nextMedia = media?.length ? media : prevMediaMerge(prevMsg.media, media)
+          const nextRich = richWidgets?.length ? richWidgets : prevMsg.richWidgets
           if (
             next === prev &&
             nextWidgets === prevMsg.widgets &&
             nextTools === prevMsg.tools &&
-            nextMedia === prevMsg.media
+            nextMedia === prevMsg.media &&
+            nextRich === prevMsg.richWidgets
           )
             return state
           return {
@@ -553,7 +558,14 @@ export const useBotStore = create<BotHubState>()(
               ...state.messages,
               [botId]: list.map((m, i) =>
                 i === existingIdx
-                  ? { ...m, text: next, widgets: nextWidgets, tools: nextTools, media: nextMedia }
+                  ? {
+                      ...m,
+                      text: next,
+                      widgets: nextWidgets,
+                      tools: nextTools,
+                      media: nextMedia,
+                      richWidgets: nextRich
+                    }
                   : m
               )
             }
@@ -568,7 +580,8 @@ export const useBotStore = create<BotHubState>()(
           createdAt: Date.now(),
           widgets: widgets?.length ? widgets : undefined,
           tools: tools?.length ? tools : undefined,
-          media: media?.length ? media : undefined
+          media: media?.length ? media : undefined,
+          richWidgets: richWidgets?.length ? richWidgets : undefined
         }
         return { messages: { ...state.messages, [botId]: [...list, message] } }
       }),

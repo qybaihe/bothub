@@ -22,7 +22,13 @@ function handleEvent(event: AdapterEvent): void {
       break
     case "message_delta":
       store.setTyping(event.conversationId, true)
-      if (event.text || event.widgets?.length || event.tools?.length || event.media?.length) {
+      if (
+        event.text ||
+        event.widgets?.length ||
+        event.richWidgets?.length ||
+        event.tools?.length ||
+        event.media?.length
+      ) {
         store.applyMessageDelta(
           event.messageId,
           event.conversationId,
@@ -30,7 +36,8 @@ function handleEvent(event: AdapterEvent): void {
           event.text || "",
           event.widgets,
           event.tools,
-          event.media
+          event.media,
+          event.richWidgets
         )
       }
       break

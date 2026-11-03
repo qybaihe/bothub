@@ -45,6 +45,7 @@ function AddBotForm({ onClose }: { onClose: () => void }) {
 
   const platform = platforms.find((p) => p.id === platformId)
   const filledAccounts = accounts.filter((a) => a.accountId || isDraftFilled(a))
+  const displayName = name.trim() || 'New bot'
 
   const errors = {
     platform: platform?.usable ? undefined : 'Choose an available platform.',
@@ -66,24 +67,57 @@ function AddBotForm({ onClose }: { onClose: () => void }) {
     <Dialog
       open
       onOpenChange={(open) => !open && onClose()}
-      title="Add a bot"
-      description="A bot pairs a platform with one or more accounts it can send from."
+      title="Create bot"
       footer={
         <>
-          <p className="mr-auto text-caption text-ink-muted">New accounts connect automatically.</p>
           <Button variant="ghost" onClick={onClose}>
             Cancel
           </Button>
           <Button variant="primary" type="submit" form={FORM_ID} disabled={submitted && !valid}>
-            Create bot
+            Create
           </Button>
         </>
       }
+      className="w-[min(92vw,520px)]"
     >
-      <form id={FORM_ID} onSubmit={onSubmit} className="flex flex-col gap-6" noValidate>
+      <form id={FORM_ID} onSubmit={onSubmit} className="flex flex-col gap-5" noValidate>
+        {/* Look preview — DeepSeek-Bot create card style */}
+        <div className="flex flex-col items-center gap-2 rounded-2xl border border-line bg-main px-4 py-5">
+          <Menu>
+            <MenuTrigger
+              aria-label={`Bot icon: ${emoji}. Change icon`}
+              className="grid size-20 place-items-center rounded-[22px] bg-hover text-[40px] transition-transform hover:scale-[1.02] active:scale-[0.98]"
+            >
+              {emoji}
+            </MenuTrigger>
+            <MenuContent align="center" className="grid min-w-0 grid-cols-8 gap-0.5 p-1.5">
+              {EMOJIS.map((option) => (
+                <MenuItem
+                  key={option}
+                  onSelect={() => setEmoji(option)}
+                  aria-label={option}
+                  className={cn(
+                    'size-8 justify-center p-0 text-lg',
+                    option === emoji && 'bg-accent-50 ring-1 ring-accent-200'
+                  )}
+                >
+                  {option}
+                </MenuItem>
+              ))}
+            </MenuContent>
+          </Menu>
+          <p className="text-[15px] font-semibold tracking-tight text-ink">{displayName}</p>
+          {platform ? (
+            <span className="inline-flex items-center gap-1.5 text-[12px] text-ink-secondary">
+              <PlatformGlyph platform={platform} size="sm" />
+              {platform.name}
+            </span>
+          ) : null}
+        </div>
+
         <fieldset className="flex flex-col gap-2">
-          <legend className="mb-2 text-ui font-medium text-ink">Platform</legend>
-          <div role="radiogroup" aria-label="Platform" className="grid grid-cols-2 gap-2">
+          <legend className="text-[13px] font-medium text-ink">Platform</legend>
+          <div role="radiogroup" aria-label="Platform" className="flex flex-wrap gap-1.5">
             {platforms.map((p) => {
               const selected = p.id === platformId
               return (
@@ -95,37 +129,22 @@ function AddBotForm({ onClose }: { onClose: () => void }) {
                   disabled={!p.usable}
                   onClick={() => setPlatformId(p.id)}
                   className={cn(
-                    'relative flex items-center gap-3 rounded-xl border bg-surface p-3 text-left transition-[border-color,box-shadow,background-color]',
-                    p.usable && 'col-span-2',
+                    'inline-flex h-9 items-center gap-2 rounded-full border px-3 text-[13px] font-medium transition-[background-color,border-color,transform] active:scale-[0.98]',
                     selected
-                      ? 'border-accent-400 bg-accent-50/50 ring-3 ring-accent-100'
-                      : 'border-line hover:border-line-strong',
-                    !p.usable && 'cursor-not-allowed bg-canvas/60'
+                      ? 'border-accent-400 bg-accent-50 text-accent-700 ring-2 ring-accent-100'
+                      : 'border-line bg-surface text-ink-secondary hover:bg-hover',
+                    !p.usable && 'cursor-not-allowed opacity-50'
                   )}
                 >
-                  <PlatformGlyph platform={p} size={p.usable ? 'md' : 'sm'} />
-                  <span className="min-w-0 flex-1">
-                    <span className={cn('block truncate font-medium', p.usable ? 'text-ink' : 'text-ink-muted')}>
-                      {p.name}
-                    </span>
-                    {p.usable && <span className="block truncate text-caption text-ink-muted">{p.description}</span>}
-                  </span>
-                  {p.usable ? (
-                    selected && (
-                      <span className="grid size-5 place-items-center rounded-full bg-accent-600 text-white">
-                        <Check className="size-3" strokeWidth={3} aria-hidden />
-                      </span>
-                    )
-                  ) : (
-                    <span className="shrink-0 rounded-full bg-sunken px-2 py-0.5 text-[10px] font-medium text-ink-muted">
-                      Coming soon
-                    </span>
-                  )}
+                  <PlatformGlyph platform={p} size="sm" />
+                  {p.name}
+                  {!p.usable && <span className="text-[11px] text-ink-faint">Soon</span>}
+                  {selected && p.usable && <Check className="size-3.5 text-accent-600" strokeWidth={3} aria-hidden />}
                 </button>
               )
             })}
           </div>
-          {show(errors.platform) && <p className="text-caption text-status-error-ink">{errors.platform}</p>}
+          {show(errors.platform) && <p className="text-[12px] text-status-error-ink">{errors.platform}</p>}
         </fieldset>
 
         <Field label="Name" htmlFor="bot-name" error={show(errors.name)}>
@@ -133,7 +152,7 @@ function AddBotForm({ onClose }: { onClose: () => void }) {
             <Menu>
               <MenuTrigger
                 aria-label={`Bot icon: ${emoji}. Change icon`}
-                className="flex h-9 shrink-0 items-center gap-1 rounded-lg border border-line-strong bg-surface pr-1.5 pl-2.5 text-lg shadow-soft hover:bg-surface-hover data-[state=open]:bg-surface-hover"
+                className="flex h-9 shrink-0 items-center gap-1 rounded-lg border border-line-strong bg-surface pr-1.5 pl-2.5 text-lg shadow-soft hover:bg-hover data-[state=open]:bg-hover"
               >
                 {emoji}
                 <ChevronDown className="size-3.5 text-ink-muted" aria-hidden />
@@ -166,12 +185,12 @@ function AddBotForm({ onClose }: { onClose: () => void }) {
           </div>
         </Field>
 
-        <Field label="Description" htmlFor="bot-description" hint="Optional. Shown in the details panel.">
+        <Field label="Description" htmlFor="bot-description">
           <TextInput
             id="bot-description"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            placeholder="What is this bot for?"
+            placeholder="Optional"
           />
         </Field>
 
@@ -187,10 +206,10 @@ function AddBotForm({ onClose }: { onClose: () => void }) {
                   aria-checked={selected}
                   onClick={() => setGroup({ kind: 'existing', groupId: g.id })}
                   className={cn(
-                    'h-7 rounded-full border px-3 text-caption font-medium transition-colors',
+                    'h-7 rounded-full border px-3 text-[12px] font-medium transition-colors',
                     selected
                       ? 'border-accent-300 bg-accent-50 text-accent-700'
-                      : 'border-line bg-surface text-ink-secondary hover:bg-surface-hover'
+                      : 'border-line bg-surface text-ink-secondary hover:bg-hover'
                   )}
                 >
                   {g.name}
@@ -203,13 +222,13 @@ function AddBotForm({ onClose }: { onClose: () => void }) {
               aria-checked={group.kind === 'new'}
               onClick={() => setGroup({ kind: 'new', name: group.kind === 'new' ? group.name : '' })}
               className={cn(
-                'inline-flex h-7 items-center gap-1 rounded-full border border-dashed px-3 text-caption font-medium transition-colors',
+                'inline-flex h-7 items-center gap-1 rounded-full border border-dashed px-3 text-[12px] font-medium transition-colors',
                 group.kind === 'new'
                   ? 'border-accent-300 bg-accent-50 text-accent-700'
-                  : 'border-line-strong text-ink-muted hover:bg-surface-hover hover:text-ink'
+                  : 'border-line-strong text-ink-muted hover:bg-hover hover:text-ink'
               )}
             >
-              <Plus className="size-3" aria-hidden /> New group
+              <Plus className="size-3" aria-hidden /> New
             </button>
           </div>
           {group.kind === 'new' && (
@@ -226,10 +245,7 @@ function AddBotForm({ onClose }: { onClose: () => void }) {
         </Field>
 
         <fieldset>
-          <legend className="mb-1 text-ui font-medium text-ink">Accounts</legend>
-          <p className="mb-3 text-caption text-ink-muted">
-            Add every account this bot can send from. You can switch between them in the conversation header.
-          </p>
+          <legend className="mb-2 text-[13px] font-medium text-ink">Accounts</legend>
           <AccountsEditor
             platformId={platformId}
             drafts={accounts}

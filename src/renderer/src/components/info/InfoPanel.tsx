@@ -24,11 +24,12 @@ import { MemoryEditor } from './MemoryEditor'
 import { EmptyLine, Section } from './Section'
 
 /** Grok Bot–aligned chips: Overview / Library / Computer (Slice 1 UI parity). */
-type InfoTab = 'overview' | 'library' | 'computer'
+type InfoTab = 'overview' | 'library' | 'computer' | 'members'
 const TABS: ReadonlyArray<[InfoTab, string]> = [
   ['overview', 'Overview'],
   ['library', 'Library'],
-  ['computer', 'Computer']
+  ['computer', 'Computer'],
+  ['members', 'Members']
 ]
 
 /** Avatar (click: photo) and name (click: rename) at the top of details. */
@@ -124,7 +125,7 @@ function Tabs({ tab, onChange }: { tab: InfoTab; onChange: (tab: InfoTab) => voi
           tabIndex={tab === id ? 0 : -1}
           onClick={() => onChange(id)}
           className={cn(
-            'press relative h-[30px] flex-1 rounded-lg text-[13px] transition-colors',
+            'press relative h-[30px] min-w-0 flex-1 truncate rounded-lg px-1 text-[12px] transition-colors',
             tab === id ? 'text-ink' : 'text-ink-secondary hover:text-ink'
           )}
         >
@@ -184,7 +185,6 @@ export function InfoPanel() {
                 {bot.platformId === 'meta-muse' && bot.activeAccountId ? (
                   <>
                     <QuotaSection accountId={bot.activeAccountId} />
-                    <InviteSection accountId={bot.activeAccountId} />
                     <SessionsSection accountId={bot.activeAccountId} />
                     <SchedulesSection accountId={bot.activeAccountId} />
                     <ApprovalsSection accountId={bot.activeAccountId} />
@@ -200,6 +200,17 @@ export function InfoPanel() {
                   <EmptyLine>Library is available for Muse bots (files on the agent).</EmptyLine>
                 </Section>
               )
+            ) : tab === 'members' ? (
+              <>
+                {bot.platformId === 'meta-muse' && bot.activeAccountId ? (
+                  <InviteSection accountId={bot.activeAccountId} />
+                ) : null}
+                <Section title="Members">
+                  <EmptyLine>
+                    Only you use this bot. Muse Trusted Network (shared contacts) isn't connected in BotHub yet.
+                  </EmptyLine>
+                </Section>
+              </>
             ) : (
               <Section title="Computer">
                 <EmptyLine>

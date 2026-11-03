@@ -61,11 +61,11 @@ Hero (avatar / rename) + **chip/tab strip**. Observed product surfaces from bund
 
 | Grok surface | BotHub today | Files | Gap |
 |---|---|---|---|
-| Sidebar sections | `groups[]` + collapsible headers **only when >1 group** | `sidebar/Sidebar.tsx`, `BotList.tsx`, `botStore.ts` | No always-on section chrome; no "Configure sections" / reorder / pinned row; styling thinner than Grok |
-| Bot row + activity | Present (activity from Muse Noise) | `BotListItem.tsx`, store `activity` | Visual density / badges still diverge |
-| Right panel tabs | **Details \| Browser** only | `info/InfoPanel.tsx` | Missing Library / Computer / Members / Skills chips |
-| Details / Overview | Accounts, Memory, Notes | InfoPanel + `MemoryEditor` | OK baseline; Muse quota/invite currently dumped under Browser |
-| Library | Muse `FilesSection` (`fs.*`) buried under Browser | `muse/FilesSection.tsx` | Needs first-class Library tab; no pages/pins/visual viewer |
+| Sidebar sections | Always-on headers + New/Configure (local groups) | `sidebar/BotList.tsx`, `ConfigureSectionsDialog.tsx`, `botStore` group APIs | No host sync / pin row / compact sidebar / drag-reorder yet |
+| Bot row + activity | Activity + **Move to section** | `BotListItem.tsx`, store `activity` | Pin chrome / density still diverge |
+| Right panel tabs | **Overview \| Library \| Computer** | `info/InfoPanel.tsx` | Members / Skills chips still missing |
+| Details / Overview | Accounts, Memory, Notes + Muse ops | InfoPanel + `MemoryEditor` | OK baseline |
+| Library | Muse `FilesSection` under Library tab | `muse/FilesSection.tsx` | No pages/pins/visual viewer |
 | Computer | None (Muse has no cloud VM) | — | Empty shell only; do **not** fake a desktop. Optional later: map embedded web session / local machine tag carefully |
 | Members | Hatch invite + future Trusted Network (`peers.*`) | `InviteSection.tsx`, `GAPS.md` | Invite ≠ Members; peers not wired |
 | Skills | Connectors / approvals / schedules are adjacent but not Skills | `ConnectorsSection`, `ApprovalsSection`, `SchedulesSection` | No skill catalog UI |
@@ -92,8 +92,8 @@ Never surface Grok-only host RPCs through Muse adapters. Never fabricate Compute
 
 ## 4. Ordered implementation slices (smallest valuable first)
 
-1. **Right detail tab shell** — rename/remap to `Overview | Library | Computer`; move Muse Files → Library; Overview keeps identity + Muse ops that aren't Library/Computer; Computer = empty honest shell. *(this turn)*
-2. **Sidebar section chrome** — always show section headers; denser Grok-like header row; optional "New section" affordance (local groups only).
+1. **Right detail tab shell** — Overview | Library | Computer. ✅
+2. **Sidebar section chrome** — always-on headers + New/Configure sections (local groups). ✅
 3. **Library body** — richer Files list (path crumbs, icons) without claiming "pages/pins".
 4. **Members chip (shell)** — Invite + placeholder for Trusted Network (`GAPS.md` peers).
 5. **Skills / Connectors alignment** — visual grouping under a Skills-like section or fourth chip when content exists.
@@ -112,6 +112,14 @@ Never surface Grok-only host RPCs through Muse adapters. Never fabricate Compute
 - [x] Overview still has Accounts / Memory / Notes + remaining Muse sections (quota, invite, sessions, schedules, approvals, connectors)
 - [x] No new secrets; typecheck/build green; atomic commit; **no push** unless asked
 
+## 5b. Slice 2 acceptance
+
+- [x] Section headers always visible (including single / empty sections)
+- [x] Collapse chevron + denser header; section overflow: Rename / Delete
+- [x] **New section** + **Configure sections** (local `groups` only)
+- [x] Bot row **Move to section** when multiple groups exist
+- [x] Typecheck green; atomic commit; no push
+
 ## 6. Next slice recommendation
 
-After Slice 1: **Sidebar section chrome** (always-on headers + Configure/New section local UX) — highest remaining visual gap for "分组 整个UI设计".
+**Members chip (shell)** or **Library body** (richer files list) — then Create Bot template-style gallery.

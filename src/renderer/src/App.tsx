@@ -15,7 +15,18 @@ export default function App() {
   const infoOpen = useBotStore((s) => s.infoPanelOpen && s.bots.some((b) => b.id === s.selectedBotId))
   const setAddBotOpen = useBotStore((s) => s.setAddBotOpen)
 
-  useEffect(() => startAdapterBridge(), [])
+  useEffect(() => {
+    const stop = startAdapterBridge()
+    // After reload the zustand status may still say online, but adapters have
+    // no live session — reconnect Muse/Grok so send does not fail.
+    const { accounts, connectAccount } = useBotStore.getState()
+    for (const account of Object.values(accounts)) {
+      if (account.platformId === 'meta-muse' || account.platformId === 'grok') {
+        void connectAccount(account.id)
+      }
+    }
+    return stop
+  }, [])
   useGlobalShortcuts()
 
   // Dev-only test harness for CDP/E2E scripts.

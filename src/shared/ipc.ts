@@ -53,12 +53,23 @@ export const MUSE_CHANNELS = {
   cancelLogin: 'bothub:muse:cancel-login',
   getQuota: 'bothub:muse:quota:get',
   refreshQuota: 'bothub:muse:quota:refresh',
+  getInvite: 'bothub:muse:invite:get',
+  refreshInvite: 'bothub:muse:invite:refresh',
+  redeemInvite: 'bothub:muse:invite:redeem',
   listSchedules: 'bothub:muse:schedules:list',
   listScheduleRuns: 'bothub:muse:schedules:runs',
   runSchedule: 'bothub:muse:schedules:run',
   deleteSchedule: 'bothub:muse:schedules:delete',
-  /** Open https URL in the system browser (Upgrade CTA). */
-  openExternal: 'bothub:muse:open-external'
+  listSessions: 'bothub:muse:sessions:list',
+  mutateSession: 'bothub:muse:sessions:mutate',
+  listFiles: 'bothub:muse:files:list',
+  listConnectors: 'bothub:muse:connectors:list',
+  connectConnector: 'bothub:muse:connectors:connect',
+  disconnectConnector: 'bothub:muse:connectors:disconnect',
+  /** Open https://muse.ai URL in the system browser (Upgrade CTA). */
+  openExternal: 'bothub:muse:open-external',
+  /** Open any https URL (connector OAuth). */
+  openHttps: 'bothub:muse:open-https'
 } as const
 
 export interface MuseEnsureRequest {
@@ -114,6 +125,10 @@ export type MuseMainEvent =
     }
   | { type: 'quota'; accountId: string; snapshot: MuseQuotaSnapshot }
   | { type: 'schedules'; accountId: string; schedules: MuseSchedule[] }
+  | { type: 'invite'; accountId: string; snapshot: MuseInviteSnapshot }
+  | { type: 'sessions'; accountId: string; sessions: MuseChatSessionView[] }
+  | { type: 'files'; accountId: string; files: MuseFileEntryView[] }
+  | { type: 'connectors'; accountId: string; connectors: MuseConnectorView[] }
 
 /** Renderer-safe quota snapshot (no cookies/tokens). */
 export interface MuseQuotaSnapshot {
@@ -160,6 +175,66 @@ export interface MuseTaskRun {
   startedAtUtc: number | null
   finishedAtUtc: number | null
   title: string | null
+}
+
+/** Renderer-safe invite snapshot (may include code for copy — never log it). */
+export interface MuseInviteSnapshot {
+  fetchedAt: number
+  inviteState: string
+  title: string | null
+  subtitle: string | null
+  code: string | null
+  inviteLink: string | null
+  shareText: string | null
+  maxUses: number | null
+  useCount: number | null
+  usesRemaining: number | null
+  hasRedeemedInviteCode: boolean
+  inviteCodeEntryAvailable: boolean
+  reward: { title: string | null; body: string | null } | null
+  redeemSubtitle: string | null
+  redeemDisclaimer: string | null
+  error?: string
+}
+
+export type MuseSessionMutation =
+  | { op: 'archive' | 'unarchive' | 'pin' | 'unpin' | 'delete'; sessionId: string }
+  | { op: 'rename'; sessionId: string; title: string }
+
+export interface MuseChatSessionView {
+  id: string
+  title: string
+  pinned: boolean
+  archived: boolean
+  updatedAtMs: number | null
+  createdAtMs: number | null
+  preview: string | null
+}
+
+export interface MuseFileEntryView {
+  id: string
+  name: string
+  kind: string
+  path: string | null
+  sizeBytes: number | null
+  mimeType: string | null
+  pinned: boolean
+  updatedAtMs: number | null
+  source: 'artifact' | 'library' | 'fs'
+}
+
+export interface MuseConnectorView {
+  id: string
+  name: string
+  connected: boolean
+  description?: string
+}
+
+export interface MuseConnectorConnectResult {
+  ok: boolean
+  /** Present when the user must finish OAuth in an external browser. */
+  oauthUrl?: string
+  message?: string
 }
 
 export const UPDATE_CHANNELS = {

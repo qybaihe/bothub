@@ -11,12 +11,29 @@ import {
 } from '../muse-native'
 import { fetchInviteSummary, fetchSubscription } from '../muse-native/quota'
 import {
+  fetchInvite,
+  redeemInviteCode,
+  type MuseInviteSnapshot as NativeInvite
+} from '../muse-native/invite'
+import {
   runsFromResult,
   schedulesFromListResult,
   type MuseSchedule as NativeSchedule,
   type MuseTaskRun as NativeRun
 } from '../muse-native/schedules'
-import type { MuseQuotaSnapshot, MuseSchedule, MuseTaskRun } from '@shared/ipc'
+import { sessionsFromListResult, sessionIdParams } from '../muse-native/sessions'
+import { artifactsFromListResult, libraryFromResult } from '../muse-native/files'
+import type {
+  MuseChatSessionView,
+  MuseConnectorConnectResult,
+  MuseConnectorView,
+  MuseFileEntryView,
+  MuseInviteSnapshot,
+  MuseQuotaSnapshot,
+  MuseSchedule,
+  MuseSessionMutation,
+  MuseTaskRun
+} from '@shared/ipc'
 import { applyMuseKeepAlive, MUSE_HEALTH_SCRIPT, museWakeScript } from './museKeepAlive'
 
 const MUSE_ORIGIN = 'https://muse.ai'
@@ -41,6 +58,10 @@ interface AccountSession {
   /** Cancel handle for tasks.subscribe. */
   tasksSubCancel?: (reason?: string) => void
   schedules?: MuseSchedule[]
+  invite?: MuseInviteSnapshot
+  chatSessions?: MuseChatSessionView[]
+  files?: MuseFileEntryView[]
+  connectors?: MuseConnectorView[]
 }
 
 function isAllowedMuseUrl(url: string): boolean {
@@ -767,6 +788,184 @@ export class MuseSessionManager {
   }
 
 
+
+  getInvite(accountId: string): MuseInviteSnapshot | null {
+    return this.sessions.get(accountId)?.invite ?? null
+  }
+
+  async refreshInvite(accountId: string): Promise<MuseInviteSnapshot> {
+    const session = this.sessions.get(accountId)
+    try {
+      if (!(await this.hasSessionCookie(accountId))) {
+        const snap: MuseInviteSnapshot = {
+          fetchedAt: Date.now(),
+          inviteState: 'SIGNED_OUT',
+          title: null,
+          subtitle: null,
+          code: null,
+          inviteLink: null,
+          shareText: null,
+          maxUses: null,
+          useCount: null,
+          usesRemaining: null,
+          hasRedeemedInviteCode: false,
+          inviteCodeEntryAvailable: false,
+          reward: null,
+          redeemSubtitle: null,
+          redeemDisclaimer: null,
+          error: 'Sign in to muse.ai first'
+        }
+        if (session) session.invite = snap
+        this.emit({ type: 'invite', accountId, snapshot: snap })
+        return snap
+      }
+      const native = await fetchInvite(this.partitionFetch(accountId))
+      const snap = toSharedInvite(native)
+      if (session) session.invite = snap
+      this.emit({ type: 'invite', accountId, snapshot: snap })
+      return snap
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error)
+      const prev = session?.invite
+      const snap: MuseInviteSnapshot = {
+        fetchedAt: Date.now(),
+        inviteState: prev?.inviteState ?? 'ERROR',
+        title: prev?.title ?? null,
+        subtitle: prev?.subtitle ?? null,
+        code: prev?.code ?? null,
+        inviteLink: prev?.inviteLink ?? null,
+        shareText: prev?.shareText ?? null,
+        maxUses: prev?.maxUses ?? null,
+        useCount: prev?.useCount ?? null,
+        usesRemaining: prev?.usesRemaining ?? null,
+        hasRedeemedInviteCode: prev?.hasRedeemedInviteCode ?? false,
+        inviteCodeEntryAvailable: prev?.inviteCodeEntryAvailable ?? false,
+        reward: prev?.reward ?? null,
+        redeemSubtitle: prev?.redeemSubtitle ?? null,
+        redeemDisclaimer: prev?.redeemDisclaimer ?? null,
+        error: msg.slice(0, 200)
+      }
+      if (session) session.invite = snap
+      this.emit({ type: 'invite', accountId, snapshot: snap })
+      return snap
+    }
+  }
+
+  async redeemInvite(
+    accountId: string,
+    code: string
+  ): Promise<{ ok: boolean; message: string; openSettings?: boolean }> {
+    if (!(await this.hasSessionCookie(accountId))) {
+      return { ok: false, message: 'Sign in to muse.ai first' }
+    }
+    const result = await redeemInviteCode(this.partitionFetch(accountId), code)
+    if (result.ok) void this.refreshInvite(accountId)
+    return result
+  }
+
+  async listSessions(accountId: string): Promise<MuseChatSessionView[]> {
+    const native = await this.rpcNative(accountId, 'sessions.list', {})
+    const raw = native ? native.value : await this.rpc(accountId, 'sessions.list', {})
+    const list = sessionsFromListResult(raw)
+    const session = this.sessions.get(accountId)
+    if (session) session.chatSessions = list
+    this.emit({ type: 'sessions', accountId, sessions: list })
+    return list
+  }
+
+  async mutateSession(accountId: string, mutation: MuseSessionMutation): Promise<unknown> {
+    const params = sessionIdParams(mutation.sessionId)
+    let method = ''
+    if (mutation.op === 'archive') method = 'session.archive'
+    else if (mutation.op === 'unarchive') method = 'session.unarchive'
+    else if (mutation.op === 'pin') method = 'session.pin'
+    else if (mutation.op === 'unpin') method = 'session.unpin'
+    else if (mutation.op === 'delete') method = 'session.delete'
+    else if (mutation.op === 'rename') {
+      method = 'session.rename'
+      params['title'] = mutation.title
+      params['name'] = mutation.title
+    } else {
+      throw new TypeError('Unknown session mutation')
+    }
+    const native = await this.rpcNative(accountId, method, params)
+    const raw = native ? native.value : await this.rpc(accountId, method, params)
+    void this.listSessions(accountId)
+    return raw
+  }
+
+  async listFiles(accountId: string): Promise<MuseFileEntryView[]> {
+    const out: MuseFileEntryView[] = []
+    try {
+      const native = await this.rpcNative(accountId, 'artifacts.list', {})
+      const raw = native ? native.value : await this.rpc(accountId, 'artifacts.list', {})
+      out.push(...artifactsFromListResult(raw))
+    } catch (error) {
+      console.warn('[muse] artifacts.list', error instanceof Error ? error.message : error)
+    }
+    try {
+      const native = await this.rpcNative(accountId, 'fs.library', {})
+      const raw = native ? native.value : await this.rpc(accountId, 'fs.library', {})
+      out.push(...libraryFromResult(raw))
+    } catch (error) {
+      console.warn('[muse] fs.library', error instanceof Error ? error.message : error)
+    }
+    // Dedupe by id
+    const seen = new Set<string>()
+    const unique = out.filter((f) => {
+      if (seen.has(f.id)) return false
+      seen.add(f.id)
+      return true
+    })
+    const session = this.sessions.get(accountId)
+    if (session) session.files = unique
+    this.emit({ type: 'files', accountId, files: unique })
+    return unique
+  }
+
+  async listConnectors(accountId: string): Promise<MuseConnectorView[]> {
+    const native = await this.rpcNative(accountId, 'connectors.list', {})
+    const raw = native ? native.value : await this.rpc(accountId, 'connectors.list', {})
+    const list = mapConnectors(raw)
+    const session = this.sessions.get(accountId)
+    if (session) session.connectors = list
+    this.emit({ type: 'connectors', accountId, connectors: list })
+    return list
+  }
+
+  async connectConnector(accountId: string, connectorId: string): Promise<MuseConnectorConnectResult> {
+    try {
+      const infoNative = await this.rpcNative(accountId, 'connectors.connect_info', { id: connectorId })
+      const infoRaw = infoNative ? infoNative.value : await this.rpc(accountId, 'connectors.connect_info', { id: connectorId })
+      const oauthUrl = extractOauthUrl(infoRaw)
+      if (oauthUrl) {
+        return { ok: true, oauthUrl, message: 'Finish connecting in your browser' }
+      }
+      const native = await this.rpcNative(accountId, 'connectors.connect', { id: connectorId })
+      if (!native) await this.rpc(accountId, 'connectors.connect', { id: connectorId })
+      void this.listConnectors(accountId)
+      return { ok: true, message: 'Connected' }
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error)
+      return { ok: false, message: msg.slice(0, 200) }
+    }
+  }
+
+  async disconnectConnector(
+    accountId: string,
+    connectorId: string
+  ): Promise<{ ok: boolean; message?: string }> {
+    try {
+      const native = await this.rpcNative(accountId, 'connectors.disconnect', { id: connectorId })
+      if (!native) await this.rpc(accountId, 'connectors.disconnect', { id: connectorId })
+      void this.listConnectors(accountId)
+      return { ok: true }
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error)
+      return { ok: false, message: msg.slice(0, 200) }
+    }
+  }
+
   /**
    * Open a dedicated BrowserWindow that shares the account's persist partition
    * and loads muse.ai. Meta/Facebook auth redirects stay in-window. When the
@@ -1055,4 +1254,68 @@ function toSharedRun(r: NativeRun): MuseTaskRun {
     finishedAtUtc: r.finishedAtUtc,
     title: r.title
   }
+}
+
+function toSharedInvite(s: NativeInvite): MuseInviteSnapshot {
+  return {
+    fetchedAt: s.fetchedAt,
+    inviteState: s.inviteState,
+    title: s.title,
+    subtitle: s.subtitle,
+    code: s.code,
+    inviteLink: s.inviteLink,
+    shareText: s.shareText,
+    maxUses: s.maxUses,
+    useCount: s.useCount,
+    usesRemaining: s.usesRemaining,
+    hasRedeemedInviteCode: s.hasRedeemedInviteCode,
+    inviteCodeEntryAvailable: s.inviteCodeEntryAvailable,
+    reward: s.reward,
+    redeemSubtitle: s.redeemSubtitle,
+    redeemDisclaimer: s.redeemDisclaimer,
+    error: s.error
+  }
+}
+
+function mapConnectors(raw: unknown): MuseConnectorView[] {
+  let list: unknown[] = []
+  if (Array.isArray(raw)) list = raw
+  else if (raw && typeof raw === 'object') {
+    const o = raw as Record<string, unknown>
+    const nested = o['connectors'] ?? o['items'] ?? o['results']
+    if (Array.isArray(nested)) list = nested
+  }
+  return list.map((item, index) => {
+    const r = (item ?? {}) as Record<string, unknown>
+    const state = typeof r['state'] === 'string' ? r['state'].toLowerCase() : ''
+    const connected = Boolean(
+      r['connected'] ??
+        r['is_connected'] ??
+        (r['status'] === 'connected' || state === 'connected' || state === 'active')
+    )
+    return {
+      id: String(r['id'] ?? r['connector_id'] ?? ('connector-' + String(index))),
+      name: String(r['name'] ?? r['title'] ?? r['id'] ?? ('Connector ' + String(index + 1))),
+      connected,
+      description: typeof r['description'] === 'string' ? r['description'] : undefined
+    }
+  })
+}
+
+function extractOauthUrl(raw: unknown): string | undefined {
+  if (!raw || typeof raw !== 'object') return undefined
+  const o = raw as Record<string, unknown>
+  for (const key of ['oauth_url', 'oauthUrl', 'auth_url', 'authUrl', 'url', 'redirect_url', 'redirectUrl', 'connect_url', 'connectUrl']) {
+    const v = o[key]
+    if (typeof v === 'string' && /^https:\/\//i.test(v)) return v
+  }
+  const nested = o['oauth'] ?? o['authorization'] ?? o['auth']
+  if (nested && typeof nested === 'object') {
+    const n = nested as Record<string, unknown>
+    for (const key of ['url', 'authorize_url', 'authorizeUrl']) {
+      const v = n[key]
+      if (typeof v === 'string' && /^https:\/\//i.test(v)) return v
+    }
+  }
+  return undefined
 }

@@ -1,10 +1,16 @@
 import type {
   CreateWebViewRequest,
+  MuseChatSessionView,
+  MuseConnectorConnectResult,
+  MuseConnectorView,
   MuseEnsureRequest,
+  MuseFileEntryView,
+  MuseInviteSnapshot,
   MuseMainEvent,
   MuseQuotaSnapshot,
   MuseRpcRequest,
   MuseSchedule,
+  MuseSessionMutation,
   MuseSessionStatus,
   MuseTaskRun,
   UpdateStatusEvent,
@@ -57,11 +63,21 @@ export interface MuseBridge {
   cancelLogin(accountId: string): Promise<void>
   getQuota(accountId: string): Promise<MuseQuotaSnapshot | null>
   refreshQuota(accountId: string): Promise<MuseQuotaSnapshot>
+  getInvite(accountId: string): Promise<MuseInviteSnapshot | null>
+  refreshInvite(accountId: string): Promise<MuseInviteSnapshot>
+  redeemInvite(accountId: string, code: string): Promise<{ ok: boolean; message: string; openSettings?: boolean }>
   listSchedules(accountId: string): Promise<MuseSchedule[]>
   listScheduleRuns(accountId: string, jobId?: string): Promise<MuseTaskRun[]>
   runSchedule(accountId: string, jobId: string): Promise<unknown>
   deleteSchedule(accountId: string, jobId: string): Promise<unknown>
+  listSessions(accountId: string): Promise<MuseChatSessionView[]>
+  mutateSession(accountId: string, mutation: MuseSessionMutation): Promise<unknown>
+  listFiles(accountId: string): Promise<MuseFileEntryView[]>
+  listConnectors(accountId: string): Promise<MuseConnectorView[]>
+  connectConnector(accountId: string, connectorId: string): Promise<MuseConnectorConnectResult>
+  disconnectConnector(accountId: string, connectorId: string): Promise<{ ok: boolean; message?: string }>
   openExternal(url: string): Promise<{ ok: true }>
+  openHttps(url: string): Promise<{ ok: true }>
 }
 
 export interface UpdateBridge {

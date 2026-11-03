@@ -84,6 +84,7 @@
   --animate-scrim-in: fade-in 220ms ease-out;
   --animate-scrim-out: fade-out 160ms ease-in forwards;
   --animate-palette-in: palette-in 420ms var(--ease-spring-shape), veil-in 200ms ease-out;
+  --animate-toast-in: toast-in 420ms var(--ease-spring-shape), veil-in 200ms ease-out;
   --animate-step-in: step-in 420ms var(--ease-spring-shape) both, veil-in 220ms ease-out both;
   --animate-mark-pop: mark-pop 430ms var(--ease-spring-pop) both;
   --animate-typing: typing 1.2s ease-in-out infinite;
@@ -139,6 +140,11 @@
   @keyframes palette-in {
     from {
       transform: translateY(-10px) scale(0.96);
+    }
+  }
+  @keyframes toast-in {
+    from {
+      transform: translateY(16px) scale(0.94);
     }
   }
   @keyframes step-in {

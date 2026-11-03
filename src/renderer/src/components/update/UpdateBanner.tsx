@@ -14,7 +14,7 @@ type BannerState =
 
 export function UpdateBanner() {
   const [state, setState] = useState<BannerState>({ kind: 'hidden' })
-  const [checking, setChecking] = useState(false)
+  const [, setChecking] = useState(false)
 
   useEffect(() => {
     const bridge = getBridge()
@@ -61,32 +61,45 @@ export function UpdateBanner() {
     return () => window.clearTimeout(t)
   }, [state])
 
-  if (state.kind === 'hidden') return null
+  // Keep the last state on screen while the toast fades out.
+  const [shown, setShown] = useState<BannerState>(state)
+  const leaving = state.kind === 'hidden' && shown.kind !== 'hidden'
+  useEffect(() => {
+    if (state.kind !== 'hidden') {
+      setShown(state)
+      return
+    }
+    const t = window.setTimeout(() => setShown({ kind: 'hidden' }), 160)
+    return () => window.clearTimeout(t)
+  }, [state])
+
+  const view = state.kind === 'hidden' ? shown : state
+  if (view.kind === 'hidden') return null
 
   return (
     <div
       className={cn(
-        'no-drag pointer-events-auto absolute inset-x-0 top-3 z-50 mx-auto flex w-fit max-w-[min(520px,92vw)] items-center gap-3 rounded-full border border-line bg-surface px-3 py-1.5 shadow-pop'
+        'no-drag pointer-events-auto absolute inset-x-0 bottom-[104px] z-50 mx-auto flex w-fit max-w-[min(520px,92vw)] items-center gap-2.5 rounded-xl border border-line-strong bg-main py-1.5 pr-1.5 pl-3 text-[13px] shadow-toast',
+        leaving ? 'pointer-events-none animate-scrim-out' : 'animate-toast-in'
       )}
       role="status"
     >
-      {state.kind === 'available' && state.manualInstall && (
+      {view.kind === 'available' && view.manualInstall && (
         <>
           <Download className="size-4 text-accent-600" aria-hidden />
-          <span className="text-ui text-ink">
-            新版本 {state.version} 已发布，请手动下载安装
+          <span className="text-ink">
+            新版本 {view.version} 已发布，请手动下载安装
           </span>
           <Button
             size="sm"
             variant="primary"
-            className="rounded-full"
             onClick={() => void getBridge()?.updates.install()}
           >
             下载
           </Button>
           <button
             type="button"
-            className="rounded-full p-1 text-ink-muted hover:bg-surface-hover hover:text-ink"
+            className="press-icon grid size-7 place-items-center rounded-full text-ink-muted hover:bg-hover hover:text-ink"
             aria-label="Dismiss"
             onClick={() => setState({ kind: 'hidden' })}
           >
@@ -94,38 +107,37 @@ export function UpdateBanner() {
           </button>
         </>
       )}
-      {state.kind === 'available' && !state.manualInstall && (
+      {view.kind === 'available' && !view.manualInstall && (
         <>
           <Download className="size-4 text-accent-600" aria-hidden />
-          <span className="text-ui text-ink">Update {state.version} available — downloading…</span>
+          <span className="text-ink">Update {view.version} available — downloading…</span>
         </>
       )}
-      {state.kind === 'downloading' && (
+      {view.kind === 'downloading' && (
         <>
           <RefreshCw className="size-4 animate-spin text-accent-600" aria-hidden />
-          <span className="text-ui text-ink">Downloading update… {Math.round(state.percent)}%</span>
+          <span className="text-ink">Downloading update… {Math.round(view.percent)}%</span>
         </>
       )}
-      {state.kind === 'ready' && (
+      {view.kind === 'ready' && (
         <>
           <Download className="size-4 text-accent-600" aria-hidden />
-          <span className="text-ui text-ink">Version {state.version} ready — restart to update</span>
+          <span className="text-ink">Version {view.version} ready — restart to update</span>
           <Button
             size="sm"
             variant="primary"
-            className="rounded-full"
             onClick={() => void getBridge()?.updates.install()}
           >
             Restart
           </Button>
         </>
       )}
-      {state.kind === 'message' && (
+      {view.kind === 'message' && (
         <>
-          <span className="text-ui text-ink-secondary">{state.text}</span>
+          <span className="text-ink-secondary">{view.text}</span>
           <button
             type="button"
-            className="rounded-full p-1 text-ink-muted hover:bg-surface-hover hover:text-ink"
+            className="press-icon grid size-7 place-items-center rounded-full text-ink-muted hover:bg-hover hover:text-ink"
             aria-label="Dismiss"
             onClick={() => setState({ kind: 'hidden' })}
           >
@@ -133,7 +145,6 @@ export function UpdateBanner() {
           </button>
         </>
       )}
-      {checking && state.kind !== 'downloading' ? null : null}
     </div>
   )
 }

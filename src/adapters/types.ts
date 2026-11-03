@@ -106,6 +106,22 @@ export interface MuseConnector {
   raw?: unknown
 }
 
+export interface MuseToolCall {
+  id: string
+  name: string
+  toolType?: string
+  status: 'running' | 'completed' | 'errored'
+  summary?: string
+}
+
+export interface MuseMediaPart {
+  kind: 'image' | 'file'
+  path: string
+  name?: string
+  imageId?: string
+  mimeType?: string
+}
+
 export interface MuseOptionWidget {
   kind: 'option'
   widgetId: string
@@ -127,8 +143,8 @@ export interface AgentActivity {
 }
 
 export type AdapterEvent =
-  | { type: 'message'; message: IncomingMessage & { widgets?: MuseOptionWidget[] } }
-  | { type: 'message_delta'; messageId: string; conversationId: string; accountId: string; text: string; widgets?: MuseOptionWidget[] }
+  | { type: 'message'; message: IncomingMessage & { widgets?: MuseOptionWidget[]; tools?: MuseToolCall[]; media?: MuseMediaPart[] } }
+  | { type: 'message_delta'; messageId: string; conversationId: string; accountId: string; text: string; widgets?: MuseOptionWidget[]; tools?: MuseToolCall[]; media?: MuseMediaPart[] }
   | { type: 'typing'; conversationId: string; accountId: string; isTyping: boolean }
   | { type: 'status'; accountId: string; status: ConnectionStatus; detail?: string }
   | { type: 'activity'; accountId: string; activity: AgentActivity }

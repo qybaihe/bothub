@@ -55,6 +55,23 @@ export interface Bot {
 export type MessageRole = 'user' | 'bot'
 export type MessageDelivery = 'sending' | 'sent' | 'failed'
 
+export interface ChatToolCall {
+  id: string
+  name: string
+  toolType?: string
+  status: 'running' | 'completed' | 'errored'
+  summary?: string
+}
+
+/** Inbound image/file part from Muse transcript / resources (path may be VM-local). */
+export interface ChatMediaPart {
+  kind: 'image' | 'file'
+  path: string
+  name?: string
+  imageId?: string
+  mimeType?: string
+}
+
 export interface ChatOptionWidget {
   kind: 'option'
   widgetId: string
@@ -78,6 +95,10 @@ export interface ChatMessage {
   attachments?: AttachmentMeta[]
   /** Muse option chips (onboarding name picker, etc.). */
   widgets?: ChatOptionWidget[]
+  /** Live / completed tool calls for this assistant turn. */
+  tools?: ChatToolCall[]
+  /** Inbound image/file parts (not the same as user AttachmentMeta). */
+  media?: ChatMediaPart[]
 }
 
 export interface BotActivity {

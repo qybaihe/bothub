@@ -60,6 +60,22 @@ function obj(v: unknown): Record<string, unknown> {
   return v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : {}
 }
 
+export interface MuseToolCall {
+  id: string
+  name: string
+  toolType?: string
+  status: 'running' | 'completed' | 'errored'
+  summary?: string
+}
+
+export interface MuseMediaPart {
+  kind: 'image' | 'file'
+  path: string
+  name?: string
+  imageId?: string
+  mimeType?: string
+}
+
 export interface MuseOptionWidget {
   kind: 'option'
   widgetId: string
@@ -147,6 +163,95 @@ export function parseOptionWidgets(payload: Record<string, unknown>): MuseOption
   }
   return out
 }
+
+export function parseToolCall(
+  eventName: string,
+  payload: Record<string, unknown>,
+  messageId: string,
+  displayText?: string
+): MuseToolCall | null {
+  const started = eventName === 'tool_call.started' || eventName === 'delta.tool_start'
+  const name = str(payload['name']) || 'tool_call'
+  const toolType = str(payload['tool_type']) || undefined
+  const id = str(payload['tool_id']) || messageId || name
+  let status: MuseToolCall['status'] = started ? 'running' : 'completed'
+  if (!started) {
+    const result = obj(payload['result'])
+    if (result['success'] === false) status = 'errored'
+  }
+  const summary =
+    (displayText && displayText.trim()) ||
+    str(payload['summary']) ||
+    undefined
+  return { id, name, toolType, status, summary }
+}
+
+export function parseMediaParts(payload: Record<string, unknown>): MuseMediaPart[] {
+  const out: MuseMediaPart[] = []
+  const seen = new Set<string>()
+  const push = (kind: 'image' | 'file', path: string, extra?: Partial<MuseMediaPart>) => {
+    const p = path.trim()
+    if (!p || seen.has(p)) return
+    seen.add(p)
+    const name = extra?.name || p.split('/').pop() || p
+    out.push({ kind, path: p, name, imageId: extra?.imageId, mimeType: extra?.mimeType })
+  }
+  const walkContent = (items: unknown) => {
+    if (!Array.isArray(items)) return
+    for (const raw of items) {
+      const c = obj(raw)
+      const typ = str(c['type']).toLowerCase()
+      if (typ === 'image') {
+        const path = str(c['path']) || str(c['url'])
+        if (path) push('image', path, { imageId: str(c['image_id'] || c['imageId']) || undefined, mimeType: str(c['mime_type']) || undefined })
+      } else if (typ === 'images' && Array.isArray(c['images'])) {
+        for (const im of c['images'] as unknown[]) {
+          const i = obj(im)
+          const path = str(i['path']) || str(i['url'])
+          if (path) push('image', path, { imageId: str(i['image_id'] || i['imageId']) || undefined })
+        }
+      } else if (typ === 'file' || typ === 'file_ref') {
+        const path = str(c['path']) || str(c['filename'])
+        if (path) push('file', path, { name: str(c['filename']) || undefined, mimeType: str(c['mime_type']) || undefined })
+      }
+    }
+  }
+  walkContent(payload['content'])
+  const transcript = obj(payload['transcript'])
+  const messages = transcript['messages']
+  if (Array.isArray(messages)) {
+    for (const msg of messages) {
+      walkContent(obj(msg)['content'])
+    }
+  }
+  // resources[] on the envelope sometimes carries media URIs
+  const resources = payload['resources']
+  if (Array.isArray(resources)) {
+    for (const r of resources) {
+      const o = obj(r)
+      const path = str(o['path']) || str(o['uri']) || str(o['url'])
+      if (!path) continue
+      const mt = str(o['mime_type'] || o['mimeType'] || o['media_type']).toLowerCase()
+      const kind: 'image' | 'file' = mt.startsWith('image') || str(o['file_type']) === 'image' ? 'image' : 'file'
+      push(kind, path, { mimeType: mt || undefined, name: str(o['name']) || undefined })
+    }
+  }
+  // tool result metadata file_paths
+  const result = obj(payload['result'])
+  const meta = obj(result['metadata'])
+  const filePaths = meta['file_paths']
+  if (Array.isArray(filePaths)) {
+    const ft = str(meta['file_type']) || 'file'
+    for (const fp of filePaths) {
+      if (typeof fp === 'string' && fp.trim()) {
+        push(ft === 'image' ? 'image' : 'file', fp)
+      }
+    }
+  }
+  return out
+}
+
+
 
 /** Final assistant text from a delta.message_done transcript. */
 export function transcriptText(payload: Record<string, unknown>): string {
@@ -245,6 +350,8 @@ export interface ChatStreamUpdate {
   done: boolean
   /** Option chips (Kai/Juno) when present on the message. */
   widgets?: MuseOptionWidget[]
+  tools?: MuseToolCall[]
+  media?: MuseMediaPart[]
 }
 
 export interface ChatStreamResult {
@@ -312,6 +419,8 @@ export async function streamChat(
   const counts: Record<string, number> = {}
   const texts = new Map<string, string>()
   const widgets = new Map<string, MuseOptionWidget[]>()
+  const tools = new Map<string, MuseToolCall[]>()
+  const media = new Map<string, MuseMediaPart[]>()
   const order: string[] = []
   const doneIds = new Set<string>()
   let sessionId = input.sessionId ?? ''
@@ -353,12 +462,13 @@ export async function streamChat(
   }
 
   const pushUpdate = (id: string, done: boolean): void => {
-    if (!id) return
     onUpdate({
       messageId: id,
       text: texts.get(id) ?? '',
       done,
-      widgets: widgets.get(id)
+      widgets: widgets.get(id),
+      tools: tools.get(id),
+      media: media.get(id)
     })
   }
 
@@ -367,6 +477,32 @@ export async function streamChat(
     if (sessionId) return !s || s === sessionId
     const ctx = obj(p['chat_context'])
     return !str(ctx['device_id']) || str(ctx['device_id']) === input.nodeId
+  }
+
+  const applyMedia = (id: string, p: Record<string, unknown>): void => {
+    const parsed = parseMediaParts(p)
+    if (!parsed.length) return
+    const prev = media.get(id) ?? []
+    const seen = new Set(prev.map((x) => x.path))
+    const merged = [...prev]
+    for (const part of parsed) {
+      if (seen.has(part.path)) continue
+      seen.add(part.path)
+      merged.push(part)
+    }
+    media.set(id, merged)
+  }
+
+  const upsertTool = (id: string, tool: MuseToolCall): void => {
+    const prev = tools.get(id) ?? []
+    const idx = prev.findIndex((t) => t.id === tool.id || t.name === tool.name)
+    if (idx >= 0) {
+      const next = [...prev]
+      next[idx] = { ...prev[idx]!, ...tool, id: prev[idx]!.id }
+      tools.set(id, next)
+    } else {
+      tools.set(id, [...prev, tool])
+    }
   }
 
   const applyWidgets = (id: string, p: Record<string, unknown>): void => {
@@ -400,6 +536,7 @@ export async function streamChat(
     texts.set(id, final)
     doneIds.add(id)
     applyWidgets(id, p)
+    applyMedia(id, p)
     pushUpdate(id, true)
     armSettleIfIdle()
   }
@@ -414,7 +551,9 @@ export async function streamChat(
       e.name.startsWith('delta.') ||
       e.name === 'message.user' ||
       e.name === 'agent.status' ||
-      e.name === 'message.assistant'
+      e.name === 'message.assistant' ||
+      e.name === 'tool_call.started' ||
+      e.name === 'tool_call.completed'
     if (!watched) return
     if (e.name !== 'agent.status' && !mine(p)) return
     counts[e.name] = (counts[e.name] ?? 0) + 1
@@ -443,6 +582,7 @@ export async function streamChat(
       case 'delta.presentation':
         if (!started) break
         applyWidgets(id, p)
+        if (id) applyMedia(id, p)
         // Presentation-carrier with no text still needs a bubble.
         if (id) {
           ensureBubble(id)
@@ -458,6 +598,19 @@ export async function streamChat(
         if (!started) break
         if (!id) break
         completeBubble(id, p)
+        break
+      }
+      case 'delta.tool_start':
+      case 'delta.tool_done':
+      case 'tool_call.started':
+      case 'tool_call.completed': {
+        if (!started || !id) break
+        ensureBubble(id)
+        const tool = parseToolCall(e.name, p, str(p['tool_id']) || id)
+        if (tool) upsertTool(id, tool)
+        applyMedia(id, p)
+        clearSettle()
+        pushUpdate(id, doneIds.has(id))
         break
       }
       case 'agent.status': {

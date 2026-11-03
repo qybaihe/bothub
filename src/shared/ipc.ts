@@ -107,6 +107,22 @@ export type MuseConnectionPhase = 'signed-out' | 'connecting' | 'hydrating' | 'w
 
 
 /** Renderer-safe option chip widget (onboarding Kai/Juno, etc.). */
+export interface MuseToolCallView {
+  id: string
+  name: string
+  toolType?: string
+  status: 'running' | 'completed' | 'errored'
+  summary?: string
+}
+
+export interface MuseMediaPartView {
+  kind: 'image' | 'file'
+  path: string
+  name?: string
+  imageId?: string
+  mimeType?: string
+}
+
 export interface MuseOptionWidgetView {
   kind: 'option'
   widgetId: string
@@ -128,6 +144,8 @@ export type MuseMainEvent =
       text: string
       done: boolean
       widgets?: MuseOptionWidgetView[]
+      tools?: MuseToolCallView[]
+      media?: MuseMediaPartView[]
     }
   | {
       type: 'activity'

@@ -6,6 +6,7 @@ import { RefreshButton } from '@/components/muse/RefreshButton'
 import { getBridge } from '@/lib/bridge'
 import { cn } from '@/lib/cn'
 import { useBotStore } from '@/store/botStore'
+import { t } from '@/lib/i18n'
 
 type Filter = 'all' | 'pinned' | 'artifact' | 'library'
 const FILTERS: ReadonlyArray<[Filter, string]> = [
@@ -125,7 +126,7 @@ export function FilesSection({ accountId }: { accountId: string }) {
 
   return (
     <Section
-      title="Documents and Files"
+      title={t('Documents and Files')}
       count={items.length || undefined}
       flush
       action={<RefreshButton loading={loading} onClick={() => void refresh()} />}
@@ -136,12 +137,12 @@ export function FilesSection({ accountId }: { accountId: string }) {
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search files"
-            aria-label="Search files"
+            placeholder={t('Search files')}
+            aria-label={t('Search files')}
             className="min-w-0 flex-1 bg-transparent text-[13px] text-ink outline-none placeholder:text-ink-muted"
           />
         </label>
-        <div className="flex gap-1" role="radiogroup" aria-label="Filter files">
+        <div className="flex gap-1" role="radiogroup" aria-label={t('Filter files')}>
           {FILTERS.map(([id, label]) => (
             <button
               key={id}
@@ -154,7 +155,7 @@ export function FilesSection({ accountId }: { accountId: string }) {
                 filter === id ? 'bg-ink text-canvas' : 'bg-hover text-ink-secondary hover:text-ink'
               )}
             >
-              {label}
+              {t(label)}
             </button>
           ))}
         </div>
@@ -163,7 +164,7 @@ export function FilesSection({ accountId }: { accountId: string }) {
       {visible.length === 0 ? (
         <div className="px-3 py-2.5">
           <EmptyLine>
-            {loading ? 'Loading files…' : items.length ? 'No files match' : 'Files the bot creates show up here'}
+            {loading ? t('Loading files…') : items.length ? t('No files match') : t('Files the bot creates show up here')}
           </EmptyLine>
         </div>
       ) : (
@@ -192,8 +193,8 @@ export function FilesSection({ accountId }: { accountId: string }) {
                     type="button"
                     onClick={() => togglePin(f)}
                     disabled={f.pinned}
-                    aria-label={pinned ? 'Unpin' : 'Pin'}
-                    title={f.pinned ? 'Pinned in Muse' : pinned ? 'Unpin (local)' : 'Pin (local)'}
+                    aria-label={pinned ? t('Unpin') : t('Pin')}
+                    title={f.pinned ? t('Pinned in Muse') : pinned ? t('Unpin (local)') : t('Pin (local)')}
                     className={cn(
                       'press-icon grid size-7 shrink-0 place-items-center rounded-full transition-opacity hover:bg-hover',
                       pinned ? 'text-accent-600' : 'text-ink-muted opacity-0 group-hover/file:opacity-100 focus-visible:opacity-100'
@@ -204,19 +205,19 @@ export function FilesSection({ accountId }: { accountId: string }) {
                 </div>
                 {expanded && (
                   <dl className="mx-3 mb-2.5 grid animate-veil-in grid-cols-[auto_1fr] gap-x-3 gap-y-1 rounded-lg bg-hover px-3 py-2 text-[11px]">
-                    <dt className="text-ink-muted">Source</dt>
+                    <dt className="text-ink-muted">{t('Source')}</dt>
                     <dd className="text-ink capitalize">{f.source}</dd>
-                    <dt className="text-ink-muted">Type</dt>
+                    <dt className="text-ink-muted">{t('Type')}</dt>
                     <dd className="truncate text-ink">{f.mimeType ?? f.kind}</dd>
                     {f.path && (
                       <>
-                        <dt className="text-ink-muted">Path</dt>
+                        <dt className="text-ink-muted">{t('Path')}</dt>
                         <dd className="truncate font-mono text-ink" title={f.path}>
                           {f.path}
                         </dd>
                       </>
                     )}
-                    <dt className="col-span-2 pt-1 text-ink-muted">Preview isn’t available yet — open it in Muse.</dt>
+                    <dt className="col-span-2 pt-1 text-ink-muted">{t('Preview isn’t available yet — open it in Muse.')}</dt>
                   </dl>
                 )}
               </li>

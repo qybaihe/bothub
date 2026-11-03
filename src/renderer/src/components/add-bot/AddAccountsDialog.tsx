@@ -7,6 +7,7 @@ import { usePlatformLogin } from '@/hooks/usePlatformLogin'
 import { useBotStore } from '@/store/botStore'
 import type { Bot } from '@/types'
 import { LoginWaiting } from './AddBotDialog'
+import { t } from '@/lib/i18n'
 
 /** Opens the login window at once; the signed-in account joins the bot. */
 function AddAccountFlow({ bot, open, onClose }: { bot: Bot; open: boolean; onClose: () => void }) {
@@ -42,7 +43,7 @@ function AddAccountFlow({ bot, open, onClose }: { bot: Bot; open: boolean; onClo
     <Dialog
       open={open}
       onOpenChange={(next) => !next && close()}
-      title={`Sign in to ${platform.name}`}
+      title={t('Sign in to {name}', { name: platform.name })}
       className="w-[min(92vw,420px)]"
     >
       {phase.kind === 'waiting' ? (
@@ -53,7 +54,7 @@ function AddAccountFlow({ bot, open, onClose }: { bot: Bot; open: boolean; onClo
             {phase.error}
           </p>
           <Button variant="primary" onClick={() => login.start(bot.platformId)}>
-            Try again
+            {t('Try again')}
           </Button>
         </div>
       ) : (
@@ -78,7 +79,7 @@ export function AddAccountsButton({ bot }: { bot: Bot }) {
           setOpen(true)
         }}
       >
-        <Plus aria-hidden /> Add
+        <Plus aria-hidden /> {t('Add')}
       </Button>
       {session > 0 && <AddAccountFlow key={session} bot={bot} open={open} onClose={() => setOpen(false)} />}
     </>

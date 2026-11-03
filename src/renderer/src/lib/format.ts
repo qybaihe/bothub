@@ -1,3 +1,4 @@
+import { t } from "@/lib/i18n"
 const DAY = 24 * 60 * 60 * 1000
 
 function startOfDay(ts: number): number {
@@ -24,7 +25,7 @@ export function formatClock(ts: number): string {
 export function formatListTime(ts: number, now = Date.now()): string {
   const diffDays = Math.round((startOfDay(now) - startOfDay(ts)) / DAY)
   if (diffDays <= 0) return formatClock(ts)
-  if (diffDays === 1) return 'Yesterday'
+  if (diffDays === 1) return t('Yesterday')
   if (diffDays < 7) return weekdayFmt.format(ts)
   return shortDateFmt.format(ts)
 }
@@ -32,8 +33,8 @@ export function formatListTime(ts: number, now = Date.now()): string {
 /** Label for date dividers in a conversation. */
 export function formatDayLabel(ts: number, now = Date.now()): string {
   const diffDays = Math.round((startOfDay(now) - startOfDay(ts)) / DAY)
-  if (diffDays <= 0) return 'Today'
-  if (diffDays === 1) return 'Yesterday'
+  if (diffDays <= 0) return t('Today')
+  if (diffDays === 1) return t('Yesterday')
   return longDayFmt.format(ts)
 }
 

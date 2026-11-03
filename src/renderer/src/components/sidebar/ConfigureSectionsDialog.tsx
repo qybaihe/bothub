@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/Button'
 import { Dialog } from '@/components/ui/Dialog'
 import { IconButton } from '@/components/ui/IconButton'
 import { useBotStore } from '@/store/botStore'
+import { t } from '@/lib/i18n'
 
 interface ConfigureSectionsDialogProps {
   open: boolean
@@ -35,7 +36,7 @@ export function ConfigureSectionsDialog({ open, onOpenChange }: ConfigureSection
     <Dialog
       open={open}
       onOpenChange={openChange}
-      title="Configure sections"
+      title={t('Configure sections')}
       description="Organize bots into sidebar sections. Local to this workspace."
       showDescription
       className="max-w-[380px]"
@@ -46,14 +47,14 @@ export function ConfigureSectionsDialog({ open, onOpenChange }: ConfigureSection
             variant="ghost"
             onClick={() => {
               const id = addGroup()
-              setDrafts((d) => ({ ...d, [id]: useBotStore.getState().groups.find((g) => g.id === id)?.name ?? 'New section' }))
+              setDrafts((d) => ({ ...d, [id]: useBotStore.getState().groups.find((g) => g.id === id)?.name ?? t('New section') }))
             }}
           >
             <Plus className="size-3.5" aria-hidden />
-            New section
+            {t('New section')}
           </Button>
           <Button type="button" onClick={() => onOpenChange(false)}>
-            Done
+            {t('Done')}
           </Button>
         </div>
       }
@@ -81,7 +82,7 @@ export function ConfigureSectionsDialog({ open, onOpenChange }: ConfigureSection
               />
               <span className="shrink-0 text-[12px] tabular-nums text-ink-muted">{count}</span>
               <IconButton
-                label={only ? 'Keep at least one section' : count > 0 ? 'Bots move to another section' : 'Delete section'}
+                label={only ? t('Keep at least one section') : count > 0 ? t('Bots move to another section') : t('Delete section')}
                 disabled={only}
                 onClick={() => {
                   removeGroup(group.id)

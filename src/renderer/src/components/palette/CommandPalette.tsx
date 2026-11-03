@@ -9,6 +9,7 @@ import { useOverlayLock } from '@/lib/overlay'
 import { botMatches } from '@/lib/selectors'
 import { shortcutLabel } from '@/lib/shortcuts'
 import { useBotStore } from '@/store/botStore'
+import { t } from '@/lib/i18n'
 
 interface Row {
   key: string
@@ -56,7 +57,7 @@ export function CommandPalette() {
             'data-[state=closed]:animate-dialog-sink data-[state=open]:animate-palette-in'
           )}
         >
-          <RadixDialog.Title className="sr-only">Search</RadixDialog.Title>
+          <RadixDialog.Title className="sr-only">{t('Search')}</RadixDialog.Title>
           <PaletteBody key={key} onClose={close} />
         </RadixDialog.Content>
       </RadixDialog.Portal>
@@ -94,7 +95,7 @@ function PaletteBody({ onClose }: { onClose: () => void }) {
         lead: <BotAvatar emoji={bot.emoji} seed={bot.id} avatar={bot.avatar} platformId={bot.platformId} size="xs" />,
         run: openBot(bot.id)
       }))
-    if (botRows.length) out.push(['Bots', botRows])
+    if (botRows.length) out.push([t('Bots'), botRows])
 
     if (wanted.length >= 2) {
       const hits: Row[] = []
@@ -111,13 +112,13 @@ function PaletteBody({ onClose }: { onClose: () => void }) {
           })
         }
       }
-      if (hits.length) out.push(['Messages', hits])
+      if (hits.length) out.push([t('Messages'), hits])
     }
 
     const commands: Row[] = [
       {
         key: 'cmd:new',
-        title: 'New bot',
+        title: t('New bot'),
         hint: shortcutLabel('N'),
         lead: (
           <CommandIcon>
@@ -128,7 +129,7 @@ function PaletteBody({ onClose }: { onClose: () => void }) {
       },
       {
         key: 'cmd:details',
-        title: infoOpen ? 'Hide details' : 'Show details',
+        title: infoOpen ? t('Hide details') : t('Show details'),
         hint: shortcutLabel('I'),
         lead: (
           <CommandIcon>
@@ -139,7 +140,7 @@ function PaletteBody({ onClose }: { onClose: () => void }) {
       },
       {
         key: 'cmd:web',
-        title: webOpen ? 'Back to conversation' : 'Show web session',
+        title: webOpen ? t('Back to conversation') : t('Show web session'),
         lead: (
           <CommandIcon>
             <Globe />
@@ -151,7 +152,7 @@ function PaletteBody({ onClose }: { onClose: () => void }) {
         ? [
             {
               key: 'cmd:update',
-              title: 'Check for updates',
+              title: t('Check for updates'),
               lead: (
                 <CommandIcon>
                   <RefreshCw />
@@ -162,7 +163,7 @@ function PaletteBody({ onClose }: { onClose: () => void }) {
           ]
         : [])
     ].filter((row) => !wanted || row.title.toLowerCase().includes(wanted))
-    if (commands.length) out.push(['Commands', commands])
+    if (commands.length) out.push([t('Commands'), commands])
     return out
   }, [bots, groups, accounts, messages, wanted, infoOpen, webOpen, selectBot, setAddBotOpen, toggleInfoPanel, toggleWebSession])
 
@@ -194,8 +195,8 @@ function PaletteBody({ onClose }: { onClose: () => void }) {
           aria-expanded
           aria-controls="palette-results"
           aria-activedescendant={activeKey ? `palette-${activeKey}` : undefined}
-          aria-label="Search"
-          placeholder="Search bots, messages and commands"
+          aria-label={t('Search')}
+          placeholder={t('Search bots, messages and commands')}
           onChange={(event) => {
             setQuery(event.target.value)
             setCursor(0)
@@ -218,7 +219,7 @@ function PaletteBody({ onClose }: { onClose: () => void }) {
         {query && (
           <button
             type="button"
-            aria-label="Clear search"
+            aria-label={t('Clear search')}
             onClick={() => {
               setQuery('')
               setCursor(0)
@@ -234,7 +235,7 @@ function PaletteBody({ onClose }: { onClose: () => void }) {
         ref={glide.ref}
         id="palette-results"
         role="listbox"
-        aria-label="Results"
+        aria-label={t('Results')}
         className="relative flex max-h-[min(402px,54vh)] min-h-[120px] flex-col gap-0.5 overflow-y-auto p-2"
       >
         {glide.thumb && (
@@ -243,7 +244,7 @@ function PaletteBody({ onClose }: { onClose: () => void }) {
         {rows.length === 0 ? (
           <div className="flex flex-1 animate-veil-in flex-col items-center justify-center gap-2 py-8 text-ink-muted">
             <Search className="size-5 text-ink-faint" aria-hidden />
-            <p className="text-[13px]">No results</p>
+            <p className="text-[13px]">{t('No results')}</p>
           </div>
         ) : (
           sections.map(([title, items]) => (

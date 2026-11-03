@@ -9,7 +9,7 @@ import { UpdateBanner } from '@/components/update/UpdateBanner'
 import { useGlobalShortcuts } from '@/lib/shortcuts'
 import { startAdapterBridge } from '@/services/adapterBridge'
 import { useBotStore } from '@/store/botStore'
-import { startPrefsSync } from '@/store/prefsStore'
+import { startPrefsSync, usePrefsStore } from '@/store/prefsStore'
 
 export default function App() {
   // Details only make sense next to a selected bot.
@@ -42,6 +42,7 @@ export default function App() {
     void import("@adapters/registry").then(({ adapterRegistry }) => {
       ;(window as unknown as { __bothub?: unknown }).__bothub = {
         store: useBotStore,
+        prefs: usePrefsStore,
         adapterRegistry
       }
     })

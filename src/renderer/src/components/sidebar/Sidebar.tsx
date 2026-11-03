@@ -9,6 +9,7 @@ import { cn } from '@/lib/cn'
 import { shortcutLabel } from '@/lib/shortcuts'
 import { useBotStore } from '@/store/botStore'
 import { BotList } from './BotList'
+import { t } from '@/lib/i18n'
 
 interface SidebarProps {
   onAddBot: () => void
@@ -57,7 +58,7 @@ function BrandMenu() {
     <Menu>
       <MenuTrigger
         className="no-drag press -ml-1 flex h-8 min-w-0 items-center gap-2 rounded-full pr-2.5 pl-1 hover:bg-hover data-[state=open]:bg-hover"
-        aria-label="BotHub menu"
+        aria-label={t('BotHub menu')}
       >
         <BrandMark />
         <span className="truncate text-[15px] font-semibold tracking-tight text-ink">BotHub</span>
@@ -73,7 +74,11 @@ function BrandMenu() {
         <MenuSeparator />
         <MenuLabel>{t('Language')}</MenuLabel>
         {LOCALES.map(([id, label]) => (
-          <MenuItem key={id} onSelect={() => setLocale(id)}>
+          <MenuItem key={id} onSelect={() => {
+            if (id === locale) return
+            setLocale(id)
+            window.location.reload()
+          }}>
             <Check aria-hidden className={cn(locale !== id && 'invisible')} />
             {label}
           </MenuItem>
@@ -122,10 +127,10 @@ export function Sidebar({ onAddBot }: SidebarProps) {
       >
         <BrandMenu />
         <div className="no-drag ml-auto flex shrink-0 items-center gap-1">
-          <IconButton round label="Search" shortcut={shortcutLabel('K')} onClick={() => openPalette()}>
+          <IconButton round label={t('Search')} shortcut={shortcutLabel('K')} onClick={() => openPalette()}>
             <Search />
           </IconButton>
-          <IconButton round label="New bot" shortcut={shortcutLabel('N')} onClick={onAddBot}>
+          <IconButton round label={t('New bot')} shortcut={shortcutLabel('N')} onClick={onAddBot}>
             <Plus />
           </IconButton>
         </div>

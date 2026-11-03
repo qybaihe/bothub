@@ -22,6 +22,7 @@ import type { Bot } from '@/types'
 import { AccountList } from './AccountList'
 import { MemoryEditor } from './MemoryEditor'
 import { EmptyLine, Section } from './Section'
+import { t } from '@/lib/i18n'
 
 /** Grok Bot–aligned chips: Overview / Library / Computer (Slice 1 UI parity). */
 type InfoTab = 'overview' | 'library' | 'computer' | 'members'
@@ -45,8 +46,8 @@ function BotHero({ bot }: { bot: Bot }) {
       <button
         type="button"
         onClick={() => fileRef.current?.click()}
-        aria-label={bot.avatar ? 'Change photo' : 'Add a photo'}
-        title={bot.avatar ? 'Change photo' : 'Add a photo'}
+        aria-label={bot.avatar ? t('Change photo') : t('Add a photo')}
+        title={bot.avatar ? t('Change photo') : t('Add a photo')}
         className="press-icon rounded-full"
       >
         <span key={bot.avatar ?? 'mark'} className="inline-flex animate-mark-pop">
@@ -76,7 +77,7 @@ function BotHero({ bot }: { bot: Bot }) {
         {editing ? (
           <InlineEdit
             value={bot.name}
-            label="Bot name"
+            label={t('Bot name')}
             className="h-8 text-center text-[17px] font-medium"
             onCommit={(name) => renameBot(bot.id, name)}
             onDone={() => setEditing(false)}
@@ -85,7 +86,7 @@ function BotHero({ bot }: { bot: Bot }) {
           <button
             type="button"
             onClick={() => setEditing(true)}
-            title="Rename"
+            title={t('Rename')}
             className="max-w-full truncate rounded-md px-1.5 text-[17px] leading-6 font-medium tracking-tight text-ink transition-colors hover:bg-hover"
           >
             {bot.name}
@@ -102,7 +103,7 @@ function Tabs({ tab, onChange }: { tab: InfoTab; onChange: (tab: InfoTab) => voi
     <div
       ref={glide.ref}
       role="tablist"
-      aria-label="Details panels"
+      aria-label={t('Details panels')}
       className="relative mx-4 flex rounded-[10px] bg-hover p-0.5"
       onKeyDown={(event) => {
         if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
@@ -129,7 +130,7 @@ function Tabs({ tab, onChange }: { tab: InfoTab; onChange: (tab: InfoTab) => voi
             tab === id ? 'text-ink' : 'text-ink-secondary hover:text-ink'
           )}
         >
-          {label}
+          {t(label)}
         </button>
       ))}
     </div>
@@ -149,7 +150,7 @@ export function InfoPanel() {
     <>
       <PaneHeader className="pr-3">
         <IconButton
-          label="Close details"
+          label={t('Close details')}
           shortcut={shortcutLabel('I')}
           className="no-drag ml-auto"
           onClick={toggleInfoPanel}
@@ -166,18 +167,18 @@ export function InfoPanel() {
           <div key={`${bot.id}:${tab}`} className="animate-veil-in">
             {tab === 'overview' ? (
               <>
-                <Section title="Accounts" count={accounts.length > 1 ? accounts.length : undefined} action={<AddAccountsButton bot={bot} />} flush>
+                <Section title={t('Accounts')} count={accounts.length > 1 ? accounts.length : undefined} action={<AddAccountsButton bot={bot} />} flush>
                   <AccountList bot={bot} accounts={accounts} />
                 </Section>
-                <Section title="Memory" count={bot.memory.length}>
+                <Section title={t('Memory')} count={bot.memory.length}>
                   <MemoryEditor bot={bot} />
                 </Section>
-                <Section title="Notes" flush>
+                <Section title={t('Notes')} flush>
                   <textarea
                     value={bot.notes}
                     onChange={(event) => updateNotes(bot.id, event.target.value)}
-                    placeholder="Private notes"
-                    aria-label="Notes"
+                    placeholder={t('Private notes')}
+                    aria-label={t('Notes')}
                     rows={3}
                     className="block w-full resize-none bg-transparent px-3 py-2.5 text-[13px] leading-[18px] text-ink outline-none placeholder:text-ink-muted"
                   />
@@ -196,8 +197,8 @@ export function InfoPanel() {
               bot.platformId === 'meta-muse' && bot.activeAccountId ? (
                 <FilesSection accountId={bot.activeAccountId} />
               ) : (
-                <Section title="Library">
-                  <EmptyLine>Library is available for Muse bots (files on the agent).</EmptyLine>
+                <Section title={t('Library')}>
+                  <EmptyLine>{t('Library is available for Muse bots (files on the agent).')}</EmptyLine>
                 </Section>
               )
             ) : tab === 'members' ? (
@@ -205,16 +206,16 @@ export function InfoPanel() {
                 {bot.platformId === 'meta-muse' && bot.activeAccountId ? (
                   <InviteSection accountId={bot.activeAccountId} />
                 ) : null}
-                <Section title="Members">
+                <Section title={t('Members')}>
                   <EmptyLine>
-                    Only you use this bot. Muse Trusted Network (shared contacts) isn't connected in BotHub yet.
+                    {t('Only you use this bot. Muse Trusted Network (shared contacts) isn\'t connected in BotHub yet.')}
                   </EmptyLine>
                 </Section>
               </>
             ) : (
-              <Section title="Computer">
+              <Section title={t('Computer')}>
                 <EmptyLine>
-                  Muse has no Grok-style cloud computer yet. This tab is a shell for future parity — nothing to show.
+                  {t('Muse has no Grok-style cloud computer yet. This tab is a shell for future parity — nothing to show.')}
                 </EmptyLine>
               </Section>
             )}

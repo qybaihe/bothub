@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/Button'
 import { RefreshButton } from '@/components/muse/RefreshButton'
 import { getBridge } from '@/lib/bridge'
 import { useBotStore } from '@/store/botStore'
+import { t } from '@/lib/i18n'
 
 function formatNext(utc: number | null, tz: string | null): string {
   if (utc == null || utc <= 0) return '—'
@@ -46,15 +47,15 @@ function ScheduleRow({
           <p className="mt-0.5 text-[11px] text-ink-muted">Next · {formatNext(item.nextRunAtUtc, item.timezone)}</p>
         </div>
         <span className="shrink-0 rounded-full bg-hover px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-ink-secondary">
-          {item.enabled ? 'Active' : 'Paused'}
+          {item.enabled ? t('Active') : t('Paused')}
         </span>
       </div>
       <div className="mt-2 flex flex-wrap gap-1.5">
         <Button size="sm" disabled={busyId === item.id} onClick={() => onRun(item.id)}>
-          Run now
+          {t('Run now')}
         </Button>
         <Button size="sm" disabled={busyId === item.id} onClick={() => onHistory(item.id)}>
-          History
+          {t('History')}
         </Button>
         <Button
           size="sm"
@@ -62,7 +63,7 @@ function ScheduleRow({
           disabled={busyId === item.id}
           onClick={() => (confirming ? onConfirmDelete(item.id) : onAskDelete(item.id))}
         >
-          {confirming ? 'Click again to delete' : 'Delete'}
+          {confirming ? t('Click again to delete') : t('Delete')}
         </Button>
       </div>
     </li>
@@ -163,7 +164,7 @@ export function SchedulesSection({ accountId }: { accountId: string }) {
     <div className="mb-3">
       <p className="mb-1.5 text-[11px] font-semibold tracking-wide text-ink-muted uppercase">{title}</p>
       {list.length === 0 ? (
-        <EmptyLine>None</EmptyLine>
+        <EmptyLine>{t('None')}</EmptyLine>
       ) : (
         <ul className="flex flex-col gap-2">
           {list.map((item) => (
@@ -190,14 +191,14 @@ export function SchedulesSection({ accountId }: { accountId: string }) {
       action={<RefreshButton loading={loading} onClick={() => void refresh()} />}
     >
       {error && <p className="pb-1 text-[12px] text-status-error">{error}</p>}
-      <p className="mb-2 text-[11px] text-ink-muted">Create tasks in chat with Muse — BotHub lists, runs, and deletes them.</p>
-      {renderGroup('Active', active)}
-      {renderGroup('Paused', paused)}
+      <p className="mb-2 text-[11px] text-ink-muted">{t('Create tasks in chat with Muse — BotHub lists, runs, and deletes them.')}</p>
+      {renderGroup(t('Active'), active)}
+      {renderGroup(t('Paused'), paused)}
       {runsFor && (
         <div className="mt-2 rounded-lg bg-hover/50 px-2.5 py-2">
           <p className="text-[12px] font-medium text-ink">History · {runsFor.slice(0, 8)}…</p>
           {runs.length === 0 ? (
-            <EmptyLine>No runs</EmptyLine>
+            <EmptyLine>{t('No runs')}</EmptyLine>
           ) : (
             <ul className="mt-1 flex flex-col gap-1">
               {runs.slice(0, 8).map((r) => (

@@ -1,6 +1,7 @@
 import { useRef, useState, type ReactNode } from 'react'
 import { cn } from '@/lib/cn'
 import { SIDEBAR_DEFAULT, SIDEBAR_MAX, SIDEBAR_MIN, useBotStore } from '@/store/botStore'
+import { t } from '@/lib/i18n'
 
 interface AppShellProps {
   sidebar: ReactNode
@@ -23,7 +24,7 @@ function SidebarGrip() {
     <div
       role="separator"
       aria-orientation="vertical"
-      aria-label="Resize sidebar"
+      aria-label={t('Resize sidebar')}
       aria-valuemin={SIDEBAR_MIN}
       aria-valuemax={SIDEBAR_MAX}
       aria-valuenow={width}
@@ -74,7 +75,7 @@ export function AppShell({ sidebar, main, aside, asideOpen }: AppShellProps) {
   return (
     <div className="flex h-full w-full overflow-hidden bg-canvas text-ink">
       <nav
-        aria-label="Bots"
+        aria-label={t('Bots')}
         style={{ width: sidebarWidth }}
         className="relative flex shrink-0 flex-col border-r border-ink/[0.12] bg-canvas"
       >
@@ -88,7 +89,7 @@ export function AppShell({ sidebar, main, aside, asideOpen }: AppShellProps) {
           {/* Only the panel's edge moves (shape spring); its content keeps
               the final width so nothing inside reflows mid-animation. */}
           <aside
-            aria-label="Bot details"
+            aria-label={t('Bot details')}
             aria-hidden={!asideOpen}
             inert={!asideOpen}
             className={cn(

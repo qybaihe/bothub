@@ -11,13 +11,14 @@ import { ChatHeader } from './ChatHeader'
 import { Composer } from './Composer'
 import { MessageList } from './MessageList'
 import { WebSessionPane } from './WebSessionPane'
+import { t } from '@/lib/i18n'
 
 const NO_MESSAGES: ChatMessage[] = []
 
 const STARTERS = [
-  'What can you help me with?',
-  'Draft a short status update for the team',
-  'Brainstorm five names for a side project'
+  t('What can you help me with?'),
+  t('Draft a short status update for the team'),
+  t('Brainstorm five names for a side project')
 ]
 
 function ConversationIntro({
@@ -96,12 +97,12 @@ export function ChatArea() {
         <div className="drag-region h-[52px] shrink-0" />
         <div className="flex flex-1 animate-veil-in flex-col items-center justify-center gap-4 pb-[52px]">
           {hasBots ? (
-            <p className="text-[13px] text-ink-muted">Select a bot</p>
+            <p className="text-[13px] text-ink-muted">{t('Select a bot')}</p>
           ) : (
             <>
-              <p className="text-[15px] font-semibold tracking-tight text-ink">Add your first bot</p>
+              <p className="text-[15px] font-semibold tracking-tight text-ink">{t('Add your first bot')}</p>
               <Button variant="primary" size="lg" onClick={() => setAddBotOpen(true)} title={`New bot (${shortcutLabel('N')})`}>
-                <Plus aria-hidden /> New bot
+                <Plus aria-hidden /> {t('New bot')}
               </Button>
             </>
           )}

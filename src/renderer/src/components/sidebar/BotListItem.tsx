@@ -8,6 +8,7 @@ import { avatarFromFile } from '@/lib/avatarImage'
 import { cn } from '@/lib/cn'
 import { useBotStore } from '@/store/botStore'
 import type { Bot, BotActivity, ChatMessage } from '@/types'
+import { t } from '@/lib/i18n'
 
 interface BotListItemProps {
   bot: Bot
@@ -35,7 +36,7 @@ function previewText(
 ): string {
   const live = activityPhrase(activity)
   if (live) return live
-  if (typing) return 'Typing…'
+  if (typing) return t('Typing…')
   if (!last) return ''
   const text = last.text.replace(/\s+/g, ' ').trim()
   const body = text || (last.attachments?.length ? last.attachments[0]!.name : '')
@@ -81,7 +82,7 @@ export const BotListItem = memo(function BotListItem({
         {renaming ? (
           <InlineEdit
             value={bot.name}
-            label="Bot name"
+            label={t('Bot name')}
             className="-ml-1.5 text-[14px]"
             onCommit={(name) => renameBot(bot.id, name)}
             onDone={() => {
@@ -165,13 +166,13 @@ export const BotListItem = memo(function BotListItem({
           </MenuTrigger>
           <MenuContent align="start" side="bottom" className="min-w-48">
             <MenuItem onSelect={() => togglePinBot(bot.id)}>
-              {bot.pinned ? <PinOff aria-hidden /> : <Pin aria-hidden />} {bot.pinned ? 'Unpin' : 'Pin'}
+              {bot.pinned ? <PinOff aria-hidden /> : <Pin aria-hidden />} {bot.pinned ? t('Unpin') : t('Pin')}
             </MenuItem>
             <MenuItem onSelect={() => setRenaming(true)}>
-              <Pencil aria-hidden /> Rename
+              <Pencil aria-hidden /> {t('Rename')}
             </MenuItem>
             <MenuItem onSelect={() => fileRef.current?.click()}>
-              <ImagePlus aria-hidden /> {bot.avatar ? 'Change photo' : 'Add photo'}
+              <ImagePlus aria-hidden /> {bot.avatar ? t('Change photo') : t('Add photo')}
             </MenuItem>
             {bot.avatar && (
               <MenuItem onSelect={() => setBotAvatar(bot.id, undefined)}>
@@ -181,12 +182,12 @@ export const BotListItem = memo(function BotListItem({
             {groups.length > 1 && (
               <>
                 <MenuSeparator />
-                <MenuLabel>Move to section</MenuLabel>
+                <MenuLabel>{t('Move to section')}</MenuLabel>
                 {groups
                   .filter((g) => g.id !== bot.groupId)
                   .map((g) => (
                     <MenuItem key={g.id} onSelect={() => moveBotToGroup(bot.id, g.id)}>
-                      <FolderInput aria-hidden /> {g.name || 'Unallocated'}
+                      <FolderInput aria-hidden /> {g.name || t('Unallocated')}
                     </MenuItem>
                   ))}
               </>
@@ -205,7 +206,7 @@ export const BotListItem = memo(function BotListItem({
                 void removeBot(bot.id)
               }}
             >
-              <Trash2 aria-hidden /> {confirmDelete ? 'Click again to delete' : 'Delete bot'}
+              <Trash2 aria-hidden /> {confirmDelete ? t('Click again to delete') : t('Delete bot')}
             </MenuItem>
           </MenuContent>
         </Menu>

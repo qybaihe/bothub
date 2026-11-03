@@ -4,6 +4,7 @@ import { X } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { useOverlayLock } from '@/lib/overlay'
 import { IconButton } from './IconButton'
+import { t } from '@/lib/i18n'
 
 interface DialogProps {
   open: boolean
@@ -62,7 +63,7 @@ export function Dialog({
               {title}
             </RadixDialog.Title>
             <RadixDialog.Close asChild>
-              <IconButton label="Close" size="sm" className="-mr-1">
+              <IconButton label={t('Close')} size="sm" className="-mr-1">
                 <X />
               </IconButton>
             </RadixDialog.Close>

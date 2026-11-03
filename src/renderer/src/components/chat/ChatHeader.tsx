@@ -11,6 +11,7 @@ import { useBotStore } from '@/store/botStore'
 import { adapterRegistry } from '@adapters/registry'
 import type { Bot, BotAccount } from '@/types'
 import { AccountSwitcher } from './AccountSwitcher'
+import { t } from '@/lib/i18n'
 
 interface ChatHeaderProps {
   bot: Bot
@@ -61,12 +62,12 @@ function AgentPicker({ bot }: { bot: Bot }) {
   if (bot.platformId !== 'grok' || agents.length === 0) return null
   return (
     <label className="flex min-w-0 items-center gap-1.5 text-[12px] text-ink-muted">
-      <span className="shrink-0">Agent</span>
+      <span className="shrink-0">{t('Agent')}</span>
       <select
         className="max-w-[140px] truncate rounded-full border border-line bg-surface px-2 py-0.5 text-[12px] text-ink outline-none focus:border-accent"
         value={bot.selectedAgentId ?? agents[0]?.id ?? ''}
         onChange={(e) => setSelectedAgent(bot.id, e.target.value)}
-        aria-label="Select Grok Bot agent"
+        aria-label={t('Select Grok Bot agent')}
       >
         {agents.map((a) => (
           <option key={a.id} value={a.id}>
@@ -90,7 +91,7 @@ export function ChatHeader({ bot, accounts }: ChatHeaderProps) {
   const status = getBotStatus(bot, allAccounts)
   const activity = useBotStore((s) => s.activity[bot.activeAccountId])
   const activityLine = activity
-    ? `${activity.emoji ? activity.emoji + ' ' : ''}${activity.text || (activity.busy ? 'Working…' : '')}${
+    ? `${activity.emoji ? activity.emoji + ' ' : ''}${activity.text || (activity.busy ? t('Working…') : '')}${
         activity.subagents && activity.subagents > 0 ? ` · ${activity.subagents} subagents` : ''
       }`.trim()
     : ''
@@ -161,18 +162,18 @@ export function ChatHeader({ bot, accounts }: ChatHeaderProps) {
             }}
           />
         )}
-        <IconButton label={bot.pinned ? 'Unpin from sidebar' : 'Pin to sidebar'} active={bot.pinned === true} onClick={() => togglePinBot(bot.id)}>
+        <IconButton label={bot.pinned ? t('Unpin from sidebar') : t('Pin to sidebar')} active={bot.pinned === true} onClick={() => togglePinBot(bot.id)}>
           {bot.pinned ? <PinOff /> : <Pin />}
         </IconButton>
         <IconButton
-          label={webSessionOpen ? 'Back to conversation' : 'Show web session'}
+          label={webSessionOpen ? t('Back to conversation') : t('Show web session')}
           active={webSessionOpen}
           onClick={toggleWebSession}
         >
           <Globe />
         </IconButton>
         <IconButton
-          label={infoOpen ? 'Hide details' : 'Show details'}
+          label={infoOpen ? t('Hide details') : t('Show details')}
           shortcut={shortcutLabel('I')}
           active={infoOpen}
           onClick={toggleInfoPanel}

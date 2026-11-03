@@ -4,6 +4,7 @@ import type { UpdateStatusEvent } from '@shared/ipc'
 import { Button } from '@/components/ui/Button'
 import { getBridge } from '@/lib/bridge'
 import { cn } from '@/lib/cn'
+import { t } from '@/lib/i18n'
 
 type BannerState =
   | { kind: 'hidden' }
@@ -100,7 +101,7 @@ export function UpdateBanner() {
           <button
             type="button"
             className="press-icon grid size-7 place-items-center rounded-full text-ink-muted hover:bg-hover hover:text-ink"
-            aria-label="Dismiss"
+            aria-label={t('Dismiss')}
             onClick={() => setState({ kind: 'hidden' })}
           >
             <X className="size-3.5" />
@@ -128,7 +129,7 @@ export function UpdateBanner() {
             variant="primary"
             onClick={() => void getBridge()?.updates.install()}
           >
-            Restart
+            {t('Restart')}
           </Button>
         </>
       )}
@@ -138,7 +139,7 @@ export function UpdateBanner() {
           <button
             type="button"
             className="press-icon grid size-7 place-items-center rounded-full text-ink-muted hover:bg-hover hover:text-ink"
-            aria-label="Dismiss"
+            aria-label={t('Dismiss')}
             onClick={() => setState({ kind: 'hidden' })}
           >
             <X className="size-3.5" />

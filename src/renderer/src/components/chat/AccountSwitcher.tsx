@@ -4,6 +4,7 @@ import { Menu, MenuContent, MenuItem, MenuLabel, MenuSeparator, MenuTrigger } fr
 import { STATUS_LABEL } from '@/components/ui/Status'
 import { cn } from '@/lib/cn'
 import type { Bot, BotAccount } from '@/types'
+import { t } from '@/lib/i18n'
 
 interface AccountSwitcherProps {
   bot: Bot
@@ -36,7 +37,7 @@ export function AccountSwitcher({ bot, accounts, onSelect, onManage }: AccountSw
         <ChevronDown className="size-3.5 shrink-0 text-ink-muted" aria-hidden />
       </MenuTrigger>
       <MenuContent align="end" className="w-64">
-        <MenuLabel>Send as</MenuLabel>
+        <MenuLabel>{t('Send as')}</MenuLabel>
         {accounts.map((account) => (
           <MenuItem key={account.id} onSelect={() => onSelect(account.id)}>
             <span className="relative">
@@ -50,13 +51,13 @@ export function AccountSwitcher({ bot, accounts, onSelect, onManage }: AccountSw
             <span className="min-w-0 flex-1 truncate" title={STATUS_LABEL[account.status]}>
               {account.label || account.displayName}
             </span>
-            {account.id === bot.activeAccountId && <Check className="!text-accent-600" aria-label="Active" />}
+            {account.id === bot.activeAccountId && <Check className="!text-accent-600" aria-label={t('Active')} />}
           </MenuItem>
         ))}
         <MenuSeparator />
         <MenuItem onSelect={onManage}>
           <Settings2 aria-hidden />
-          Manage accounts
+          {t('Manage accounts')}
         </MenuItem>
       </MenuContent>
     </Menu>

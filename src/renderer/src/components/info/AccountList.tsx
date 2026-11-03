@@ -7,6 +7,7 @@ import { STATUS_LABEL } from '@/components/ui/Status'
 import { cn } from '@/lib/cn'
 import { useBotStore } from '@/store/botStore'
 import type { Bot, BotAccount } from '@/types'
+import { t } from '@/lib/i18n'
 
 interface AccountListProps {
   bot: Bot
@@ -51,7 +52,7 @@ export function AccountList({ bot, accounts }: AccountListProps) {
                 <AccountAvatar name={account.displayName} status={account.status} />
                 <InlineEdit
                   value={name}
-                  label="Account name"
+                  label={t('Account name')}
                   className="text-[13px]"
                   onCommit={(value) => renameAccount(account.id, value)}
                   onDone={() => setEditingId(null)}
@@ -95,14 +96,14 @@ export function AccountList({ bot, accounts }: AccountListProps) {
               </button>
             )}
 
-            {account.pending && !isMuse && <Loader2 className="size-4 animate-spin text-ink-muted" aria-label="Updating" />}
+            {account.pending && !isMuse && <Loader2 className="size-4 animate-spin text-ink-muted" aria-label={t('Updating')} />}
 
             {/* The check marks the sending account and gives way to ⋯ on hover. */}
             <span className="relative grid size-7 shrink-0 place-items-center">
             {several && active && editingId !== account.id && (
               <Check
                 className="size-4 text-accent-600 transition-opacity duration-100 group-focus-within:opacity-0 group-hover:opacity-0"
-                aria-label="Sending from this account"
+                aria-label={t('Sending from this account')}
               />
             )}
             <Menu onOpenChange={(open) => !open && setConfirmRemove(null)}>

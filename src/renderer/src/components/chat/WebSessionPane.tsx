@@ -3,6 +3,7 @@ import { getPlatform } from '@adapters/platforms'
 import { AlertCircle, Globe } from 'lucide-react'
 import { useWebSessionView } from '@/hooks/useWebSessionView'
 import type { Bot, BotAccount } from '@/types'
+import { t } from '@/lib/i18n'
 
 interface WebSessionPaneProps {
   bot: Bot
@@ -30,10 +31,10 @@ export function WebSessionPane({ bot, account }: WebSessionPaneProps) {
         {state.status === 'unsupported' && (
           <>
             <Globe className="size-5 text-ink-faint" aria-hidden />
-            <p>Web sessions open in the desktop app</p>
+            <p>{t('Web sessions open in the desktop app')}</p>
           </>
         )}
-        {state.status === 'loading' && <p className="shimmer-text">Opening {platform.name}…</p>}
+        {state.status === 'loading' && <p className="shimmer-text">{t('Opening {name}…', { name: platform.name })}</p>}
         {state.status === 'error' && (
           <p className="flex items-center gap-2 text-status-error">
             <AlertCircle className="size-4" aria-hidden /> {state.message}

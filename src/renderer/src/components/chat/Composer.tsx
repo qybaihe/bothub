@@ -7,6 +7,7 @@ import { IconButton } from '@/components/ui/IconButton'
 import { cn } from '@/lib/cn'
 import { formatBytes } from '@/lib/format'
 import type { Bot, BotAccount } from '@/types'
+import { t } from '@/lib/i18n'
 
 interface ComposerProps {
   bot: Bot
@@ -180,7 +181,7 @@ export function Composer({ bot, account, onSend, onConnect, onMuseLogin, onGrokL
           )}
         >
           {attachments.length > 0 && (
-            <ul className="flex flex-wrap gap-1.5 px-1 pt-0.5 pb-1.5" aria-label="Attachments">
+            <ul className="flex flex-wrap gap-1.5 px-1 pt-0.5 pb-1.5" aria-label={t('Attachments')}>
               {attachments.map((file) => (
                 <li
                   key={file.id}
@@ -213,7 +214,7 @@ export function Composer({ bot, account, onSend, onConnect, onMuseLogin, onGrokL
                 event.target.value = ''
               }}
             />
-            <IconButton label="Attach files" onClick={() => fileInputRef.current?.click()}>
+            <IconButton label={t('Attach files')} onClick={() => fileInputRef.current?.click()}>
               <Plus />
             </IconButton>
             <textarea
@@ -231,7 +232,7 @@ export function Composer({ bot, account, onSend, onConnect, onMuseLogin, onGrokL
                   addFiles(event.clipboardData.files)
                 }
               }}
-              placeholder={`Message ${bot.name}`}
+              placeholder={t('Message {name}', { name: bot.name })}
               aria-label={`Message ${bot.name}`}
               className="block max-h-[200px] min-h-8 flex-1 resize-none bg-transparent px-1 py-[5px] text-[14px] leading-[22px] text-ink outline-none placeholder:text-ink-muted"
             />
@@ -239,8 +240,8 @@ export function Composer({ bot, account, onSend, onConnect, onMuseLogin, onGrokL
               type="button"
               onClick={submit}
               disabled={!canSend}
-              aria-label="Send message"
-              title="Send (Enter)"
+              aria-label={t('Send message')}
+              title={t('Send (Enter)')}
               className={cn(
                 'press-icon grid size-8 shrink-0 place-items-center rounded-full',
                 canSend ? 'bg-accent-600 text-white hover:bg-accent-700' : 'bg-hover text-ink-faint'

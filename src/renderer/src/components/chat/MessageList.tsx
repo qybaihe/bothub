@@ -6,6 +6,7 @@ import { formatDayLabel, isSameDay } from '@/lib/format'
 import type { Bot, BotAccount, ChatMessage } from '@/types'
 import { MessageBubble } from './MessageBubble'
 import { TypingIndicator } from './TypingIndicator'
+import { t } from '@/lib/i18n'
 
 interface MessageListProps {
   bot: Bot
@@ -133,7 +134,7 @@ export function MessageList({ bot, messages, accounts, typing, onRetry }: Messag
         <button
           type="button"
           onClick={jumpToLatest}
-          aria-label={unseen > 0 ? `${unseen} new ${unseen === 1 ? 'message' : 'messages'}` : 'Jump to latest'}
+          aria-label={unseen > 0 ? `${unseen} new ${unseen === 1 ? 'message' : 'messages'}` : t('Jump to latest')}
           className={cn(
             'press absolute bottom-3 left-1/2 flex h-8 -translate-x-1/2 animate-pop-lift items-center gap-1.5 rounded-full shadow-float',
             unseen > 0
@@ -142,7 +143,7 @@ export function MessageList({ bot, messages, accounts, typing, onRetry }: Messag
           )}
         >
           <ArrowDown className="size-4" aria-hidden />
-          {unseen > 0 && <span className="tabular-nums">{unseen > 1 ? `${unseen} new messages` : 'New message'}</span>}
+          {unseen > 0 && <span className="tabular-nums">{unseen > 1 ? `${t('{n} new messages', { n: unseen })}` : t('New message')}</span>}
         </button>
       )}
     </div>

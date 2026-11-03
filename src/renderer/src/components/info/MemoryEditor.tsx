@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Plus, X } from 'lucide-react'
 import { useBotStore } from '@/store/botStore'
 import type { Bot } from '@/types'
+import { t } from '@/lib/i18n'
 
 /** Short facts the bot should remember. */
 export function MemoryEditor({ bot }: { bot: Bot }) {
@@ -47,14 +48,14 @@ export function MemoryEditor({ bot }: { bot: Bot }) {
         <input
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
-          placeholder="Add memory"
-          aria-label="Add memory"
+          placeholder={t('Add memory')}
+          aria-label={t('Add memory')}
           className="h-7 min-w-0 flex-1 bg-transparent text-[13px] text-ink outline-none placeholder:text-ink-muted"
         />
         {draft.trim() && (
           <button
             type="submit"
-            aria-label="Save memory"
+            aria-label={t('Save memory')}
             className="press-icon grid size-6 animate-mark-pop place-items-center rounded-full bg-accent-600 text-white"
           >
             <Plus className="size-3.5" />

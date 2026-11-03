@@ -1,12 +1,13 @@
 import type { ConnectionStatus } from '@adapters/types'
 import { cn } from '@/lib/cn'
+import { t } from '@/lib/i18n'
 
 export const STATUS_LABEL: Record<ConnectionStatus, string> = {
-  online: 'Idle',
-  busy: 'Running',
-  attention: 'Action required',
-  offline: 'Offline',
-  error: 'Error'
+  online: t('Idle'),
+  busy: t('Running'),
+  attention: t('Action required'),
+  offline: t('Offline'),
+  error: t('Error')
 }
 
 const DOT: Record<ConnectionStatus, string> = {

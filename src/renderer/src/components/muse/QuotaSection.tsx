@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/Button'
 import { RefreshButton } from '@/components/muse/RefreshButton'
 import { getBridge } from '@/lib/bridge'
 import { useBotStore } from '@/store/botStore'
+import { t } from '@/lib/i18n'
 
 function ProgressBar({ value }: { value: number }) {
   const pct = Math.max(0, Math.min(100, value))
@@ -56,13 +57,13 @@ export function QuotaSection({ accountId }: { accountId: string }) {
   }, [accountId])
 
   const sub = snap?.subscription
-  const upgradeLabel = sub?.entryPointCtaLabel || 'Upgrade'
+  const upgradeLabel = sub?.entryPointCtaLabel || t('Upgrade')
 
   return (
     <Section title="额度管理" action={<RefreshButton loading={loading} onClick={() => void refresh()} />}>
       {error && <p className="pb-1 text-[12px] text-status-error">{error}</p>}
       {!sub ? (
-        <EmptyLine>{loading ? 'Loading usage…' : 'Usage unavailable'}</EmptyLine>
+        <EmptyLine>{loading ? t('Loading usage…') : t('Usage unavailable')}</EmptyLine>
       ) : (
         <div className="flex flex-col gap-3 py-0.5">
           <div>
@@ -72,7 +73,7 @@ export function QuotaSection({ accountId }: { accountId: string }) {
           {sub.usage.state === 'METERED' && (
             <div>
               <div className="flex items-baseline justify-between gap-2">
-                <span className="text-[12px] text-ink-secondary">{sub.usageRowLabel || 'Usage'}</span>
+                <span className="text-[12px] text-ink-secondary">{sub.usageRowLabel || t('Usage')}</span>
                 <span className="text-[12px] text-ink">
                   {sub.usageRowValueLabel || `${sub.usage.percentUsed}% used`}
                 </span>
@@ -81,16 +82,16 @@ export function QuotaSection({ accountId }: { accountId: string }) {
               {sub.usageRowFooter && <p className="mt-1 text-[11px] text-ink-muted">{sub.usageRowFooter}</p>}
             </div>
           )}
-          {sub.usage.state === 'UNLIMITED' && <p className="text-[12px] text-ink-secondary">Unlimited usage</p>}
+          {sub.usage.state === 'UNLIMITED' && <p className="text-[12px] text-ink-secondary">{t('Unlimited usage')}</p>}
           {(sub.topupRowLabel || sub.topupRowValueLabel) && (
             <div className="rounded-lg bg-hover/60 px-2.5 py-2">
-              <p className="text-[12px] font-medium text-ink">{sub.topupRowLabel || 'Additional tokens'}</p>
+              <p className="text-[12px] font-medium text-ink">{sub.topupRowLabel || t('Additional tokens')}</p>
               {sub.topupRowValueLabel && (
                 <p className="mt-0.5 text-[12px] text-ink-secondary">{sub.topupRowValueLabel}</p>
               )}
             </div>
           )}
-          {snap?.stale && <p className="text-[11px] text-status-attention">Showing last known usage</p>}
+          {snap?.stale && <p className="text-[11px] text-status-attention">{t('Showing last known usage')}</p>}
           <div>
             <Button
               size="sm"

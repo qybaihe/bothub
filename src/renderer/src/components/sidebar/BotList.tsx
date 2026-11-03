@@ -8,6 +8,7 @@ import { useBotStore } from '@/store/botStore'
 import type { BotGroup } from '@/types'
 import { BotListItem } from './BotListItem'
 import { ConfigureSectionsDialog } from './ConfigureSectionsDialog'
+import { t } from '@/lib/i18n'
 
 /** ↑/↓ move between rows; Enter opens the focused one. */
 function moveBetweenRows(event: KeyboardEvent<HTMLElement>) {
@@ -48,7 +49,7 @@ function SectionHeader({
         <div className="flex min-w-0 flex-1 items-center px-1.5">
           <InlineEdit
             value={group.name}
-            label="Section name"
+            label={t('Section name')}
             maxLength={40}
             className="h-7 w-full text-[12px] font-medium"
             onCommit={(name) => renameGroup(group.id, name)}
@@ -68,7 +69,7 @@ function SectionHeader({
             className={cn('size-3.5 shrink-0 transition-transform duration-150', !collapsed && 'rotate-90')}
           />
           <span id={`${listId}-label`} className="truncate text-[12px] font-medium tracking-tight">
-            {group.name || 'Unallocated'}
+            {group.name === 'Workspace' ? t('Workspace') : group.name || t('Unallocated')}
           </span>
           {botCount > 0 && (
             <span className="ml-auto shrink-0 pr-1 text-[11px] tabular-nums opacity-70">{botCount}</span>
@@ -90,7 +91,7 @@ function SectionHeader({
           </MenuTrigger>
           <MenuContent align="start" side="bottom" className="min-w-44">
             <MenuItem onSelect={() => setRenaming(true)}>
-              <Pencil aria-hidden /> Rename
+              <Pencil aria-hidden /> {t('Rename')}
             </MenuItem>
             <MenuSeparator />
             <MenuItem
@@ -100,7 +101,7 @@ function SectionHeader({
                 if (!only) removeGroup(group.id)
               }}
             >
-              <Trash2 aria-hidden /> {only ? 'Keep one section' : 'Delete section'}
+              <Trash2 aria-hidden /> {only ? t('Keep one section') : t('Delete section')}
             </MenuItem>
           </MenuContent>
         </Menu>
@@ -142,7 +143,7 @@ export function BotList() {
               <div className="flex h-7 items-center gap-1 px-1.5 text-ink-muted">
                 <Pin className="size-3 shrink-0" aria-hidden />
                 <span id="pinned-label" className="text-[12px] font-medium tracking-tight">
-                  Pinned
+                  {t('Pinned')}
                 </span>
               </div>
               <ul className="flex flex-col gap-0.5">
@@ -243,7 +244,7 @@ export function BotList() {
           className="press flex h-8 w-full items-center gap-2 rounded-lg px-2 text-[12px] font-medium text-ink-muted transition-colors hover:bg-hover hover:text-ink-secondary"
         >
           <FolderPlus className="size-3.5" aria-hidden />
-          New section
+          {t('New section')}
         </button>
         <button
           type="button"
@@ -251,7 +252,7 @@ export function BotList() {
           className="press flex h-8 w-full items-center gap-2 rounded-lg px-2 text-[12px] font-medium text-ink-muted transition-colors hover:bg-hover hover:text-ink-secondary"
         >
           <Settings2 className="size-3.5" aria-hidden />
-          Configure sections
+          {t('Configure sections')}
         </button>
       </div>
 

@@ -5,6 +5,7 @@ import { formatBytes, formatClock } from '@/lib/format'
 import { useBotStore } from '@/store/botStore'
 import type { ChatMessage, ChatOptionWidget } from '@/types'
 import { MarkdownText } from './MarkdownText'
+import { t } from '@/lib/i18n'
 
 interface MessageBubbleProps {
   message: ChatMessage
@@ -29,7 +30,7 @@ function DeliveryState({ message, onRetry }: Pick<MessageBubbleProps, 'message' 
       return (
         <span className="inline-flex items-center gap-1.5 text-status-error-ink">
           <AlertCircle className="size-3" aria-hidden />
-          {message.error ?? 'Not sent'}
+          {message.error ?? t('Not sent')}
           {onRetry && (
             <button
               type="button"
@@ -42,7 +43,7 @@ function DeliveryState({ message, onRetry }: Pick<MessageBubbleProps, 'message' 
         </span>
       )
     case 'sent':
-      return <Check className="size-3" aria-label="Sent" />
+      return <Check className="size-3" aria-label={t('Sent')} />
     default:
       return null
   }

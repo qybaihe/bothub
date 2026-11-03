@@ -5,6 +5,7 @@ import { EmptyLine, Section } from '@/components/info/Section'
 import { Button } from '@/components/ui/Button'
 import { RefreshButton } from './RefreshButton'
 import { useBotStore } from '@/store/botStore'
+import { t } from '@/lib/i18n'
 
 export function ApprovalsSection({ accountId }: { accountId: string }) {
   const [pending, setPending] = useState<MuseApproval[]>([])
@@ -47,13 +48,13 @@ export function ApprovalsSection({ accountId }: { accountId: string }) {
 
   return (
     <Section
-      title="Approvals"
+      title={t('Approvals')}
       count={pending.length}
       action={<RefreshButton loading={loading} onClick={() => void refresh()} />}
     >
       {error && <p className="pb-1 text-[12px] text-status-error">{error}</p>}
       {pending.length === 0 ? (
-        <EmptyLine>No pending approvals</EmptyLine>
+        <EmptyLine>{t('No pending approvals')}</EmptyLine>
       ) : (
         <ul className="flex flex-col gap-2 py-0.5">
           {pending.map((a) => (
@@ -62,10 +63,10 @@ export function ApprovalsSection({ accountId }: { accountId: string }) {
               {a.detail && <p className="mt-0.5 text-[12px] text-ink-secondary">{a.detail}</p>}
               <div className="mt-2 flex flex-wrap gap-1.5">
                 <Button size="sm" variant="primary" disabled={busyId === a.id} onClick={() => void decide(a.id, 'allow_once')}>
-                  Allow
+                  {t('Allow')}
                 </Button>
                 <Button size="sm" disabled={busyId === a.id} onClick={() => void decide(a.id, 'deny')}>
-                  Deny
+                  {t('Deny')}
                 </Button>
               </div>
             </li>

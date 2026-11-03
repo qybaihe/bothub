@@ -131,8 +131,20 @@ export const GROK_CHANNELS = {
   openLogin: 'bothub:grok:open-login',
   setAccessToken: 'bothub:grok:set-access-token',
   clearAuth: 'bothub:grok:clear-auth',
-  authStatus: 'bothub:grok:auth-status'
+  authStatus: 'bothub:grok:auth-status',
+  event: 'bothub:grok:event'
 } as const
+
+export type GrokMainEvent =
+  | {
+      type: 'auth'
+      accountId: string
+      signedIn: true
+      accessToken: string
+      accountSlot?: string
+      machineId?: string
+    }
+  | { type: 'auth'; accountId: string; signedIn: false }
 
 export interface GrokOpenLoginRequest {
   accountId: string

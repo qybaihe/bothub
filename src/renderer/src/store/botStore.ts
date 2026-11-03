@@ -81,10 +81,10 @@ export interface BotHubState {
   connectAccount: (accountId: string) => Promise<void>
   /** Muse: open same-partition login BrowserWindow. */
   openMuseLogin: (accountId: string) => Promise<void>
-  /** Grok: open Cursor authenticator window (2FA); token still manual. */
+  /** Grok: open Cursor authenticator window; token auto-captured when possible. */
   openGrokLogin: (accountId: string) => Promise<void>
   /** Inject Grok accessToken into adapter after login (not persisted). */
-  setGrokAccessToken: (accountId: string, accessToken: string, accountSlot?: string) => Promise<void>
+  setGrokAccessToken: (accountId: string, accessToken: string, accountSlot?: string, machineId?: string) => Promise<void>
   disconnectAccount: (accountId: string) => Promise<void>
 }
 
@@ -560,8 +560,8 @@ export const useBotStore = create<BotHubState>()(
         if (bridge?.grok?.openLogin) await bridge.grok.openLogin({ accountId })
         else if (adapter.openLogin) await adapter.openLogin(accountId, bot?.id)
         patchAccount(accountId, {
-          status: 'offline',
-          statusDetail: '登录后把 accessToken 交给 BotHub（尚未自动抓取）'
+          status: 'busy',
+          statusDetail: '在弹出的窗口里完成 Cursor / Grok 登录，成功后会自动导入'
         })
       } catch (error) {
         patchAccount(accountId, { status: 'error', statusDetail: errorMessage(error) })
@@ -570,7 +570,7 @@ export const useBotStore = create<BotHubState>()(
       }
     },
 
-    setGrokAccessToken: async (accountId, accessToken, accountSlot) => {
+    setGrokAccessToken: async (accountId, accessToken, accountSlot, machineId) => {
       const account = get().accounts[accountId]
       const adapter = account && adapterRegistry.get(account.platformId)
       if (!account || account.platformId !== 'grok') return
@@ -578,10 +578,17 @@ export const useBotStore = create<BotHubState>()(
       try {
         const bridge = electronBridge()
         if (bridge?.grok?.setAccessToken) {
-          await bridge.grok.setAccessToken({ accountId, accessToken, accountSlot })
+          await bridge.grok.setAccessToken({ accountId, accessToken, accountSlot, machineId })
         }
-        const grok = adapter as { setAuth?: (s: { accountId: string; accessToken: string; accountSlot?: string }) => void }
-        grok.setAuth?.({ accountId, accessToken, accountSlot })
+        const grok = adapter as {
+          setAuth?: (s: {
+            accountId: string
+            accessToken: string
+            accountSlot?: string
+            machineId?: string
+          }) => void
+        }
+        grok.setAuth?.({ accountId, accessToken, accountSlot, machineId })
         const status = await adapter?.connect(accountId)
         patchAccount(accountId, { status: status ?? 'online', statusDetail: undefined })
       } catch (error) {
@@ -590,6 +597,7 @@ export const useBotStore = create<BotHubState>()(
         patchAccount(accountId, { pending: false })
       }
     },
+
     disconnectAccount: async (accountId) => {
       const account = get().accounts[accountId]
       const adapter = account && adapterRegistry.get(account.platformId)

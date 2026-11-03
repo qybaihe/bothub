@@ -5,6 +5,7 @@ import {
   MUSE_CHANNELS,
   UPDATE_CHANNELS,
   WEB_VIEW_CHANNELS,
+  type GrokMainEvent,
   type MuseMainEvent,
   type UpdateStatusEvent
 } from '@shared/ipc'
@@ -51,7 +52,12 @@ const bridge: BotHubBridge = {
     openLogin: (request) => ipcRenderer.invoke(GROK_CHANNELS.openLogin, request),
     setAccessToken: (request) => ipcRenderer.invoke(GROK_CHANNELS.setAccessToken, request),
     clearAuth: (accountId) => ipcRenderer.invoke(GROK_CHANNELS.clearAuth, accountId),
-    authStatus: (accountId) => ipcRenderer.invoke(GROK_CHANNELS.authStatus, accountId)
+    authStatus: (accountId) => ipcRenderer.invoke(GROK_CHANNELS.authStatus, accountId),
+    onEvent: (listener) => {
+      const handler = (_event: unknown, payload: GrokMainEvent) => listener(payload)
+      ipcRenderer.on(GROK_CHANNELS.event, handler)
+      return () => ipcRenderer.removeListener(GROK_CHANNELS.event, handler)
+    }
   }
 }
 

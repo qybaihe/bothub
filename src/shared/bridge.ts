@@ -7,6 +7,7 @@ import type {
   UpdateStatusEvent,
   WebViewBounds,
   WebViewInfo,
+  GrokMainEvent,
   GrokOpenLoginRequest,
   GrokSetAccessTokenRequest,
   GrokAuthStatus
@@ -58,12 +59,13 @@ export interface UpdateBridge {
 }
 
 export interface GrokBridge {
-  /** Open authenticator.cursor.sh in a partition BrowserWindow (stops at 2FA/login). */
+  /** Open authenticator.cursor.sh in a partition BrowserWindow; auto-captures token when possible. */
   openLogin(request: GrokOpenLoginRequest): Promise<{ ok: true }>
   /** Store a bearer token for ConnectRPC (never persisted to disk by BotHub yet). */
   setAccessToken(request: GrokSetAccessTokenRequest): Promise<GrokAuthStatus>
   clearAuth(accountId: string): Promise<GrokAuthStatus>
   authStatus(accountId: string): Promise<GrokAuthStatus>
+  onEvent(listener: (event: GrokMainEvent) => void): () => void
 }
 
 export interface BotHubBridge {

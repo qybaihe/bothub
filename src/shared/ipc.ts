@@ -71,7 +71,11 @@ export const MUSE_CHANNELS = {
   /** Open any https URL (connector OAuth). */
   openHttps: 'bothub:muse:open-https',
   /** Tap Muse option widget (Kai/Juno). */
-  selectOption: 'bothub:muse:select-option'
+  selectOption: 'bothub:muse:select-option',
+  /** fs.raw preview for workspace image/file paths. */
+  previewWorkspaceFile: 'bothub:muse:files:preview',
+  /** Chunked fs.write eager upload → file_ref path. */
+  uploadWorkspaceFile: 'bothub:muse:files:upload'
 } as const
 
 export interface MuseEnsureRequest {
@@ -123,6 +127,41 @@ export interface MuseMediaPartView {
   mimeType?: string
 }
 
+export type MuseRichWidgetView =
+  | {
+      kind: 'shopping_results' | 'shopping_results_v2'
+      widgetId: string
+      products: Array<{ name: string; url?: string; imageUrl?: string; price?: string; retailer?: string }>
+    }
+  | {
+      kind: 'shopping_cart'
+      widgetId: string
+      retailerName?: string
+      subtotal?: string
+      items: Array<{ id: string; name: string; quantity: number; imageUrl?: string; linePrice?: string }>
+    }
+  | {
+      kind: 'local_map'
+      widgetId: string
+      html?: string
+      places: Array<{ id: string; name: string; latitude: number; longitude: number; category?: string }>
+    }
+  | {
+      kind: 'marketplace_map'
+      widgetId: string
+      listings: Array<{
+        id: string
+        name: string
+        url?: string
+        price?: string
+        imageUrl?: string
+        latitude?: number
+        longitude?: number
+      }>
+    }
+  | { kind: 'html'; widgetId: string; html: string; downloadable?: boolean }
+  | { kind: 'slides'; widgetId: string; label: string; path?: string; slug: string }
+
 export interface MuseOptionWidgetView {
   kind: 'option'
   widgetId: string
@@ -144,6 +183,7 @@ export type MuseMainEvent =
       text: string
       done: boolean
       widgets?: MuseOptionWidgetView[]
+      richWidgets?: MuseRichWidgetView[]
       tools?: MuseToolCallView[]
       media?: MuseMediaPartView[]
     }

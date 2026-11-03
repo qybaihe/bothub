@@ -92,6 +92,14 @@ export interface MuseBridge {
     widget: import('./ipc').MuseOptionWidgetView
     sessionId?: string
   }): Promise<unknown>
+  previewWorkspaceFile(
+    accountId: string,
+    path: string
+  ): Promise<{ path: string; mimeType: string; dataBase64: string; byteLength: number }>
+  uploadWorkspaceFile(
+    accountId: string,
+    args: { filename: string; mimeType: string; dataBase64: string }
+  ): Promise<{ path: string; filename: string; mimeType: string }>
 }
 
 export interface UpdateBridge {

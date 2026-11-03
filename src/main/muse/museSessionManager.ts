@@ -14,6 +14,7 @@ import {
   type MuseChatEvent,
   type MuseOptionWidget
 } from '../muse-native'
+import { fetchFsRawPreview, uploadWorkspaceFile, buildWorkspaceUploadPath } from '../muse-native/fs'
 import { fetchInviteSummary, fetchSubscription } from '../muse-native/quota'
 import {
   fetchInvite,
@@ -592,6 +593,7 @@ export class MuseSessionManager {
             text: u.text,
             done: u.done,
             widgets: this.mapStreamWidgets(u.widgets),
+            richWidgets: u.richWidgets,
             tools: u.tools,
             media: u.media
           })
@@ -650,6 +652,7 @@ export class MuseSessionManager {
           text: u.text,
           done: u.done,
           widgets: this.mapStreamWidgets(u.widgets),
+          richWidgets: u.richWidgets,
           tools: u.tools,
           media: u.media
         })
@@ -658,6 +661,37 @@ export class MuseSessionManager {
     )
     const reply = result.text || last
     return { ...result.ack, text: reply, display_text: reply, reply, assistant_message_id: lastId || undefined }
+  }
+
+
+  /** Preview a workspace file via fs.raw (binary). Caps ~8MiB for UI. */
+  async previewWorkspaceFile(
+    accountId: string,
+    path: string
+  ): Promise<{ path: string; mimeType: string; dataBase64: string; byteLength: number }> {
+    await this.ensure('muse', accountId)
+    const client = this.native.get(accountId)
+    if (!client) throw new Error('Muse native client not ready')
+    return fetchFsRawPreview(client.gateway, path)
+  }
+
+  /**
+   * Eager-upload bytes to workspace/user/files/… via chunked fs.write
+   * (official HatchGatewayFs / HatchAttachments file_ref path).
+   */
+  async uploadWorkspaceFile(
+    accountId: string,
+    args: { filename: string; mimeType: string; dataBase64: string }
+  ): Promise<{ path: string; filename: string; mimeType: string }> {
+    await this.ensure('muse', accountId)
+    const client = this.native.get(accountId)
+    if (!client) throw new Error('Muse native client not ready')
+    const bytes = Buffer.from(args.dataBase64, 'base64')
+    const path = buildWorkspaceUploadPath(args.filename || 'file')
+    const uploaded = await uploadWorkspaceFile(client.gateway, path, new Uint8Array(bytes), {
+      stageBeforePublish: true
+    })
+    return { path: uploaded, filename: args.filename || 'file', mimeType: args.mimeType || 'application/octet-stream' }
   }
 
   async rpc(

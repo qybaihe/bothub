@@ -61,7 +61,11 @@ const bridge: BotHubBridge = {
       ipcRenderer.invoke(MUSE_CHANNELS.disconnectConnector, accountId, connectorId),
     openExternal: (url) => ipcRenderer.invoke(MUSE_CHANNELS.openExternal, url),
     openHttps: (url) => ipcRenderer.invoke(MUSE_CHANNELS.openHttps, url),
-    selectOption: (request) => ipcRenderer.invoke(MUSE_CHANNELS.selectOption, request)
+    selectOption: (request) => ipcRenderer.invoke(MUSE_CHANNELS.selectOption, request),
+    previewWorkspaceFile: (accountId, path) =>
+      ipcRenderer.invoke(MUSE_CHANNELS.previewWorkspaceFile, accountId, path),
+    uploadWorkspaceFile: (accountId, args) =>
+      ipcRenderer.invoke(MUSE_CHANNELS.uploadWorkspaceFile, accountId, args)
   },
   updates: {
     check: () => ipcRenderer.invoke(UPDATE_CHANNELS.check),

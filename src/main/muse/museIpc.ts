@@ -161,6 +161,26 @@ export function registerMuseIpc(): void {
   })
 
 
+  ipcMain.handle(MUSE_CHANNELS.previewWorkspaceFile, async (event, accountId: unknown, path: unknown) => {
+    if (typeof accountId !== 'string' || typeof path !== 'string') throw new TypeError('Invalid preview request')
+    return managerFor(event).previewWorkspaceFile(accountId, path)
+  })
+
+  ipcMain.handle(MUSE_CHANNELS.uploadWorkspaceFile, async (event, accountId: unknown, args: unknown) => {
+    if (typeof accountId !== 'string' || typeof args !== 'object' || args === null) {
+      throw new TypeError('Invalid upload request')
+    }
+    const a = args as Record<string, unknown>
+    if (typeof a['filename'] !== 'string' || typeof a['mimeType'] !== 'string' || typeof a['dataBase64'] !== 'string') {
+      throw new TypeError('Invalid upload request fields')
+    }
+    return managerFor(event).uploadWorkspaceFile(accountId, {
+      filename: a['filename'],
+      mimeType: a['mimeType'],
+      dataBase64: a['dataBase64']
+    })
+  })
+
   ipcMain.handle(MUSE_CHANNELS.selectOption, async (event, request: unknown) => {
     if (typeof request !== 'object' || request === null) throw new TypeError('Invalid selectOption request')
     const v = request as Record<string, unknown>

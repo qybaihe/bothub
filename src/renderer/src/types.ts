@@ -12,6 +12,10 @@ export interface BotAccount extends PlatformAccount {
   statusDetail?: string
   /** True while a connect/disconnect request is in flight. */
   pending?: boolean
+  /** Unread bot replies attributed to this account (cleared when selected). */
+  unread?: number
+  /** Optional user label shown instead of the raw handle. */
+  label?: string
 }
 
 export interface BotGroup {

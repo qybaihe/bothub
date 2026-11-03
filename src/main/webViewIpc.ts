@@ -86,4 +86,8 @@ export function registerWebViewIpc(): void {
   ipcMain.handle(WEB_VIEW_CHANNELS.destroy, (event, viewId: unknown) => {
     managerFor(event).destroy(parseString(viewId, 'viewId', 600))
   })
+
+  ipcMain.handle(WEB_VIEW_CHANNELS.clearPartition, async (event, accountId: unknown) => {
+    await managerFor(event).clearPartition(parseString(accountId, 'accountId'))
+  })
 }

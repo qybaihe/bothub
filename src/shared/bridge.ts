@@ -20,6 +20,8 @@ export interface WebViewBridge {
   detach(viewId: string): Promise<void>
   /** Close the view's page and free its resources. */
   destroy(viewId: string): Promise<void>
+  /** Wipe cookies/storage for an account partition (sign out). */
+  clearPartition(accountId: string): Promise<void>
 }
 
 /**
@@ -33,6 +35,8 @@ export interface MuseBridge {
   rpc(request: MuseRpcRequest): Promise<unknown>
   status(accountId: string): Promise<MuseSessionStatus | null>
   onEvent(listener: (event: MuseMainEvent) => void): () => void
+  /** Destroy the muse view and clear the account partition. */
+  signOut(accountId: string): Promise<void>
 }
 
 export interface BotHubBridge {

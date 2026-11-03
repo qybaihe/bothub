@@ -8,7 +8,8 @@ export const WEB_VIEW_CHANNELS = {
   attach: 'bothub:web-view:attach',
   resize: 'bothub:web-view:resize',
   detach: 'bothub:web-view:detach',
-  destroy: 'bothub:web-view:destroy'
+  destroy: 'bothub:web-view:destroy',
+  clearPartition: 'bothub:web-view:clear-partition'
 } as const
 
 /** Rectangle in CSS pixels relative to the window's content area. */
@@ -44,7 +45,8 @@ export const MUSE_CHANNELS = {
   ensure: 'bothub:muse:ensure',
   rpc: 'bothub:muse:rpc',
   status: 'bothub:muse:status',
-  event: 'bothub:muse:event'
+  event: 'bothub:muse:event',
+  signOut: 'bothub:muse:sign-out'
 } as const
 
 export interface MuseEnsureRequest {

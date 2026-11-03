@@ -1,4 +1,4 @@
-import { shell, WebContentsView, type BrowserWindow, type Rectangle } from 'electron'
+import { session as electronSession, shell, WebContentsView, type BrowserWindow, type Rectangle } from 'electron'
 import type { CreateWebViewRequest, WebViewBounds, WebViewInfo } from '@shared/ipc'
 
 /**
@@ -156,6 +156,20 @@ export class WebContentsViewManager {
   /** Return the native view for advanced integrations (e.g. Muse RPC). */
   getView(viewId: string): WebContentsView | undefined {
     return this.views.get(viewId)?.view
+  }
+
+
+  /**
+   * Destroy every view for this account, then wipe the persist partition
+   * (cookies, localStorage, indexedDB) so the next ensure starts signed out.
+   */
+  async clearPartition(accountId: string): Promise<void> {
+    const doomed = [...this.views.entries()].filter(([, m]) => m.info.accountId === accountId)
+    for (const [viewId] of doomed) this.destroy(viewId)
+    const partition = partitionForAccount(accountId)
+    const ses = electronSession.fromPartition(partition)
+    await ses.clearStorageData()
+    await ses.clearCache()
   }
 
   destroyAll(): void {

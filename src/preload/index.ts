@@ -14,7 +14,8 @@ const bridge: BotHubBridge = {
     attach: (viewId, bounds) => ipcRenderer.invoke(WEB_VIEW_CHANNELS.attach, viewId, bounds),
     resize: (viewId, bounds) => ipcRenderer.send(WEB_VIEW_CHANNELS.resize, viewId, bounds),
     detach: (viewId) => ipcRenderer.invoke(WEB_VIEW_CHANNELS.detach, viewId),
-    destroy: (viewId) => ipcRenderer.invoke(WEB_VIEW_CHANNELS.destroy, viewId)
+    destroy: (viewId) => ipcRenderer.invoke(WEB_VIEW_CHANNELS.destroy, viewId),
+    clearPartition: (accountId) => ipcRenderer.invoke(WEB_VIEW_CHANNELS.clearPartition, accountId)
   },
   muse: {
     ensure: (request) => ipcRenderer.invoke(MUSE_CHANNELS.ensure, request),
@@ -24,7 +25,8 @@ const bridge: BotHubBridge = {
       const handler = (_event: unknown, payload: MuseMainEvent) => listener(payload)
       ipcRenderer.on(MUSE_CHANNELS.event, handler)
       return () => ipcRenderer.removeListener(MUSE_CHANNELS.event, handler)
-    }
+    },
+    signOut: (accountId) => ipcRenderer.invoke(MUSE_CHANNELS.signOut, accountId)
   }
 }
 

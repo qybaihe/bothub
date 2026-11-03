@@ -276,4 +276,103 @@ export class GrokConnectClient {
       session_id: req.sessionId
     })
   }
+
+  /**
+   * Server-streaming WatchGrokBotTranscripts (Connect JSON envelopes).
+   * Yields decoded JSON objects from the stream until aborted or ended.
+   */
+  async *watchTranscripts(
+    req: {
+      cursors: Array<{
+        agent_id: string
+        generation?: number
+        after_updated_seq?: string | number
+        session_id?: string
+      }>
+      includeUnlistedAgents?: boolean
+      inlineBodyMaxBytes?: number
+    },
+    signal?: AbortSignal
+  ): AsyncGenerator<Record<string, unknown>, void, void> {
+    const url = `${this.baseUrl}/${GROK_SERVICE}/WatchGrokBotTranscripts`
+    const headers = {
+      ...buildHeaders(this.opts),
+      'content-type': 'application/connect+json',
+      accept: 'application/connect+json'
+    }
+    const body = {
+      cursors: req.cursors,
+      include_unlisted_agents: req.includeUnlistedAgents ?? true,
+      inline_body_max_bytes: req.inlineBodyMaxBytes ?? 65536
+    }
+    const res = await this.fetchImpl(url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(body),
+      signal
+    })
+    if (!res.ok) {
+      const text = await res.text().catch(() => '')
+      let code: string | undefined
+      try {
+        const parsed = JSON.parse(text) as { code?: string }
+        code = parsed.code
+      } catch {
+        /* ignore */
+      }
+      throw new GrokConnectError(res.status, text, code)
+    }
+    if (!res.body) return
+    const reader = res.body.getReader()
+    const decoder = new TextDecoder()
+    let buffer = Buffer.alloc(0)
+    try {
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buffer = Buffer.concat([buffer, Buffer.from(value)])
+        while (buffer.length >= 5) {
+          const flags = buffer[0]!
+          const len = buffer.readUInt32BE(1)
+          if (buffer.length < 5 + len) break
+          const payload = buffer.subarray(5, 5 + len)
+          buffer = buffer.subarray(5 + len)
+          if (flags & 0x02) {
+            // end-stream trailer
+            if (payload.length) {
+              try {
+                const trailer = JSON.parse(payload.toString('utf8')) as {
+                  error?: { code?: string; message?: string }
+                }
+                if (trailer.error) {
+                  throw new GrokConnectError(
+                    0,
+                    trailer.error.message ?? 'watch ended with error',
+                    trailer.error.code
+                  )
+                }
+              } catch (error) {
+                if (error instanceof GrokConnectError) throw error
+              }
+            }
+            return
+          }
+          if (!payload.length) continue
+          try {
+            yield JSON.parse(decoder.decode(payload)) as Record<string, unknown>
+          } catch {
+            /* skip malformed frame */
+          }
+        }
+      }
+    } finally {
+      try {
+        reader.releaseLock()
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+
 }
+

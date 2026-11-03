@@ -222,6 +222,16 @@ export type GrokRpcRequest =
   | {
       accountId: string
       timeZone?: string
+      op: 'watchUntilReply'
+      agentId: string
+      sessionId?: string
+      afterUpdatedSeq?: string
+      afterMessageId?: string
+      timeoutMs?: number
+    }
+  | {
+      accountId: string
+      timeZone?: string
       op: 'resolveAutoReview'
       agentId: string
       requestId: string

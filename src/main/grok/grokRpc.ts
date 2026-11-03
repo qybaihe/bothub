@@ -1,7 +1,7 @@
 import { getGrokMainAuth, setGrokMainAuth } from './grokAuthStore'
 import { GrokConnectClient, GrokConnectError } from './connectClient'
 import { getOrCreateGrokMachineId } from './grokMachineId'
-import { getValidSandAccessToken } from './grokSandAuth'
+import { forceRefreshSandAccessToken, getValidSandAccessToken } from './grokSandAuth'
 import type { GrokRpcRequest, GrokRpcResponse } from '@shared/ipc'
 
 /**
@@ -64,8 +64,87 @@ function fail(error: unknown): GrokRpcResponse {
   return { ok: false, status: 0, message }
 }
 
-/** Dispatch a typed Grok RPC using the account's sand (or web) token. */
-export async function runGrokRpc(request: GrokRpcRequest): Promise<GrokRpcResponse> {
+
+function decodeTranscriptBody(raw: Record<string, unknown>): Record<string, unknown> {
+  const body = raw['body']
+  if (typeof body === 'string' && body.length > 0) {
+    try {
+      const parsed = JSON.parse(Buffer.from(body, 'base64').toString('utf8')) as Record<string, unknown>
+      return { ...raw, ...parsed }
+    } catch {
+      return raw
+    }
+  }
+  return raw
+}
+
+function textFromEntry(e: Record<string, unknown>): string {
+  const t =
+    (typeof e['text'] === 'string' && e['text']) ||
+    (typeof e['content'] === 'string' && e['content']) ||
+    ''
+  return t.trim()
+}
+
+function isAssistantEntry(e: Record<string, unknown>, afterMessageId?: string): boolean {
+  const id = String(e['id'] ?? e['message_id'] ?? e['messageId'] ?? e['clientNonce'] ?? '')
+  if (afterMessageId && (id === afterMessageId || String(e['clientNonce'] ?? '') === afterMessageId)) {
+    return false
+  }
+  const role = String(e['role'] ?? '')
+  const kind = String(e['kind'] ?? e['entryKind'] ?? e['type'] ?? '')
+  if (/^user$/i.test(role) || /send-message/i.test(kind)) return false
+  return Boolean(textFromEntry(e))
+}
+
+async function watchUntilReply(
+  client: GrokConnectClient,
+  args: {
+    agentId: string
+    sessionId: string
+    afterUpdatedSeq?: string
+    afterMessageId?: string
+    timeoutMs?: number
+  }
+): Promise<{ text: string; entry?: Record<string, unknown> }> {
+  const timeoutMs = args.timeoutMs ?? 90_000
+  const ac = new AbortController()
+  const timer = setTimeout(() => ac.abort(), timeoutMs)
+  try {
+    const cursors = [
+      {
+        agent_id: args.agentId,
+        generation: 0,
+        after_updated_seq: args.afterUpdatedSeq ?? '0',
+        session_id: args.sessionId
+      }
+    ]
+    for await (const frame of client.watchTranscripts({ cursors }, ac.signal)) {
+      // Connect JSON oneof: { rows: {...} } | { connected: {...} } | flat rows fields
+      const rows =
+        (frame['rows'] as Record<string, unknown> | undefined) ??
+        (frame['Rows'] as Record<string, unknown> | undefined) ??
+        (Array.isArray(frame['entries']) ? frame : undefined)
+      if (!rows) continue
+      const entries = (Array.isArray(rows['entries']) ? rows['entries'] : []) as Record<
+        string,
+        unknown
+      >[]
+      for (const raw of entries) {
+        const e = decodeTranscriptBody(raw)
+        if (!isAssistantEntry(e, args.afterMessageId)) continue
+        const text = textFromEntry(e)
+        if (text) return { text, entry: e }
+      }
+    }
+    return { text: '' }
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+/** One attempt of a typed Grok RPC. */
+async function runGrokRpcOnce(request: GrokRpcRequest): Promise<GrokRpcResponse> {
   try {
     const client = await clientFor(request.accountId, request.timeZone)
     const auth = await resolveClientAuth(request.accountId)
@@ -142,6 +221,16 @@ export async function runGrokRpc(request: GrokRpcRequest): Promise<GrokRpcRespon
         })
         return { ok: true, data }
       }
+      case 'watchUntilReply': {
+        const data = await watchUntilReply(client, {
+          agentId: request.agentId,
+          sessionId: request.sessionId ?? defaultSession,
+          afterUpdatedSeq: request.afterUpdatedSeq,
+          afterMessageId: request.afterMessageId,
+          timeoutMs: request.timeoutMs
+        })
+        return { ok: true, data }
+      }
       default: {
         const _exhaustive: never = request
         return {
@@ -154,4 +243,21 @@ export async function runGrokRpc(request: GrokRpcRequest): Promise<GrokRpcRespon
   } catch (error) {
     return fail(error)
   }
+}
+
+/** Dispatch a typed Grok RPC; on 401 refresh sand token once and retry. */
+export async function runGrokRpc(request: GrokRpcRequest): Promise<GrokRpcResponse> {
+  const first = await runGrokRpcOnce(request)
+  if (first.ok || first.status !== 401) return first
+  const refreshed = await forceRefreshSandAccessToken(request.accountId).catch(() => null)
+  if (!refreshed?.accessToken) return first
+  const stored = getGrokMainAuth(request.accountId)
+  setGrokMainAuth({
+    accountId: request.accountId,
+    accessToken: refreshed.accessToken,
+    accountSlot: stored?.accountSlot,
+    teamId: refreshed.selectedTeamId ?? stored?.teamId,
+    machineId: stored?.machineId ?? getOrCreateGrokMachineId(request.accountId)
+  })
+  return runGrokRpcOnce(request)
 }

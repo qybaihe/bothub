@@ -157,9 +157,11 @@ export function tokenExpMs(accessToken: string): number | null {
   }
 }
 
-// ---------------- persistence (safeStorage) ----------------
+// ---------------- persistence (safeStorage only; fail closed) ----------------
 interface StoredEntry {
-  enc: string // base64 of safeStorage-encrypted JSON, or plaintext JSON when unavailable
+  /** base64 of safeStorage.encryptString(JSON.stringify(tokens)) */
+  enc: string
+  /** legacy marker — never written; migrated or deleted on load */
   plain?: boolean
 }
 type StoreFile = Record<string, StoredEntry>
@@ -182,29 +184,52 @@ function readFile(): StoreFile {
 function writeFile(store: StoreFile): void {
   const p = storePath()
   mkdirSync(dirname(p), { recursive: true })
-  writeFileSync(p, JSON.stringify(store, null, 2), 'utf8')
+  writeFileSync(p, JSON.stringify(store, null, 2), { encoding: 'utf8', mode: 0o600 })
 }
 
-export function persistSandTokens(accountId: string, tokens: SandTokens): void {
-  const store = readFile()
-  const json = JSON.stringify(tokens)
-  if (safeStorage.isEncryptionAvailable()) {
-    store[accountId] = { enc: safeStorage.encryptString(json).toString('base64') }
-  } else {
-    // Fallback: plaintext (dev / Linux without keyring). Marked so we never
-    // try to decrypt it with safeStorage.
-    store[accountId] = { enc: Buffer.from(json, 'utf8').toString('base64'), plain: true }
+function assertEncryptionAvailable(): void {
+  if (!safeStorage.isEncryptionAvailable()) {
+    throw new Error('safeStorage encryption unavailable; refusing to store Grok tokens in plaintext')
   }
+}
+
+/** Encrypt and write sand tokens. Throws if safeStorage cannot encrypt. */
+export function persistSandTokens(accountId: string, tokens: SandTokens): void {
+  assertEncryptionAvailable()
+  const store = readFile()
+  store[accountId] = { enc: safeStorage.encryptString(JSON.stringify(tokens)).toString('base64') }
   writeFile(store)
 }
 
+/**
+ * Decrypt sand tokens for an account.
+ * Migrates any legacy `plain` entries to encrypted form when encryption is available;
+ * otherwise deletes them (fail closed — never return plaintext-on-disk tokens).
+ */
 export function loadSandTokens(accountId: string): SandTokens | null {
-  const entry = readFile()[accountId]
+  const store = readFile()
+  const entry = store[accountId]
   if (!entry?.enc) return null
   try {
     const buf = Buffer.from(entry.enc, 'base64')
-    const json = entry.plain ? buf.toString('utf8') : safeStorage.decryptString(buf)
-    return parseSandTokens(JSON.parse(json))
+    if (entry.plain) {
+      if (!safeStorage.isEncryptionAvailable()) {
+        delete store[accountId]
+        writeFile(store)
+        return null
+      }
+      const tokens = parseSandTokens(JSON.parse(buf.toString('utf8')))
+      if (!tokens) {
+        delete store[accountId]
+        writeFile(store)
+        return null
+      }
+      store[accountId] = { enc: safeStorage.encryptString(JSON.stringify(tokens)).toString('base64') }
+      writeFile(store)
+      return tokens
+    }
+    if (!safeStorage.isEncryptionAvailable()) return null
+    return parseSandTokens(JSON.parse(safeStorage.decryptString(buf)))
   } catch {
     return null
   }
@@ -216,6 +241,34 @@ export function clearSandTokens(accountId: string): void {
     delete store[accountId]
     writeFile(store)
   }
+}
+
+/** Account ids that currently have a persisted sand-token blob. */
+export function listPersistedSandAccountIds(): string[] {
+  return Object.keys(readFile())
+}
+
+/** Force an oauth/token refresh regardless of expiry. Clears tokens on logout. */
+export async function forceRefreshSandAccessToken(
+  accountId: string,
+  fetchImpl: typeof fetch = fetch
+): Promise<{ accessToken: string; selectedTeamId?: string } | null> {
+  const tokens = loadSandTokens(accountId)
+  if (!tokens?.refreshToken) return null
+  const result = await refreshSandToken(tokens.refreshToken, fetchImpl)
+  if (result.shouldLogout) {
+    clearSandTokens(accountId)
+    return null
+  }
+  if (!result.tokens) return null
+  const merged: SandTokens = {
+    accessToken: result.tokens.accessToken,
+    refreshToken: result.tokens.refreshToken ?? tokens.refreshToken,
+    authId: tokens.authId,
+    selectedTeamId: result.tokens.selectedTeamId ?? tokens.selectedTeamId
+  }
+  persistSandTokens(accountId, merged)
+  return { accessToken: merged.accessToken, selectedTeamId: merged.selectedTeamId }
 }
 
 /** Return a valid accessToken, refreshing when within 5min of expiry. */

@@ -47,6 +47,30 @@ function extractAgents(payload: unknown): GrokAgentSummary[] {
   return (list as Record<string, unknown>[]).map(mapAgent).filter((a) => a.id)
 }
 
+function decodeEntryBody(raw: Record<string, unknown>): Record<string, unknown> {
+  const body = raw['body']
+  if (typeof body === 'string' && body.length > 0) {
+    try {
+      const json = atob(body)
+      const parsed = JSON.parse(json) as Record<string, unknown>
+      return { ...raw, ...parsed }
+    } catch {
+      return raw
+    }
+  }
+  return raw
+}
+
+function entryText(e: Record<string, unknown>): string {
+  const text =
+    (typeof e['text'] === 'string' && e['text']) ||
+    (typeof e['content'] === 'string' && e['content']) ||
+    (typeof (e['message'] as { text?: string } | undefined)?.text === 'string'
+      ? (e['message'] as { text: string }).text
+      : '')
+  return typeof text === 'string' ? text.trim() : ''
+}
+
 function extractReplyText(entries: unknown, afterMessageId?: string): string {
   if (!entries || typeof entries !== 'object') return ''
   const root = entries as Record<string, unknown>
@@ -54,21 +78,48 @@ function extractReplyText(entries: unknown, afterMessageId?: string): string {
     Array.isArray(root['entries']) ? root['entries'] : Array.isArray(root['items']) ? root['items'] : []
   ) as Record<string, unknown>[]
   for (let i = list.length - 1; i >= 0; i--) {
-    const e = list[i]!
-    const id = String(e['id'] ?? e['message_id'] ?? e['messageId'] ?? '')
-    if (afterMessageId && id === afterMessageId) continue
-    const kind = String(e['kind'] ?? e['type'] ?? '')
-    const text =
-      (typeof e['text'] === 'string' && e['text']) ||
-      (typeof (e['message'] as { text?: string } | undefined)?.text === 'string'
-        ? (e['message'] as { text: string }).text
-        : '') ||
-      (typeof e['content'] === 'string' ? e['content'] : '')
-    if (!text.trim()) continue
-    if (/send-message|user/i.test(kind) && !/assistant|message|bot/i.test(kind)) continue
-    return text.trim()
+    const e = decodeEntryBody(list[i]!)
+    const id = String(e['id'] ?? e['message_id'] ?? e['messageId'] ?? e['clientNonce'] ?? '')
+    if (afterMessageId && (id === afterMessageId || String(e['clientNonce'] ?? '') === afterMessageId)) continue
+    const role = String(e['role'] ?? '')
+    const kind = String(e['kind'] ?? e['entryKind'] ?? e['type'] ?? '')
+    if (/^user$/i.test(role) || /send-message/i.test(kind)) continue
+    const text = entryText(e)
+    if (!text) continue
+    if (/assistant|bot|message/i.test(role) || /assistant|message|bot/i.test(kind) || role === '') {
+      return text
+    }
   }
   return ''
+}
+
+function maxUpdatedSeq(entries: unknown): string {
+  if (!entries || typeof entries !== 'object') return '0'
+  const root = entries as Record<string, unknown>
+  const list = (Array.isArray(root['entries']) ? root['entries'] : []) as Record<string, unknown>[]
+  let max = 0n
+  for (const e of list) {
+    for (const key of ['updatedSeq', 'updated_seq', 'seq', 'currentUpdatedSeq'] as const) {
+      const v = e[key]
+      if (v == null) continue
+      try {
+        const n = BigInt(String(v))
+        if (n > max) max = n
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+  const top = root['updatedSeq'] ?? root['updated_seq']
+  if (top != null) {
+    try {
+      const n = BigInt(String(top))
+      if (n > max) max = n
+    } catch {
+      /* ignore */
+    }
+  }
+  return max.toString()
 }
 
 async function invokeGrokRpc(request: GrokRpcRequest): Promise<unknown> {
@@ -158,6 +209,24 @@ export class GrokBotAdapter implements PlatformAdapter {
         handle: accountId
       })
     }
+    // Hydrate renderer token store from main safeStorage after restart.
+    if (!getGrokAuth(accountId)?.accessToken) {
+      try {
+        const bridge = typeof window !== 'undefined' ? window.electron : undefined
+        const session = await bridge?.grok?.getSession?.(accountId)
+        if (session?.signedIn && session.accessToken) {
+          this.setAuth({
+            accountId,
+            accessToken: session.accessToken,
+            accountSlot: session.accountSlot,
+            teamId: session.teamId,
+            machineId: session.machineId
+          })
+        }
+      } catch {
+        /* ignore hydrate errors */
+      }
+    }
     if (!getGrokAuth(accountId)?.accessToken) {
       this.setStatus(accountId, 'offline', '需要 Grok / Cursor 登录拿到 accessToken')
       return 'offline'
@@ -243,6 +312,22 @@ export class GrokBotAdapter implements PlatformAdapter {
     })
 
     try {
+      // Snapshot seq before send so Watch only sees newer rows.
+      let afterSeq = '0'
+      try {
+        const hist = await invokeGrokRpc({
+          accountId: message.accountId,
+          timeZone,
+          op: 'listTranscriptEntries',
+          agentId,
+          sessionId,
+          limit: 5
+        })
+        afterSeq = maxUpdatedSeq(hist)
+      } catch {
+        /* start from 0 */
+      }
+
       await invokeGrokRpc({
         accountId: message.accountId,
         timeZone,
@@ -255,21 +340,40 @@ export class GrokBotAdapter implements PlatformAdapter {
       })
 
       let reply = ''
-      for (let i = 0; i < 20; i++) {
-        await sleep(800)
-        try {
-          const hist = await invokeGrokRpc({
-            accountId: message.accountId,
-            timeZone,
-            op: 'listTranscriptEntries',
-            agentId,
-            sessionId,
-            limit: 40
-          })
-          reply = extractReplyText(hist, messageId)
-          if (reply) break
-        } catch {
-          /* keep polling */
+      try {
+        const watched = await invokeGrokRpc({
+          accountId: message.accountId,
+          timeZone,
+          op: 'watchUntilReply',
+          agentId,
+          sessionId,
+          afterUpdatedSeq: afterSeq,
+          afterMessageId: messageId,
+          timeoutMs: 90_000
+        })
+        if (watched && typeof watched === 'object') {
+          const w = watched as Record<string, unknown>
+          if (typeof w['text'] === 'string') reply = w['text']
+          else reply = extractReplyText(watched, messageId)
+        }
+      } catch {
+        // Fallback: brief list poll if Watch unavailable.
+        for (let i = 0; i < 15; i++) {
+          await sleep(1000)
+          try {
+            const hist = await invokeGrokRpc({
+              accountId: message.accountId,
+              timeZone,
+              op: 'listTranscriptEntries',
+              agentId,
+              sessionId,
+              limit: 40
+            })
+            reply = extractReplyText(hist, messageId)
+            if (reply) break
+          } catch {
+            /* keep polling */
+          }
         }
       }
 

@@ -10,12 +10,32 @@ import { clearGrokMainAuth, getGrokMainAuth, setGrokMainAuth } from './grokAuthS
 import { onGrokAuthCaptured, openGrokLoginWindow } from './grokLogin'
 import { runGrokRpc } from './grokRpc'
 import { getOrCreateGrokMachineId } from './grokMachineId'
+import {
+  clearSandTokens,
+  loadSandTokens,
+  persistSandTokens,
+  type SandTokens
+} from './grokSandAuth'
 
 function ownerWindow(event: IpcMainInvokeEvent): BrowserWindow | undefined {
   return BrowserWindow.fromWebContents(event.sender) ?? undefined
 }
 
+function hydrateFromDisk(accountId: string): void {
+  if (getGrokMainAuth(accountId)?.accessToken) return
+  const sand = loadSandTokens(accountId)
+  if (!sand?.accessToken) return
+  setGrokMainAuth({
+    accountId,
+    accessToken: sand.accessToken,
+    accountSlot: sand.authId ?? sand.selectedTeamId,
+    teamId: sand.selectedTeamId,
+    machineId: getOrCreateGrokMachineId(accountId)
+  })
+}
+
 function statusFor(accountId: string): GrokAuthStatus {
+  hydrateFromDisk(accountId)
   const auth = getGrokMainAuth(accountId)
   return {
     accountId,
@@ -59,19 +79,34 @@ export function registerGrokIpc(): void {
     if (typeof req.accountId !== 'string' || typeof req.accessToken !== 'string' || !req.accessToken.trim()) {
       throw new TypeError('accountId and accessToken required')
     }
+    const accessToken = req.accessToken.trim()
     setGrokMainAuth({
       accountId: req.accountId,
-      accessToken: req.accessToken.trim(),
+      accessToken,
       accountSlot: req.accountSlot,
       teamId: req.teamId,
       machineId: req.machineId?.trim() || getOrCreateGrokMachineId(req.accountId)
     })
+    const existing = loadSandTokens(req.accountId)
+    const next: SandTokens = {
+      accessToken,
+      refreshToken: existing?.refreshToken,
+      authId: existing?.authId ?? req.accountSlot,
+      selectedTeamId: req.teamId ?? existing?.selectedTeamId
+    }
+    try {
+      persistSandTokens(req.accountId, next)
+    } catch (error) {
+      clearGrokMainAuth(req.accountId)
+      throw error
+    }
     return statusFor(req.accountId)
   })
 
   ipcMain.handle(GROK_CHANNELS.clearAuth, (_event, accountId: unknown) => {
     if (typeof accountId !== 'string') throw new TypeError('Invalid accountId')
     clearGrokMainAuth(accountId)
+    clearSandTokens(accountId)
     return statusFor(accountId)
   })
 
@@ -82,6 +117,7 @@ export function registerGrokIpc(): void {
 
   ipcMain.handle(GROK_CHANNELS.getSession, (_event, accountId: unknown) => {
     if (typeof accountId !== 'string') throw new TypeError('Invalid accountId')
+    hydrateFromDisk(accountId)
     const auth = getGrokMainAuth(accountId)
     if (!auth?.accessToken) {
       return { accountId, signedIn: false as const }

@@ -99,7 +99,7 @@ export function Sidebar({ onAddBot }: SidebarProps) {
         </div>
       </header>
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-2 pt-1 pb-3">
+      <div className="flex min-h-0 flex-1 flex-col px-2 pt-1 pb-2">
         <BotList />
       </div>
     </div>

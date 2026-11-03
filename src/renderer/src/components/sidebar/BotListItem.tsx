@@ -1,9 +1,9 @@
 import { memo, useRef, useState } from 'react'
 import type { ConnectionStatus } from '@adapters/types'
-import { ImageMinus, ImagePlus, MoreHorizontal, Pencil, Trash2 } from 'lucide-react'
+import { FolderInput, ImageMinus, ImagePlus, MoreHorizontal, Pencil, Trash2 } from 'lucide-react'
 import { BotAvatar } from '@/components/ui/Avatar'
 import { InlineEdit } from '@/components/ui/InlineEdit'
-import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from '@/components/ui/Menu'
+import { Menu, MenuContent, MenuItem, MenuLabel, MenuSeparator, MenuTrigger } from '@/components/ui/Menu'
 import { avatarFromFile } from '@/lib/avatarImage'
 import { cn } from '@/lib/cn'
 import { useBotStore } from '@/store/botStore'
@@ -54,6 +54,8 @@ export const BotListItem = memo(function BotListItem({
   const setBotAvatar = useBotStore((s) => s.setBotAvatar)
   const renameBot = useBotStore((s) => s.renameBot)
   const removeBot = useBotStore((s) => s.removeBot)
+  const groups = useBotStore((s) => s.groups)
+  const moveBotToGroup = useBotStore((s) => s.moveBotToGroup)
   const [menuOpen, setMenuOpen] = useState(false)
   const [renaming, setRenaming] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -171,6 +173,19 @@ export const BotListItem = memo(function BotListItem({
               <MenuItem onSelect={() => setBotAvatar(bot.id, undefined)}>
                 <ImageMinus aria-hidden /> Remove photo
               </MenuItem>
+            )}
+            {groups.length > 1 && (
+              <>
+                <MenuSeparator />
+                <MenuLabel>Move to section</MenuLabel>
+                {groups
+                  .filter((g) => g.id !== bot.groupId)
+                  .map((g) => (
+                    <MenuItem key={g.id} onSelect={() => moveBotToGroup(bot.id, g.id)}>
+                      <FolderInput aria-hidden /> {g.name || 'Unallocated'}
+                    </MenuItem>
+                  ))}
+              </>
             )}
             <MenuSeparator />
             <MenuItem

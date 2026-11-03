@@ -40,6 +40,12 @@ export interface BotHubState {
   // Navigation & layout
   selectBot: (botId: string) => void
   toggleGroup: (groupId: string) => void
+  /** Create a local sidebar section (Grok-like; not a host API). */
+  addGroup: (name?: string) => string
+  renameGroup: (groupId: string, name: string) => void
+  /** Drop a section; its bots move to another section. Keeps at least one. */
+  removeGroup: (groupId: string) => void
+  moveBotToGroup: (botId: string, groupId: string) => void
   toggleInfoPanel: () => void
   setSidebarWidth: (width: number) => void
   setAddBotOpen: (open: boolean) => void
@@ -92,6 +98,16 @@ export interface BotHubState {
   /** Inject Grok accessToken into adapter after login (not persisted). */
   setGrokAccessToken: (accountId: string, accessToken: string, accountSlot?: string, machineId?: string) => Promise<void>
   disconnectAccount: (accountId: string) => Promise<void>
+}
+
+
+function uniqueGroupName(groups: BotGroup[], base = 'New section'): string {
+  const taken = new Set(groups.map((g) => g.name.toLowerCase()))
+  if (!taken.has(base.toLowerCase())) return base
+  for (let n = 2; ; n++) {
+    const candidate = `${base} ${n}`
+    if (!taken.has(candidate.toLowerCase())) return candidate
+  }
 }
 
 const seed = createSeed()
@@ -204,6 +220,56 @@ export const useBotStore = create<BotHubState>()(
       set((state) => ({
         collapsedGroups: { ...state.collapsedGroups, [groupId]: !state.collapsedGroups[groupId] }
       })),
+
+    addGroup: (name) => {
+      const id = createId('grp')
+      set((state) => {
+        const requested = name?.trim()
+        const finalName = requested
+          ? (
+              state.groups.some((g) => g.name.toLowerCase() === requested.toLowerCase())
+                ? uniqueGroupName(state.groups, requested)
+                : requested
+            )
+          : uniqueGroupName(state.groups)
+        return {
+          groups: [...state.groups, { id, name: finalName }],
+          collapsedGroups: { ...state.collapsedGroups, [id]: false }
+        }
+      })
+      return id
+    },
+
+    renameGroup: (groupId, name) => {
+      const next = name.trim()
+      if (!next) return
+      set((state) => ({
+        groups: state.groups.map((g) => (g.id === groupId ? { ...g, name: next } : g))
+      }))
+    },
+
+    removeGroup: (groupId) =>
+      set((state) => {
+        if (state.groups.length <= 1) return state
+        if (!state.groups.some((g) => g.id === groupId)) return state
+        const fallback = state.groups.find((g) => g.id !== groupId)
+        if (!fallback) return state
+        const { [groupId]: _collapsed, ...collapsedGroups } = state.collapsedGroups
+        return {
+          groups: state.groups.filter((g) => g.id !== groupId),
+          bots: state.bots.map((b) => (b.groupId === groupId ? { ...b, groupId: fallback.id } : b)),
+          collapsedGroups
+        }
+      }),
+
+    moveBotToGroup: (botId, groupId) =>
+      set((state) => {
+        if (!state.groups.some((g) => g.id === groupId)) return state
+        return {
+          bots: state.bots.map((b) => (b.id === botId ? { ...b, groupId } : b)),
+          collapsedGroups: { ...state.collapsedGroups, [groupId]: false }
+        }
+      }),
 
     toggleInfoPanel: () => set((state) => ({ infoPanelOpen: !state.infoPanelOpen })),
 

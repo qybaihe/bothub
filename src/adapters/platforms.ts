@@ -24,6 +24,15 @@ export const PLATFORMS: readonly PlatformDescriptor[] = [
     loginUrl: 'https://authenticator.cursor.sh'
   },
   {
+    id: 'hark',
+    name: 'Hark',
+    description: 'Personal agent on hark.com — Google login, REST chat.',
+    availability: 'available',
+    monogram: 'H',
+    homeUrl: 'https://app.hark.com',
+    loginUrl: 'https://app.hark.com/login'
+  },
+  {
     id: 'deepseek',
     name: 'DeepSeek',
     description: 'Reasoning-focused chat models.',

@@ -11,7 +11,7 @@
  */
 
 /** Platforms BotHub knows about. Add an id here and to `platforms.ts`. */
-export type PlatformId = 'meta-muse' | 'grok' | 'deepseek' | 'chatgpt' | 'gemini'
+export type PlatformId = 'meta-muse' | 'grok' | 'hark' | 'deepseek' | 'chatgpt' | 'gemini'
 
 /** Connection state of a single platform account. */
 export type ConnectionStatus = 'online' | 'busy' | 'attention' | 'offline' | 'error'

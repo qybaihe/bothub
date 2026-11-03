@@ -421,3 +421,11 @@ museai/
 ```
 
 含凭证的 `museai-netlog-*.json` 在分析结束后删除。
+
+## 附：嵌入式“空白页”根因与恢复（2026-11-03）
+
+- 现象：BotHub 中 muse.ai 已登录但 body 为空、无 `__hatch_store__`、hook 卡在 `dom`。
+- 根因：**不是 VM/登录失效**。SSR 为 RUNNING（`vmState:"RUNNING"`）。React 流式 Suspense 的 reveal（`$RC`→`$RB`→`$RV`）放在 `requestAnimationFrame` 里；未 attach 的 WebContentsView 是 `visibilityState=hidden`，rAF 不触发 → 永不 hydrate → 网关客户端不启动。
+- 每台 VM 的 `wss://<vmId>.metaaivm.com/` 公网 DNS 为 NXDOMAIN 属正常；客户端实际走 `wss://hatch.metaaivm.com/v1/noise?vm_id=…`（可连通）。
+- 官方恢复路径（HatchVmWakeRecovery）：`POST /api/hatch/vm/wake` body `{vm_id, retry_count, connect_attempt_id?}`；`lease-vm` body `{vmType:"standard"|"confidential"}`（confidential=cvm_disabled）；`reset-vm` body `{fqdn, switchTo}`。
+- BotHub 修复：`backgroundThrottling:false` + CDP `Emulation.setFocusEmulationEnabled` / `Page.setWebLifecycleState active` 保活；watchdog 冲刷 `$RB`、按退避调用 vm/wake、超时 reload。

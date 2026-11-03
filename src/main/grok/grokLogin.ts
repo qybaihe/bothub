@@ -285,55 +285,8 @@ export async function openGrokLoginWindow(accountId: string, parent?: BrowserWin
     callback({ requestHeaders: headers })
   })
 
-  // Debugger: capture JSON responses that include accessToken.
-  try {
-    win.webContents.debugger.attach("1.3")
-    await win.webContents.debugger.sendCommand("Network.enable")
-    win.webContents.debugger.on("message", (_event, method, params) => {
-      if (settling) return
-      if (method !== "Network.responseReceived") return
-      const url = String((params as { response?: { url?: string } })?.response?.url || "")
-      if (!/authentication\.cursor\.sh|authenticator\.cursor\.sh|api2\.cursor\.sh|cursor\.com\/api/i.test(url)) {
-        return
-      }
-      const requestId = (params as { requestId?: string }).requestId
-      if (!requestId) return
-      void win.webContents.debugger
-        .sendCommand("Network.getResponseBody", { requestId })
-        .then((body: { body?: string; base64Encoded?: boolean }) => {
-          if (!body?.body || settling) return
-          let text = body.body
-          if (body.base64Encoded) {
-            try {
-              text = Buffer.from(text, "base64").toString("utf8")
-            } catch {
-              return
-            }
-          }
-          try {
-            const json = JSON.parse(text) as unknown
-            const token = extractTokenFromObject(json)
-            if (token) finish(token)
-          } catch {
-            const m = text.match(/"accessToken"\s*:\s*"([^"]+)"/)
-            if (m?.[1] && looksLikeJwt(m[1])) finish(m[1])
-          }
-        })
-        .catch(() => {
-          /* body not available yet / not text */
-        })
-    })
-  } catch (error) {
-    console.warn("[grok] debugger attach skipped", error)
-  }
-
   win.on("closed", () => {
     ses.cookies.off("changed", onCookie)
-    try {
-      if (win.webContents.debugger.isAttached()) win.webContents.debugger.detach()
-    } catch {
-      /* ignore */
-    }
     loginWindows.delete(accountId)
   })
 

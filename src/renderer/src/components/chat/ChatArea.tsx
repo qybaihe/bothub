@@ -21,7 +21,7 @@ const STARTERS = [
 function ConversationIntro({ bot, canSend, onPick }: { bot: Bot; canSend: boolean; onPick: (text: string) => void }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 px-8 text-center">
-      <BotAvatar emoji={bot.emoji} seed={bot.id} size="lg" />
+      <BotAvatar emoji={bot.emoji} seed={bot.id} platformId={bot.platformId} size="lg" />
       <div>
         <h2 className="text-base font-semibold tracking-tight">{bot.name}</h2>
         <p className="mt-1 max-w-sm text-ui text-ink-muted">{bot.description}</p>

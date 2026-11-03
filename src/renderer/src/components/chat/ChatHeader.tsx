@@ -28,7 +28,7 @@ export function ChatHeader({ bot, accounts }: ChatHeaderProps) {
 
   return (
     <PaneHeader className="gap-3 pr-3">
-      <BotAvatar emoji={bot.emoji} seed={bot.id} size="sm" />
+      <BotAvatar emoji={bot.emoji} seed={bot.id} platformId={bot.platformId} size="sm" />
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           <h1 className="truncate text-sm font-semibold tracking-tight">{bot.name}</h1>

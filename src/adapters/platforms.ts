@@ -16,8 +16,8 @@ export const PLATFORMS: readonly PlatformDescriptor[] = [
   },
   {
     id: 'grok',
-    name: 'Grok',
-    description: 'xAI assistant with real-time knowledge.',
+    name: 'Grok Bot',
+    description: 'xAI Grok assistant with real-time knowledge.',
     availability: 'coming-soon',
     monogram: 'G'
   },

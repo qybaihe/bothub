@@ -40,7 +40,7 @@ export function InfoPanel() {
       ) : (
         <div className="min-h-0 flex-1 overflow-y-auto">
           <div className="flex flex-col items-center px-5 pt-6 pb-5 text-center">
-            <BotAvatar emoji={bot.emoji} seed={bot.id} size="lg" />
+            <BotAvatar emoji={bot.emoji} seed={bot.id} platformId={bot.platformId} size="lg" />
             <h3 className="mt-3 text-base font-semibold tracking-tight">{bot.name}</h3>
             <p className="mt-1 text-ui text-ink-muted">{bot.description}</p>
           </div>

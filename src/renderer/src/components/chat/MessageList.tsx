@@ -80,7 +80,7 @@ export function MessageList({ bot, messages, accounts, typing, onRetry }: Messag
                 <div className="flex items-start gap-2.5">
                   {isBot && (
                     <span className="w-7 shrink-0">
-                      {isFirstInRun && <BotAvatar emoji={bot.emoji} seed={bot.id} size="sm" />}
+                      {isFirstInRun && <BotAvatar emoji={bot.emoji} seed={bot.id} platformId={bot.platformId} size="sm" />}
                     </span>
                   )}
                   <div className="min-w-0 flex-1">

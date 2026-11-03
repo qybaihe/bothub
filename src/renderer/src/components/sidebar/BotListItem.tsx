@@ -46,6 +46,7 @@ export const BotListItem = memo(function BotListItem({
       <BotAvatar
         emoji={bot.emoji}
         seed={bot.id}
+        platformId={bot.platformId}
         status={status}
         ringClassName={selected ? 'ring-surface' : 'ring-canvas'}
       />

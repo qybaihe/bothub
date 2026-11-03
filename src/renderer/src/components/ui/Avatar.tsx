@@ -1,5 +1,7 @@
 import type { ConnectionStatus } from '@adapters/types'
+import type { PlatformId } from '@adapters/types'
 import { cn } from '@/lib/cn'
+import { platformIcon } from '@/lib/platformIcons'
 import { initials } from '@/lib/format'
 import { StatusDot } from './Status'
 
@@ -13,9 +15,9 @@ function tintFor(seed: string): string {
 }
 
 const BOT_SIZES = {
-  sm: 'size-7 rounded-lg text-sm',
-  md: 'size-9 rounded-[10px] text-lg',
-  lg: 'size-14 rounded-2xl text-[28px]'
+  sm: 'size-7 rounded-full text-sm',
+  md: 'size-9 rounded-full text-lg',
+  lg: 'size-16 rounded-full text-[30px]'
 } as const
 
 const DOT_SIZES = {
@@ -27,6 +29,8 @@ const DOT_SIZES = {
 interface BotAvatarProps {
   emoji: string
   seed: string
+  /** When the platform has an official mark, it replaces the emoji tile. */
+  platformId?: PlatformId
   size?: keyof typeof BOT_SIZES
   status?: ConnectionStatus
   /** Ring color around the status dot; should match the background behind it. */
@@ -37,23 +41,32 @@ interface BotAvatarProps {
 export function BotAvatar({
   emoji,
   seed,
+  platformId,
   size = 'md',
   status,
   ringClassName = 'ring-surface',
   className
 }: BotAvatarProps) {
+  const icon = platformIcon(platformId)
   return (
     <span className={cn('relative inline-flex shrink-0', className)}>
-      <span
-        aria-hidden
-        className={cn(
-          'grid place-items-center leading-none shadow-hairline select-none',
-          BOT_SIZES[size]
-        )}
-        style={{ backgroundColor: tintFor(seed) }}
-      >
-        {emoji}
-      </span>
+      {icon ? (
+        <img
+          src={icon}
+          alt=""
+          aria-hidden
+          draggable={false}
+          className={cn('object-cover ring-1 ring-line select-none', BOT_SIZES[size])}
+        />
+      ) : (
+        <span
+          aria-hidden
+          className={cn('grid place-items-center leading-none shadow-hairline select-none', BOT_SIZES[size])}
+          style={{ backgroundColor: tintFor(seed) }}
+        >
+          {emoji}
+        </span>
+      )}
       {status && (
         <StatusDot
           status={status}

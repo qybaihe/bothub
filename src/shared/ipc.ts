@@ -50,7 +50,15 @@ export const MUSE_CHANNELS = {
   /** Open a same-partition BrowserWindow for interactive muse.ai login. */
   openLogin: 'bothub:muse:open-login',
   /** Close an unfinished login window and wipe its partition. */
-  cancelLogin: 'bothub:muse:cancel-login'
+  cancelLogin: 'bothub:muse:cancel-login',
+  getQuota: 'bothub:muse:quota:get',
+  refreshQuota: 'bothub:muse:quota:refresh',
+  listSchedules: 'bothub:muse:schedules:list',
+  listScheduleRuns: 'bothub:muse:schedules:runs',
+  runSchedule: 'bothub:muse:schedules:run',
+  deleteSchedule: 'bothub:muse:schedules:delete',
+  /** Open https URL in the system browser (Upgrade CTA). */
+  openExternal: 'bothub:muse:open-external'
 } as const
 
 export interface MuseEnsureRequest {
@@ -104,6 +112,55 @@ export type MuseMainEvent =
       /** Set when the login window was closed before a session appeared. */
       windowClosed?: boolean
     }
+  | { type: 'quota'; accountId: string; snapshot: MuseQuotaSnapshot }
+  | { type: 'schedules'; accountId: string; schedules: MuseSchedule[] }
+
+/** Renderer-safe quota snapshot (no cookies/tokens). */
+export interface MuseQuotaSnapshot {
+  fetchedAt: number
+  stale: boolean
+  success: boolean
+  subscription: MuseSubscriptionView | null
+  error?: string
+  inviteUsesRemaining?: number | null
+}
+
+export interface MuseSubscriptionView {
+  tier: { tierId: string; name: string; tierCode: string; isPaid: boolean; rank: number }
+  usage: { state: string; percentUsed: number; resetsAt: number | null; quotaStatus: string }
+  statusSubtitle: string | null
+  usageRowLabel: string | null
+  usageRowValueLabel: string | null
+  usageRowFooter: string | null
+  billingSubtitle: string | null
+  topupBalance: number | null
+  topupTotal: number | null
+  topupRowLabel: string | null
+  topupRowValueLabel: string | null
+  topupEligible: boolean | null
+  entryPointCtaLabel: string | null
+}
+
+export interface MuseSchedule {
+  id: string
+  title: string
+  scheduleKey: string
+  timezone: string | null
+  isHeartbeat: boolean
+  mode: string | null
+  enabled: boolean
+  nextRunAtUtc: number | null
+  cadenceLabel: string
+}
+
+export interface MuseTaskRun {
+  id: string
+  jobId: string
+  status: string
+  startedAtUtc: number | null
+  finishedAtUtc: number | null
+  title: string | null
+}
 
 export const UPDATE_CHANNELS = {
   check: 'bothub:update:check',

@@ -9,9 +9,18 @@ import {
   streamChat,
   unwrapMuseResult
 } from '../muse-native'
+import { fetchInviteSummary, fetchSubscription } from '../muse-native/quota'
+import {
+  runsFromResult,
+  schedulesFromListResult,
+  type MuseSchedule as NativeSchedule,
+  type MuseTaskRun as NativeRun
+} from '../muse-native/schedules'
+import type { MuseQuotaSnapshot, MuseSchedule, MuseTaskRun } from '@shared/ipc'
 import { applyMuseKeepAlive, MUSE_HEALTH_SCRIPT, museWakeScript } from './museKeepAlive'
 
 const MUSE_ORIGIN = 'https://muse.ai'
+const QUOTA_POLL_MS = 60_000
 const AUTH_HOSTS = new Set(['muse.ai', 'www.muse.ai', 'auth.muse.ai', 'auth.meta.com', 'www.meta.com', 'facebook.com', 'www.facebook.com'])
 
 interface AccountSession {
@@ -26,6 +35,12 @@ interface AccountSession {
   reloadAfterMs?: number
   lastReloadAt?: number
   pollTimer?: ReturnType<typeof setInterval>
+  /** Usage / quota snapshot (HTTPS Server Action). */
+  quota?: MuseQuotaSnapshot
+  quotaTimer?: ReturnType<typeof setInterval>
+  /** Cancel handle for tasks.subscribe. */
+  tasksSubCancel?: (reason?: string) => void
+  schedules?: MuseSchedule[]
 }
 
 function isAllowedMuseUrl(url: string): boolean {
@@ -198,6 +213,16 @@ export class MuseSessionManager {
         signedIn,
         handle: signedIn ? undefined : undefined
       })
+      if (signedIn) {
+        void this.refreshQuota(accountId)
+        this.ensureQuotaPolling(accountId)
+      } else if (session.quotaTimer) {
+        clearInterval(session.quotaTimer)
+        session.quotaTimer = undefined
+      }
+    } else if (signedIn && !session.quotaTimer) {
+      void this.refreshQuota(accountId)
+      this.ensureQuotaPolling(accountId)
     }
 
     session.status.url = view.webContents.getURL()
@@ -604,8 +629,136 @@ export class MuseSessionManager {
     const session = this.sessions.get(accountId)
     if (!session) return
     if (session.pollTimer) clearInterval(session.pollTimer)
+    if (session.quotaTimer) clearInterval(session.quotaTimer)
+    try {
+      session.tasksSubCancel?.('dispose')
+    } catch {
+      /* ignore */
+    }
     this.views.destroy(session.viewId)
     this.sessions.delete(accountId)
+  }
+
+  private partitionFetch(accountId: string) {
+    const ses = electronSession.fromPartition(partitionForAccount(accountId))
+    return (url: string, init?: RequestInit) => ses.fetch(url, init)
+  }
+
+  getQuota(accountId: string): MuseQuotaSnapshot | null {
+    return this.sessions.get(accountId)?.quota ?? null
+  }
+
+  async refreshQuota(accountId: string): Promise<MuseQuotaSnapshot> {
+    const session = this.sessions.get(accountId)
+    const prev = session?.quota
+    try {
+      if (!(await this.hasSessionCookie(accountId))) {
+        const snap: MuseQuotaSnapshot = {
+          fetchedAt: Date.now(),
+          stale: Boolean(prev),
+          success: false,
+          subscription: prev?.subscription ?? null,
+          error: 'Sign in to muse.ai first'
+        }
+        if (session) session.quota = snap
+        this.emit({ type: 'quota', accountId, snapshot: snap })
+        return snap
+      }
+      const native = await fetchSubscription(this.partitionFetch(accountId), { includeAgreement: false })
+      const invite = await fetchInviteSummary(this.partitionFetch(accountId))
+      const snap: MuseQuotaSnapshot = {
+        fetchedAt: native.fetchedAt,
+        stale: false,
+        success: native.success,
+        subscription: native.subscription,
+        inviteUsesRemaining: invite?.usesRemaining ?? null
+      }
+      if (session) {
+        session.quota = snap
+        this.ensureQuotaPolling(accountId)
+      }
+      this.emit({ type: 'quota', accountId, snapshot: snap })
+      return snap
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error)
+      const snap: MuseQuotaSnapshot = {
+        fetchedAt: Date.now(),
+        stale: true,
+        success: false,
+        subscription: prev?.subscription ?? null,
+        error: msg.slice(0, 200)
+      }
+      if (session) session.quota = snap
+      this.emit({ type: 'quota', accountId, snapshot: snap })
+      return snap
+    }
+  }
+
+  private ensureQuotaPolling(accountId: string): void {
+    const session = this.sessions.get(accountId)
+    if (!session || session.quotaTimer) return
+    session.quotaTimer = setInterval(() => {
+      void this.refreshQuota(accountId)
+    }, QUOTA_POLL_MS)
+  }
+
+  async listSchedules(accountId: string): Promise<MuseSchedule[]> {
+    const native = await this.rpcNative(accountId, 'tasks.list', {})
+    const raw = native ? native.value : await this.rpc(accountId, 'tasks.list', {})
+    const list = schedulesFromListResult(raw).map(toSharedSchedule)
+    const session = this.sessions.get(accountId)
+    if (session) session.schedules = list
+    this.emit({ type: 'schedules', accountId, schedules: list })
+    void this.ensureTasksSubscribe(accountId)
+    return list
+  }
+
+  async listScheduleRuns(accountId: string, jobId?: string): Promise<MuseTaskRun[]> {
+    const params: Record<string, unknown> = {}
+    if (jobId) params['job_id'] = jobId
+    const native = await this.rpcNative(accountId, 'tasks.runs', params)
+    const raw = native ? native.value : await this.rpc(accountId, 'tasks.runs', params)
+    return runsFromResult(raw).map(toSharedRun)
+  }
+
+  async runSchedule(accountId: string, jobId: string): Promise<unknown> {
+    const params = { job_id: jobId }
+    const native = await this.rpcNative(accountId, 'tasks.run', params)
+    const raw = native ? native.value : await this.rpc(accountId, 'tasks.run', params)
+    void this.listSchedules(accountId)
+    return raw
+  }
+
+  async deleteSchedule(accountId: string, jobId: string): Promise<unknown> {
+    const params = { job_id: jobId }
+    const native = await this.rpcNative(accountId, 'tasks.delete', params)
+    const raw = native ? native.value : await this.rpc(accountId, 'tasks.delete', params)
+    void this.listSchedules(accountId)
+    return raw
+  }
+
+  private async ensureTasksSubscribe(accountId: string): Promise<void> {
+    if (!this.nativeReady(accountId)) return
+    const session = this.sessions.get(accountId)
+    if (!session || session.tasksSubCancel) return
+    try {
+      const client = this.native.get(accountId)
+      const handle = await client.gateway.subscribe('tasks.subscribe', {}, () => {
+        void this.listSchedules(accountId)
+      })
+      session.tasksSubCancel = handle.cancel
+      void handle.ack.catch(() => undefined)
+      void handle.done.then(
+        () => {
+          if (session.tasksSubCancel === handle.cancel) session.tasksSubCancel = undefined
+        },
+        () => {
+          if (session.tasksSubCancel === handle.cancel) session.tasksSubCancel = undefined
+        }
+      )
+    } catch (error) {
+      console.warn('[muse] tasks.subscribe failed', error instanceof Error ? error.message : error)
+    }
   }
 
 
@@ -827,3 +980,27 @@ export function normalizeApprovals(raw: unknown): Array<Record<string, unknown>>
   })
 }
 
+function toSharedSchedule(s: NativeSchedule): MuseSchedule {
+  return {
+    id: s.id,
+    title: s.title,
+    scheduleKey: s.scheduleKey,
+    timezone: s.timezone,
+    isHeartbeat: s.isHeartbeat,
+    mode: s.mode,
+    enabled: s.enabled,
+    nextRunAtUtc: s.nextRunAtUtc,
+    cadenceLabel: s.cadenceLabel
+  }
+}
+
+function toSharedRun(r: NativeRun): MuseTaskRun {
+  return {
+    id: r.id,
+    jobId: r.jobId,
+    status: r.status,
+    startedAtUtc: r.startedAtUtc,
+    finishedAtUtc: r.finishedAtUtc,
+    title: r.title
+  }
+}

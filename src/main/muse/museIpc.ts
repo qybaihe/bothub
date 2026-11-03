@@ -1,4 +1,4 @@
-import { ipcMain, type BrowserWindow, type IpcMainInvokeEvent } from 'electron'
+import { ipcMain, shell, type BrowserWindow, type IpcMainInvokeEvent } from 'electron'
 import { MUSE_CHANNELS, type MuseEnsureRequest, type MuseRpcRequest, type WebViewBounds } from '@shared/ipc'
 import { WebContentsViewManager } from '../webContentsViewManager'
 import { MuseSessionManager } from './museSessionManager'
@@ -72,4 +72,44 @@ export function registerMuseIpc(): void {
     if (typeof accountId !== 'string') throw new TypeError('Invalid accountId')
     await managerFor(event).cancelLogin(accountId)
   })
+
+  ipcMain.handle(MUSE_CHANNELS.getQuota, async (event, accountId: unknown) => {
+    if (typeof accountId !== 'string') throw new TypeError('Invalid accountId')
+    return managerFor(event).getQuota(accountId)
+  })
+
+  ipcMain.handle(MUSE_CHANNELS.refreshQuota, async (event, accountId: unknown) => {
+    if (typeof accountId !== 'string') throw new TypeError('Invalid accountId')
+    return managerFor(event).refreshQuota(accountId)
+  })
+
+  ipcMain.handle(MUSE_CHANNELS.listSchedules, async (event, accountId: unknown) => {
+    if (typeof accountId !== 'string') throw new TypeError('Invalid accountId')
+    return managerFor(event).listSchedules(accountId)
+  })
+
+  ipcMain.handle(MUSE_CHANNELS.listScheduleRuns, async (event, accountId: unknown, jobId: unknown) => {
+    if (typeof accountId !== 'string') throw new TypeError('Invalid accountId')
+    if (jobId !== undefined && typeof jobId !== 'string') throw new TypeError('Invalid jobId')
+    return managerFor(event).listScheduleRuns(accountId, typeof jobId === 'string' ? jobId : undefined)
+  })
+
+  ipcMain.handle(MUSE_CHANNELS.runSchedule, async (event, accountId: unknown, jobId: unknown) => {
+    if (typeof accountId !== 'string' || typeof jobId !== 'string') throw new TypeError('Invalid schedule run request')
+    return managerFor(event).runSchedule(accountId, jobId)
+  })
+
+  ipcMain.handle(MUSE_CHANNELS.deleteSchedule, async (event, accountId: unknown, jobId: unknown) => {
+    if (typeof accountId !== 'string' || typeof jobId !== 'string') throw new TypeError('Invalid schedule delete request')
+    return managerFor(event).deleteSchedule(accountId, jobId)
+  })
+
+  ipcMain.handle(MUSE_CHANNELS.openExternal, async (_event, url: unknown) => {
+    if (typeof url !== 'string' || !/^https:\/\/(muse\.ai|www\.muse\.ai)(\/|$)/i.test(url)) {
+      throw new TypeError('Only https://muse.ai URLs can be opened')
+    }
+    await shell.openExternal(url)
+    return { ok: true as const }
+  })
 }
+

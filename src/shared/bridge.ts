@@ -2,8 +2,11 @@ import type {
   CreateWebViewRequest,
   MuseEnsureRequest,
   MuseMainEvent,
+  MuseQuotaSnapshot,
   MuseRpcRequest,
+  MuseSchedule,
   MuseSessionStatus,
+  MuseTaskRun,
   UpdateStatusEvent,
   WebViewBounds,
   WebViewInfo,
@@ -52,6 +55,13 @@ export interface MuseBridge {
   openLogin(request: MuseEnsureRequest): Promise<MuseSessionStatus>
   /** Close an unfinished login window and wipe the account partition. */
   cancelLogin(accountId: string): Promise<void>
+  getQuota(accountId: string): Promise<MuseQuotaSnapshot | null>
+  refreshQuota(accountId: string): Promise<MuseQuotaSnapshot>
+  listSchedules(accountId: string): Promise<MuseSchedule[]>
+  listScheduleRuns(accountId: string, jobId?: string): Promise<MuseTaskRun[]>
+  runSchedule(accountId: string, jobId: string): Promise<unknown>
+  deleteSchedule(accountId: string, jobId: string): Promise<unknown>
+  openExternal(url: string): Promise<{ ok: true }>
 }
 
 export interface UpdateBridge {

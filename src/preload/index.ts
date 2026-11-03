@@ -36,7 +36,16 @@ const bridge: BotHubBridge = {
     },
     signOut: (accountId) => ipcRenderer.invoke(MUSE_CHANNELS.signOut, accountId),
     openLogin: (request) => ipcRenderer.invoke(MUSE_CHANNELS.openLogin, request),
-    cancelLogin: (accountId) => ipcRenderer.invoke(MUSE_CHANNELS.cancelLogin, accountId)
+    cancelLogin: (accountId) => ipcRenderer.invoke(MUSE_CHANNELS.cancelLogin, accountId),
+    getQuota: (accountId) => ipcRenderer.invoke(MUSE_CHANNELS.getQuota, accountId),
+    refreshQuota: (accountId) => ipcRenderer.invoke(MUSE_CHANNELS.refreshQuota, accountId),
+    listSchedules: (accountId) => ipcRenderer.invoke(MUSE_CHANNELS.listSchedules, accountId),
+    listScheduleRuns: (accountId, jobId) =>
+      ipcRenderer.invoke(MUSE_CHANNELS.listScheduleRuns, accountId, jobId),
+    runSchedule: (accountId, jobId) => ipcRenderer.invoke(MUSE_CHANNELS.runSchedule, accountId, jobId),
+    deleteSchedule: (accountId, jobId) =>
+      ipcRenderer.invoke(MUSE_CHANNELS.deleteSchedule, accountId, jobId),
+    openExternal: (url) => ipcRenderer.invoke(MUSE_CHANNELS.openExternal, url)
   },
   updates: {
     check: () => ipcRenderer.invoke(UPDATE_CHANNELS.check),

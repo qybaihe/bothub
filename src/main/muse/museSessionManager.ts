@@ -300,8 +300,14 @@ export function normalizeApprovals(raw: unknown): Array<Record<string, unknown>>
     const a = (item ?? {}) as Record<string, unknown>
     const id = String(a['approval_id'] ?? a['id'] ?? '')
     const display = (a['display'] as Record<string, unknown> | undefined) ?? {}
-    const title =
-      String(display['title'] ?? a['title'] ?? a['approval_type'] ?? a['payload'] ?? 'Pending approval')
+    const title = String(
+      display['title'] ??
+        a['action_description'] ??
+        a['action_label'] ??
+        a['title'] ??
+        a['approval_type'] ??
+        'Pending approval'
+    )
     return { ...a, id, title }
   })
 }

@@ -18,6 +18,9 @@ function handleEvent(event: AdapterEvent): void {
       break
     case 'message_delta':
       store.setTyping(event.conversationId, true)
+      if (event.text) {
+        store.applyMessageDelta(event.messageId, event.conversationId, event.accountId, event.text)
+      }
       break
     case 'approvals':
       if (event.pending.length > 0) store.setAccountStatus(event.accountId, 'attention')

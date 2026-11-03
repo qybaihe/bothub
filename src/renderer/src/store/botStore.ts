@@ -45,6 +45,8 @@ export interface BotHubState {
   sendMessage: (botId: string, text: string, attachments?: AttachmentMeta[]) => Promise<void>
   retryMessage: (botId: string, messageId: string) => Promise<void>
   receiveMessage: (message: IncomingMessage) => void
+  /** Upsert a streaming assistant bubble (same id updated as deltas arrive). */
+  applyMessageDelta: (messageId: string, conversationId: string, accountId: string, text: string) => void
   setTyping: (botId: string, isTyping: boolean) => void
 
   // Bot details
@@ -270,32 +272,67 @@ export const useBotStore = create<BotHubState>()(
       set((state) => {
         const botId = incoming.conversationId
         if (!state.bots.some((b) => b.id === botId)) return state
+        const list = state.messages[botId] ?? []
+        const existingIdx = list.findIndex((m) => m.id === incoming.id)
         const message: ChatMessage = {
           id: incoming.id,
           botId,
           accountId: incoming.accountId,
           role: 'bot',
           text: incoming.text,
-          createdAt: incoming.createdAt
+          createdAt: existingIdx >= 0 ? list[existingIdx]!.createdAt : incoming.createdAt
         }
         const selected = state.selectedBotId === botId
+        const isNew = existingIdx < 0
         const account = state.accounts[incoming.accountId]
-        const accounts = account
-          ? {
-              ...state.accounts,
-              [incoming.accountId]: {
-                ...account,
-                unread: selected ? 0 : (account.unread ?? 0) + 1
+        const accounts =
+          account && isNew
+            ? {
+                ...state.accounts,
+                [incoming.accountId]: {
+                  ...account,
+                  unread: selected ? 0 : (account.unread ?? 0) + 1
+                }
               }
-            }
-          : state.accounts
+            : state.accounts
+        const nextList =
+          existingIdx >= 0
+            ? list.map((m, i) => (i === existingIdx ? message : m))
+            : [...list, message]
         return {
-          messages: { ...state.messages, [botId]: [...(state.messages[botId] ?? []), message] },
+          messages: { ...state.messages, [botId]: nextList },
           accounts,
-          bots: selected
-            ? state.bots
-            : state.bots.map((b) => (b.id === botId ? { ...b, unread: b.unread + 1 } : b))
+          bots:
+            selected || !isNew
+              ? state.bots
+              : state.bots.map((b) => (b.id === botId ? { ...b, unread: b.unread + 1 } : b))
         }
+      }),
+
+    applyMessageDelta: (messageId, conversationId, accountId, text) =>
+      set((state) => {
+        const botId = conversationId
+        if (!state.bots.some((b) => b.id === botId)) return state
+        const list = state.messages[botId] ?? []
+        const existingIdx = list.findIndex((m) => m.id === messageId)
+        if (existingIdx >= 0) {
+          if (list[existingIdx]!.text === text) return state
+          return {
+            messages: {
+              ...state.messages,
+              [botId]: list.map((m, i) => (i === existingIdx ? { ...m, text } : m))
+            }
+          }
+        }
+        const message: ChatMessage = {
+          id: messageId,
+          botId,
+          accountId,
+          role: 'bot',
+          text,
+          createdAt: Date.now()
+        }
+        return { messages: { ...state.messages, [botId]: [...list, message] } }
       }),
 
     setTyping: (botId, isTyping) =>

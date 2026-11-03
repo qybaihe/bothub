@@ -85,6 +85,8 @@ export class MuseAdapter implements PlatformAdapter {
   private readonly statuses = new Map<string, ConnectionStatus>()
   private readonly listeners = new Set<AdapterListener>()
   private readonly pendingApprovals = new Map<string, MuseApproval[]>()
+  /** Keys `${accountId}:${conversationId}` delivered via main-process stream events. */
+  private readonly streamDelivered = new Set<string>()
   private bridgeUnsub: Unsubscribe | null = null
 
   constructor() {
@@ -158,20 +160,24 @@ export class MuseAdapter implements PlatformAdapter {
           }
           this.setStatus(event.accountId, 'busy')
         } else {
+          const conversationId = event.conversationId ?? event.accountId
           this.emit({
             type: 'typing',
-            conversationId: event.conversationId ?? event.accountId,
+            conversationId,
             accountId: event.accountId,
             isTyping: false
           })
-          const message: IncomingMessage = {
-            id: event.messageId,
-            conversationId: event.conversationId ?? event.accountId,
-            accountId: event.accountId,
-            text: event.text,
-            createdAt: Date.now()
+          if (event.text) {
+            this.streamDelivered.add(`${event.accountId}:${conversationId}`)
+            const message: IncomingMessage = {
+              id: event.messageId,
+              conversationId,
+              accountId: event.accountId,
+              text: event.text,
+              createdAt: Date.now()
+            }
+            this.emit({ type: 'message', message })
           }
-          this.emit({ type: 'message', message })
           const pending = this.pendingApprovals.get(event.accountId) ?? []
           this.setStatus(event.accountId, pending.length ? 'attention' : 'online')
         }
@@ -254,6 +260,7 @@ export class MuseAdapter implements PlatformAdapter {
       const result = (await this.bridge().rpc({
         accountId: message.accountId,
         method: 'chat.stream',
+        conversationId: message.conversationId,
         params: {
           items: [{ type: 'text', text: message.text }],
           node_id: message.accountId,
@@ -263,31 +270,47 @@ export class MuseAdapter implements PlatformAdapter {
 
       const receipt: SendReceipt = { messageId: createId('mm_out'), acceptedAt: Date.now() }
       const text = extractText(result)
-      if (!text) {
+      const deliveredKey = `${message.accountId}:${message.conversationId}`
+      const deliveredViaStream = this.streamDelivered.delete(deliveredKey)
+
+      // Stream events already posted the assistant bubble when conversationId was set.
+      if (!deliveredViaStream) {
+        if (!text) {
+          throw new AdapterError(
+            'timeout',
+            'Muse accepted the message but no assistant reply arrived in time. Try again or open the web session.'
+          )
+        }
+        this.emit({
+          type: 'typing',
+          conversationId: message.conversationId,
+          accountId: message.accountId,
+          isTyping: false
+        })
+        const resultObj = result && typeof result === 'object' ? (result as Record<string, unknown>) : null
+        const fromResult =
+          resultObj && typeof resultObj['assistant_message_id'] === 'string'
+            ? (resultObj['assistant_message_id'] as string)
+            : ''
+        const assistantId = fromResult || createId('mm_in')
+        this.emit({
+          type: 'message',
+          message: {
+            id: assistantId,
+            conversationId: message.conversationId,
+            accountId: message.accountId,
+            text,
+            createdAt: Date.now(),
+            replyTo: receipt.messageId
+          }
+        })
+      } else if (!text) {
+        // Stream said done with empty text — still treat as timeout.
         throw new AdapterError(
           'timeout',
           'Muse accepted the message but no assistant reply arrived in time. Try again or open the web session.'
         )
       }
-
-      // If main also emits stream events, we may double-post; prefer immediate message for RPC return.
-      this.emit({
-        type: 'typing',
-        conversationId: message.conversationId,
-        accountId: message.accountId,
-        isTyping: false
-      })
-      this.emit({
-        type: 'message',
-        message: {
-          id: createId('mm_in'),
-          conversationId: message.conversationId,
-          accountId: message.accountId,
-          text,
-          createdAt: Date.now(),
-          replyTo: receipt.messageId
-        }
-      })
       const pending = this.pendingApprovals.get(message.accountId) ?? []
       this.setStatus(message.accountId, pending.length ? 'attention' : 'online')
       return receipt

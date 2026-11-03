@@ -2,6 +2,7 @@ import { session as electronSession, type BrowserWindow } from 'electron'
 import type { MuseMainEvent, MuseSessionStatus, WebViewBounds } from '@shared/ipc'
 import { partitionForAccount, WebContentsViewManager } from '../webContentsViewManager'
 import { MUSE_HOOK_SCRIPT, museDomSendScript, museRpcScript } from './hookScript'
+import { applyMuseKeepAlive, MUSE_HEALTH_SCRIPT, museWakeScript } from './museKeepAlive'
 
 const MUSE_ORIGIN = 'https://muse.ai'
 const AUTH_HOSTS = new Set(['muse.ai', 'www.muse.ai', 'auth.muse.ai', 'auth.meta.com', 'www.meta.com', 'facebook.com', 'www.facebook.com'])
@@ -11,6 +12,12 @@ interface AccountSession {
   botId: string
   viewId: string
   status: MuseSessionStatus
+  /** Watchdog: when the gateway was last seen not ready (ms). */
+  notReadySince?: number
+  wakeRetry?: number
+  nextWakeAt?: number
+  reloadAfterMs?: number
+  lastReloadAt?: number
   pollTimer?: ReturnType<typeof setInterval>
 }
 
@@ -86,7 +93,8 @@ export class MuseSessionManager {
           ready: false,
           hook: 'none',
           url: MUSE_ORIGIN,
-          pendingApprovals: 0
+          pendingApprovals: 0,
+          phase: 'connecting'
         }
       }
       this.sessions.set(accountId, session)
@@ -110,6 +118,11 @@ export class MuseSessionManager {
         void view.webContents.loadURL(url)
       }
       return { action: 'deny' }
+    })
+
+    void applyMuseKeepAlive(view.webContents)
+    view.webContents.on('dom-ready', () => {
+      void applyMuseKeepAlive(view.webContents)
     })
 
     view.webContents.on('did-finish-load', () => {
@@ -190,8 +203,83 @@ export class MuseSessionManager {
       }
     }
 
+    await this.watchdog(accountId)
     this.emitStatus(accountId)
     return session.status
+  }
+
+  /**
+   * Health watchdog. Mirrors the official client's recovery path:
+   *  1. keep page visible/active (rAF-driven SSR reveal + hydration),
+   *  2. POST /api/hatch/vm/wake {vm_id, retry_count} with backoff,
+   *  3. full reload with growing backoff if still not hydrated.
+   */
+  private async watchdog(accountId: string): Promise<void> {
+    const session = this.sessions.get(accountId)
+    const view = session && this.views.getView(session.viewId)
+    if (!session || !view || view.webContents.isDestroyed()) return
+    const st = session.status
+    if (!st.signedIn) {
+      st.phase = 'signed-out'
+      st.phaseDetail = 'Sign in to muse.ai in the web session'
+      session.notReadySince = undefined
+      return
+    }
+    if (st.hook === 'sendRequest') {
+      st.phase = 'ready'
+      st.phaseDetail = undefined
+      session.notReadySince = undefined
+      session.wakeRetry = 0
+      session.nextWakeAt = undefined
+      session.reloadAfterMs = undefined
+      return
+    }
+
+    const now = Date.now()
+    session.notReadySince ??= now
+    const elapsed = now - session.notReadySince
+
+    let health: { visibility?: string; bodyLen?: number; store?: boolean; loginUi?: boolean; vmId?: string | null } = {}
+    try {
+      health = (await view.webContents.executeJavaScript(MUSE_HEALTH_SCRIPT, true)) ?? {}
+    } catch {
+      /* page mid-navigation */
+    }
+    if (health.visibility === 'hidden') await applyMuseKeepAlive(view.webContents)
+    if (health.loginUi) {
+      st.phase = 'signed-out'
+      st.phaseDetail = 'muse.ai shows the login page'
+      return
+    }
+    st.phase = health.bodyLen ? 'connecting' : 'hydrating'
+    st.phaseDetail = health.bodyLen ? 'Connecting to Muse gateway…' : 'Loading muse.ai…'
+
+    if (elapsed > 20_000 && health.vmId && now >= (session.nextWakeAt ?? 0)) {
+      const retry = session.wakeRetry ?? 0
+      try {
+        const res = (await view.webContents.executeJavaScript(museWakeScript(health.vmId, retry), true)) as {
+          status: number
+          body: string
+        }
+        console.info('[muse] vm wake', accountId, res?.status, res?.body)
+      } catch {
+        /* ignore */
+      }
+      session.wakeRetry = retry + 1
+      session.nextWakeAt = now + Math.min(5_000 * 2 ** retry, 60_000)
+      st.phase = 'waking-vm'
+      st.phaseDetail = `Waking Muse VM (attempt ${retry + 1})…`
+    }
+
+    const reloadAfter = session.reloadAfterMs ?? 45_000
+    if (now - (session.lastReloadAt ?? session.notReadySince) > reloadAfter) {
+      session.lastReloadAt = now
+      session.reloadAfterMs = Math.min(reloadAfter * 2, 300_000)
+      st.phase = 'reloading'
+      st.phaseDetail = 'Reloading muse.ai to rehydrate…'
+      await applyMuseKeepAlive(view.webContents)
+      view.webContents.reloadIgnoringCache()
+    }
   }
 
   getStatus(accountId: string): MuseSessionStatus | undefined {

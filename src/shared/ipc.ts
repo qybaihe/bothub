@@ -70,7 +70,13 @@ export interface MuseSessionStatus {
   hook: 'sendRequest' | 'dom' | 'none'
   url: string
   pendingApprovals: number
+  /** Connection lifecycle for UI: connecting → waking-vm → ready. */
+  phase?: MuseConnectionPhase
+  /** Human-readable detail for the current phase. */
+  phaseDetail?: string
 }
+
+export type MuseConnectionPhase = 'signed-out' | 'connecting' | 'hydrating' | 'waking-vm' | 'reloading' | 'ready'
 
 export type MuseMainEvent =
   | { type: 'status'; status: MuseSessionStatus }

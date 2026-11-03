@@ -21,9 +21,9 @@ function ownerWindow(event: IpcMainInvokeEvent): BrowserWindow | undefined {
   return BrowserWindow.fromWebContents(event.sender) ?? undefined
 }
 
-function hydrateFromDisk(accountId: string): void {
+async function hydrateFromDisk(accountId: string): Promise<void> {
   if (getGrokMainAuth(accountId)?.accessToken) return
-  const sand = loadSandTokens(accountId)
+  const sand = await loadSandTokens(accountId)
   if (!sand?.accessToken) return
   setGrokMainAuth({
     accountId,
@@ -34,8 +34,8 @@ function hydrateFromDisk(accountId: string): void {
   })
 }
 
-function statusFor(accountId: string): GrokAuthStatus {
-  hydrateFromDisk(accountId)
+async function statusFor(accountId: string): Promise<GrokAuthStatus> {
+  await hydrateFromDisk(accountId)
   const auth = getGrokMainAuth(accountId)
   return {
     accountId,
@@ -73,7 +73,7 @@ export function registerGrokIpc(): void {
     return { ok: true as const }
   })
 
-  ipcMain.handle(GROK_CHANNELS.setAccessToken, (_event, request: unknown) => {
+  ipcMain.handle(GROK_CHANNELS.setAccessToken, async (_event, request: unknown) => {
     if (typeof request !== 'object' || request === null) throw new TypeError('Invalid setAccessToken')
     const req = request as GrokSetAccessTokenRequest
     if (typeof req.accountId !== 'string' || typeof req.accessToken !== 'string' || !req.accessToken.trim()) {
@@ -87,7 +87,7 @@ export function registerGrokIpc(): void {
       teamId: req.teamId,
       machineId: req.machineId?.trim() || getOrCreateGrokMachineId(req.accountId)
     })
-    const existing = loadSandTokens(req.accountId)
+    const existing = await loadSandTokens(req.accountId)
     const next: SandTokens = {
       accessToken,
       refreshToken: existing?.refreshToken,
@@ -95,29 +95,29 @@ export function registerGrokIpc(): void {
       selectedTeamId: req.teamId ?? existing?.selectedTeamId
     }
     try {
-      persistSandTokens(req.accountId, next)
+      await persistSandTokens(req.accountId, next)
     } catch (error) {
-      clearGrokMainAuth(req.accountId)
-      throw error
+      // Fail closed for disk (no plaintext). Keep in-memory session for this run.
+      console.warn('[grok] safeStorage persist failed; session is memory-only until restart', error)
     }
     return statusFor(req.accountId)
   })
 
-  ipcMain.handle(GROK_CHANNELS.clearAuth, (_event, accountId: unknown) => {
+  ipcMain.handle(GROK_CHANNELS.clearAuth, async (_event, accountId: unknown) => {
     if (typeof accountId !== 'string') throw new TypeError('Invalid accountId')
     clearGrokMainAuth(accountId)
     clearSandTokens(accountId)
     return statusFor(accountId)
   })
 
-  ipcMain.handle(GROK_CHANNELS.authStatus, (_event, accountId: unknown) => {
+  ipcMain.handle(GROK_CHANNELS.authStatus, async (_event, accountId: unknown) => {
     if (typeof accountId !== 'string') throw new TypeError('Invalid accountId')
     return statusFor(accountId)
   })
 
-  ipcMain.handle(GROK_CHANNELS.getSession, (_event, accountId: unknown) => {
+  ipcMain.handle(GROK_CHANNELS.getSession, async (_event, accountId: unknown) => {
     if (typeof accountId !== 'string') throw new TypeError('Invalid accountId')
-    hydrateFromDisk(accountId)
+    await hydrateFromDisk(accountId)
     const auth = getGrokMainAuth(accountId)
     if (!auth?.accessToken) {
       return { accountId, signedIn: false as const }

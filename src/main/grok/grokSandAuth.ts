@@ -187,17 +187,19 @@ function writeFile(store: StoreFile): void {
   writeFileSync(p, JSON.stringify(store, null, 2), { encoding: 'utf8', mode: 0o600 })
 }
 
-function assertEncryptionAvailable(): void {
-  if (!safeStorage.isEncryptionAvailable()) {
+async function assertEncryptionAvailable(): Promise<void> {
+  const available = await safeStorage.isAsyncEncryptionAvailable()
+  if (!available) {
     throw new Error('safeStorage encryption unavailable; refusing to store Grok tokens in plaintext')
   }
 }
 
 /** Encrypt and write sand tokens. Throws if safeStorage cannot encrypt. */
-export function persistSandTokens(accountId: string, tokens: SandTokens): void {
-  assertEncryptionAvailable()
+export async function persistSandTokens(accountId: string, tokens: SandTokens): Promise<void> {
+  await assertEncryptionAvailable()
   const store = readFile()
-  store[accountId] = { enc: safeStorage.encryptString(JSON.stringify(tokens)).toString('base64') }
+  const enc = await safeStorage.encryptStringAsync(JSON.stringify(tokens))
+  store[accountId] = { enc: enc.toString('base64') }
   writeFile(store)
 }
 
@@ -206,14 +208,15 @@ export function persistSandTokens(accountId: string, tokens: SandTokens): void {
  * Migrates any legacy `plain` entries to encrypted form when encryption is available;
  * otherwise deletes them (fail closed — never return plaintext-on-disk tokens).
  */
-export function loadSandTokens(accountId: string): SandTokens | null {
+export async function loadSandTokens(accountId: string): Promise<SandTokens | null> {
   const store = readFile()
   const entry = store[accountId]
   if (!entry?.enc) return null
   try {
     const buf = Buffer.from(entry.enc, 'base64')
+    const available = await safeStorage.isAsyncEncryptionAvailable()
     if (entry.plain) {
-      if (!safeStorage.isEncryptionAvailable()) {
+      if (!available) {
         delete store[accountId]
         writeFile(store)
         return null
@@ -224,12 +227,24 @@ export function loadSandTokens(accountId: string): SandTokens | null {
         writeFile(store)
         return null
       }
-      store[accountId] = { enc: safeStorage.encryptString(JSON.stringify(tokens)).toString('base64') }
+      const enc = await safeStorage.encryptStringAsync(JSON.stringify(tokens))
+      store[accountId] = { enc: enc.toString('base64') }
       writeFile(store)
       return tokens
     }
-    if (!safeStorage.isEncryptionAvailable()) return null
-    return parseSandTokens(JSON.parse(safeStorage.decryptString(buf)))
+    if (!available) return null
+    const decrypted = await safeStorage.decryptStringAsync(buf)
+    const tokens = parseSandTokens(JSON.parse(decrypted.result))
+    if (tokens && decrypted.shouldReEncrypt) {
+      try {
+        const enc = await safeStorage.encryptStringAsync(JSON.stringify(tokens))
+        store[accountId] = { enc: enc.toString('base64') }
+        writeFile(store)
+      } catch {
+        /* keep old ciphertext */
+      }
+    }
+    return tokens
   } catch {
     return null
   }
@@ -253,7 +268,7 @@ export async function forceRefreshSandAccessToken(
   accountId: string,
   fetchImpl: typeof fetch = fetch
 ): Promise<{ accessToken: string; selectedTeamId?: string } | null> {
-  const tokens = loadSandTokens(accountId)
+  const tokens = await loadSandTokens(accountId)
   if (!tokens?.refreshToken) return null
   const result = await refreshSandToken(tokens.refreshToken, fetchImpl)
   if (result.shouldLogout) {
@@ -267,7 +282,7 @@ export async function forceRefreshSandAccessToken(
     authId: tokens.authId,
     selectedTeamId: result.tokens.selectedTeamId ?? tokens.selectedTeamId
   }
-  persistSandTokens(accountId, merged)
+  await persistSandTokens(accountId, merged)
   return { accessToken: merged.accessToken, selectedTeamId: merged.selectedTeamId }
 }
 
@@ -276,7 +291,7 @@ export async function getValidSandAccessToken(
   accountId: string,
   fetchImpl: typeof fetch = fetch
 ): Promise<{ accessToken: string; selectedTeamId?: string } | null> {
-  const tokens = loadSandTokens(accountId)
+  const tokens = await loadSandTokens(accountId)
   if (!tokens?.accessToken) return null
   const expMs = tokenExpMs(tokens.accessToken)
   const needsRefresh = expMs != null && expMs - Date.now() < REFRESH_MARGIN_MS
@@ -293,7 +308,7 @@ export async function getValidSandAccessToken(
         authId: tokens.authId,
         selectedTeamId: result.tokens.selectedTeamId ?? tokens.selectedTeamId
       }
-      persistSandTokens(accountId, merged)
+      await persistSandTokens(accountId, merged)
       return { accessToken: merged.accessToken, selectedTeamId: merged.selectedTeamId }
     }
   }
@@ -399,7 +414,11 @@ export async function runSandLogin(
       isAborted: () => closed,
       maxAttempts: opts.maxAttempts
     })
-    persistSandTokens(accountId, tokens)
+    try {
+      await persistSandTokens(accountId, tokens)
+    } catch (error) {
+      console.warn('[grok] safeStorage persist failed after sand login; memory-only session', error)
+    }
     return { tokens, clickedConfirm }
   } finally {
     confirmTimers.forEach(clearTimeout)

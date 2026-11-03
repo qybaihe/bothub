@@ -3,6 +3,7 @@ import { AlertCircle, Check, Clock3, FileText, RotateCw } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { formatBytes, formatClock } from '@/lib/format'
 import type { ChatMessage } from '@/types'
+import { MarkdownText } from './MarkdownText'
 
 interface MessageBubbleProps {
   message: ChatMessage
@@ -79,13 +80,13 @@ export const MessageBubble = memo(function MessageBubble({
       {message.text && (
         <div
           className={cn(
-            'max-w-[78%] rounded-[12px] px-3.5 py-2.5 text-[14px] leading-[1.6] break-words whitespace-pre-wrap',
-            mine ? 'bg-bubble-user text-white' : 'bg-bubble text-ink',
-                        message.delivery === 'sending' && 'opacity-70',
+            'max-w-[78%] rounded-[12px] px-3.5 py-2.5 text-[14px] leading-[1.6]',
+            mine ? 'bg-bubble-user text-white whitespace-pre-wrap break-words' : 'bg-bubble text-ink',
+            message.delivery === 'sending' && 'opacity-70',
             message.delivery === 'failed' && 'bg-status-error/10 text-ink ring-1 ring-status-error/30'
           )}
         >
-          {message.text}
+          {mine ? message.text : <MarkdownText text={message.text} />}
         </div>
       )}
 

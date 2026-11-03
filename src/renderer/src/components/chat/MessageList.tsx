@@ -47,7 +47,7 @@ export function MessageList({ bot, messages, accounts, typing, onRetry }: Messag
     if (switched || stickToBottom.current || lastMessage?.role === 'user') {
       el.scrollTo({ top: el.scrollHeight, behavior: switched ? 'instant' : 'smooth' })
     }
-  }, [bot.id, messages.length, lastMessage?.role, typing])
+  }, [bot.id, messages.length, lastMessage?.role, lastMessage?.text, typing])
 
   return (
     <div

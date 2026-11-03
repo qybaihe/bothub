@@ -44,6 +44,8 @@ export interface AttachmentMeta {
   name: string
   size: number
   mimeType: string
+  /** Base64 payload for Muse chat.stream items (no data: URL prefix). */
+  dataBase64?: string
 }
 
 export interface OutgoingMessage {

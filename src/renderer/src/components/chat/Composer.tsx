@@ -22,13 +22,31 @@ interface ComposerProps {
 
 const MAX_HEIGHT_PX = 200
 
-function toAttachments(files: FileList | File[]): AttachmentMeta[] {
-  return Array.from(files).map((file) => ({
+const MAX_INLINE_ATTACHMENT_BYTES = 12 * 1024 * 1024 // under Muse's 10MiB file_ref gate + headroom for images
+
+async function fileToAttachment(file: File): Promise<AttachmentMeta> {
+  const mimeType = file.type || 'application/octet-stream'
+  const base: AttachmentMeta = {
     id: createId('att'),
     name: file.name,
     size: file.size,
-    mimeType: file.type || 'application/octet-stream'
-  }))
+    mimeType
+  }
+  if (file.size > MAX_INLINE_ATTACHMENT_BYTES) {
+    return base
+  }
+  const buf = await file.arrayBuffer()
+  const bytes = new Uint8Array(buf)
+  let binary = ''
+  const chunk = 0x8000
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunk))
+  }
+  return { ...base, dataBase64: btoa(binary) }
+}
+
+async function toAttachments(files: FileList | File[]): Promise<AttachmentMeta[]> {
+  return Promise.all(Array.from(files).map((file) => fileToAttachment(file)))
 }
 
 function ConnectionNotice({
@@ -127,7 +145,9 @@ export function Composer({ bot, account, onSend, onConnect, onMuseLogin, onGrokL
 
   const submit = () => {
     if (!canSend) return
-    onSend(text, attachments)
+    const sendable = attachments.filter((a) => a.dataBase64)
+    if (!text.trim() && sendable.length === 0) return
+    onSend(text, sendable)
     setText('')
     setAttachments([])
     requestAnimationFrame(resize)
@@ -143,7 +163,9 @@ export function Composer({ bot, account, onSend, onConnect, onMuseLogin, onGrokL
 
   const addFiles = (files: FileList | File[] | null) => {
     if (!files || files.length === 0) return
-    setAttachments((current) => [...current, ...toAttachments(files)])
+    void toAttachments(files).then((next) => {
+      setAttachments((current) => [...current, ...next])
+    })
   }
 
   const onDrop = (event: DragEvent) => {
@@ -180,6 +202,11 @@ export function Composer({ bot, account, onSend, onConnect, onMuseLogin, onGrokL
             dragging && 'border-accent-600 ring-4 ring-accent-100'
           )}
         >
+          {attachments.some((f) => !f.dataBase64) && (
+            <p className="px-1 pb-1 text-[12px] text-status-error">
+              {t('Some files are too large to send inline (max 12 MB).')}
+            </p>
+          )}
           {attachments.length > 0 && (
             <ul className="flex flex-wrap gap-1.5 px-1 pt-0.5 pb-1.5" aria-label={t('Attachments')}>
               {attachments.map((file) => (

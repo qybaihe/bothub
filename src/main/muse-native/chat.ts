@@ -256,13 +256,39 @@ export interface ChatStreamResult {
   widgetsByMessageId: Record<string, MuseOptionWidget[]>
 }
 
+export interface MuseChatItem {
+  type: 'text' | 'image' | 'file' | 'file_ref'
+  text?: string
+  mime_type?: string
+  data_base64?: string
+  filename?: string
+  path?: string
+}
+
 export interface StreamChatInput {
   text: string
   nodeId: string
   sessionId?: string
   capabilities?: string[]
+  /** Extra chat.stream items (images/files) after the text item. */
+  items?: MuseChatItem[]
   /** Origin metadata for option-widget taps. */
   messageOrigin?: Record<string, unknown>
+}
+
+/** Build chat.stream `items` from text + optional attachment items. */
+export function buildChatStreamItems(text: string, extra?: MuseChatItem[]): MuseChatItem[] {
+  const items: MuseChatItem[] = []
+  const trimmed = text.trim()
+  if (trimmed) items.push({ type: 'text', text: trimmed })
+  if (extra?.length) {
+    for (const it of extra) {
+      if (!it || !it.type) continue
+      items.push(it)
+    }
+  }
+  if (!items.length) items.push({ type: 'text', text: text || '' })
+  return items
 }
 
 /**
@@ -542,7 +568,7 @@ export async function streamChat(
   let ack: Record<string, unknown> = {}
   try {
     const params: Record<string, unknown> = {
-      items: [{ type: 'text', text: input.text }],
+      items: buildChatStreamItems(input.text, input.items),
       node_id: input.nodeId,
       capabilities: input.capabilities ?? MUSE_CHAT_CAPABILITIES
     }

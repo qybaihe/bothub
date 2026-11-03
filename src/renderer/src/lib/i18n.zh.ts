@@ -163,5 +163,6 @@ export const ZH: Record<string, string> = {
   'Always allow this site': '总是允许此站点',
   'Always allow': '总是允许',
   'Always deny': '总是拒绝',
-  '“Always allow” covers {domain} and its subdomains': '「总是允许」覆盖 {domain} 及子域'
+  '“Always allow” covers {domain} and its subdomains': '「总是允许」覆盖 {domain} 及子域',
+  'Some files are too large to send inline (max 12 MB).': '部分文件过大，无法以内联方式发送（最大 12 MB）。',
 }

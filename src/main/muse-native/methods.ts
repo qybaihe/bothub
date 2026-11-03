@@ -5,6 +5,8 @@ export interface MuseMethodSpec {
   path: string
   service?: 'sentinel' | 'vault' | 'authd' | 'ssh_access' | 'daemon'
   subscription?: boolean
+  /** Official: binary body (fs.raw / peers.photo / …). */
+  responseType?: 'binary'
 }
 
 export const MUSE_METHODS: Record<string, MuseMethodSpec> = {
@@ -178,7 +180,7 @@ export const MUSE_METHODS: Record<string, MuseMethodSpec> = {
   'fs.library': { httpMethod: 'POST', path: '/fs/library' },
   'fs.list': { httpMethod: 'POST', path: '/fs/list' },
   'fs.mkdir': { httpMethod: 'POST', path: '/fs/mkdir' },
-  'fs.raw': { httpMethod: 'GET', path: '/fs/raw/{*path}' },
+  'fs.raw': { httpMethod: 'GET', path: '/fs/raw/{*path}', responseType: 'binary' },
   'fs.read': { httpMethod: 'POST', path: '/fs/read' },
   'fs.reads': { httpMethod: 'POST', path: '/fs/reads' },
   'fs.rename': { httpMethod: 'POST', path: '/fs/rename' },

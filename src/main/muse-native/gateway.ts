@@ -52,13 +52,14 @@ export interface SubscriptionHandle {
 
 interface PendingStream {
   service: ServiceName
+  responseHeaders?: Array<[string, string]>
   subscription: boolean
   status?: number
   chunks: Uint8Array[]
   lineBuf: string
   decoder: TextDecoder
   ackSeen: boolean
-  resolveUnary?: (v: { status: number; body: Uint8Array }) => void
+  resolveUnary?: (v: { status: number; body: Uint8Array; headers?: Array<[string, string]> }) => void
   rejectUnary?: (e: Error) => void
   onAck?: (v: Record<string, unknown>) => void
   onEvent?: (e: Record<string, unknown>) => void
@@ -94,9 +95,22 @@ function backoffMs(attempt: number, trusted: boolean): number {
 
 function substitutePath(path: string, params: Record<string, unknown>): { path: string; rest: Record<string, unknown> } {
   const rest = { ...params }
-  const out = path.replace(/\{(\w+)\}/g, (_, k: string) => {
+  // Official paths use `{id}` and splat `{*path}` (e.g. /fs/raw/{*path}).
+  const out = path.replace(/\{\*?(\w+)\}/g, (full, k: string) => {
+    const splat = full.startsWith('{*')
     const v = rest[k]
-    return encodeURIComponent(v == null ? '' : String(v))
+    delete rest[k]
+    if (v == null) return ''
+    const s = String(v).replace(/^\/+/, '')
+    if (splat) {
+      // Keep path separators; encode each segment.
+      return s
+        .split('/')
+        .filter((seg) => seg.length > 0 && seg !== '.' && seg !== '..')
+        .map((seg) => encodeURIComponent(seg))
+        .join('/')
+    }
+    return encodeURIComponent(s)
   })
   return { path: out, rest }
 }
@@ -312,6 +326,7 @@ export class MuseNativeGateway extends EventEmitter {
     }
     if (frame.kind === 'response') {
       st.status = frame.status
+      st.responseHeaders = frame.headers
       if (frame.body.length) this.feed(st, frame.body)
       if (frame.endBody) this.finishStream(frame.streamId)
       return
@@ -370,7 +385,7 @@ export class MuseNativeGateway extends EventEmitter {
         body.set(c, o)
         o += c.length
       }
-      st.resolveUnary?.({ status: st.status ?? 0, body })
+      st.resolveUnary?.({ status: st.status ?? 0, body, headers: st.responseHeaders })
     }
   }
 
@@ -388,11 +403,17 @@ export class MuseNativeGateway extends EventEmitter {
     }
   }
 
-  private send(service: ServiceName, verb: string, path: string, body: Uint8Array): bigint {
+  private send(
+    service: ServiceName,
+    verb: string,
+    path: string,
+    body: Uint8Array,
+    extraHeaders: Array<[string, string]> = []
+  ): bigint {
     if (!this.transport || !this.ws || this.ws.readyState !== WebSocket.OPEN) throw new MuseGatewayError('gateway not connected', 'closed')
     const headers: Array<[string, string]> = []
     if (verb !== 'GET' && body.length) headers.push(['Content-Type', 'application/json'])
-    headers.push(['x-request-id', randomUUID()], ['x-app-id', APP_ID], ['Accept-Language', 'en-US'])
+    headers.push(['x-request-id', randomUUID()], ['x-app-id', APP_ID], ['Accept-Language', 'en-US'], ...extraHeaders)
     let enc: { streamId: bigint; frames: Uint8Array[] }
     try {
       enc = this.transport.encryptRequest({ service, verb, path, headers, body })
@@ -430,6 +451,57 @@ export class MuseNativeGateway extends EventEmitter {
       throw new MuseGatewayError(`${method}: HTTP ${res.status} ${detail}`, 'http', res.status)
     }
     return json
+  }
+
+  /**
+   * Unary RPC that returns the raw response bytes (fs.raw / media).
+   * Optional Range via params._range = { start, end } → Range header.
+   */
+  async requestBinary(
+    method: string,
+    params: Record<string, unknown> = {},
+    timeoutMs = 120_000
+  ): Promise<{ status: number; body: Uint8Array; contentType?: string }> {
+    await this.connect()
+    const range = params['_range'] as { start?: number; end?: number } | undefined
+    const clean = { ...params }
+    delete clean['_range']
+    const req = this.buildRequest(method, clean)
+    if (req.subscription) throw new MuseGatewayError(`${method} is a subscription; use subscribe()`, 'unknown_method')
+    const extraHeaders: Array<[string, string]> = []
+    if (
+      range &&
+      Number.isSafeInteger(range.start) &&
+      Number.isSafeInteger(range.end) &&
+      (range.start as number) >= 0 &&
+      (range.end as number) >= (range.start as number)
+    ) {
+      extraHeaders.push(['Range', `bytes=${range.start}-${range.end}`])
+    }
+    const res = await new Promise<{ status: number; body: Uint8Array; headers?: Array<[string, string]> }>((resolve, reject) => {
+      const id = this.send(req.service, req.verb, req.path, req.body, extraHeaders)
+      const st: PendingStream = {
+        service: req.service,
+        subscription: false,
+        chunks: [],
+        lineBuf: '',
+        decoder: new TextDecoder(),
+        ackSeen: false,
+        resolveUnary: resolve,
+        rejectUnary: reject
+      }
+      st.timer = setTimeout(() => {
+        this.cancelStream(id, 'timeout')
+        reject(new MuseGatewayError(`${method} timed out`, 'timeout'))
+      }, timeoutMs)
+      this.streams.set(id, st)
+    })
+    if (res.status >= 400) {
+      const detail = new TextDecoder().decode(res.body).slice(0, 200)
+      throw new MuseGatewayError(`${method}: HTTP ${res.status} ${detail}`, 'http', res.status)
+    }
+    const ct = res.headers?.find(([k]) => k.toLowerCase() === 'content-type')?.[1]
+    return { status: res.status, body: res.body, contentType: ct }
   }
 
   /** Subscription RPC (chat.stream / chat.subscribe …): ack + NDJSON events on one stream. */

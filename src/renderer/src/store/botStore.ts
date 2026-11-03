@@ -327,7 +327,7 @@ export const useBotStore = create<BotHubState>()(
         accountIds: ids,
         activeAccountId: ids[0]!,
         memory: [],
-        notes: '',
+        notes: input.notes?.trim() ?? '',
         createdAt: Date.now(),
         unread: 0
       }

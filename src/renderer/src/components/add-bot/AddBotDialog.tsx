@@ -14,6 +14,7 @@ import { usePlatformLogin } from '@/hooks/usePlatformLogin'
 import { avatarFromFile } from '@/lib/avatarImage'
 import { cn } from '@/lib/cn'
 import { useBotStore } from '@/store/botStore'
+import { BLANK_TEMPLATE, BOT_TEMPLATES, type BotTemplate } from '@/data/botTemplates'
 
 const NAME_MAX = 40
 
@@ -53,6 +54,7 @@ function AddBotFlow({ open, onClose }: { open: boolean; onClose: () => void }) {
   const listRef = useRef<HTMLUListElement>(null)
   const morph = useMorphHeight<HTMLDivElement>()
   const created = useRef(false)
+  const [template, setTemplate] = useState<BotTemplate | null>(null)
   const { phase } = login
 
   const close = () => {
@@ -64,18 +66,28 @@ function AddBotFlow({ open, onClose }: { open: boolean; onClose: () => void }) {
   const finish = (platformId: PlatformId, name: string, avatar: string | undefined) => {
     login.keep()
     created.current = true
+    const picked = template ?? BLANK_TEMPLATE
     addBot({
       id: botId,
       platformId,
       name,
       avatar,
+      emoji: picked.emoji,
+      description: picked.id === 'blank' ? undefined : picked.description,
+      notes: picked.starter ? `Starter brief (from template "${picked.name}"):\n${picked.starter}` : undefined,
       accounts: [{ key: login.accountId, accountId: login.accountId, displayName: name, handle: '' }]
     })
   }
 
   const platform = phase.kind === 'idle' ? undefined : getPlatform(phase.platformId)
   const title =
-    phase.kind === 'idle' ? 'New bot' : phase.kind === 'waiting' ? `Sign in to ${platform!.name}` : 'Name your bot'
+    phase.kind === 'idle'
+      ? template
+        ? 'Choose a platform'
+        : 'New bot'
+      : phase.kind === 'waiting'
+        ? `Sign in to ${platform!.name}`
+        : 'Name your bot'
 
   return (
     <Dialog
@@ -86,6 +98,10 @@ function AddBotFlow({ open, onClose }: { open: boolean; onClose: () => void }) {
       headerStart={
         phase.kind === 'waiting' ? (
           <IconButton label="Back" size="sm" onClick={login.discard} className="-ml-1">
+            <ChevronLeft />
+          </IconButton>
+        ) : phase.kind === 'idle' && template ? (
+          <IconButton label="Back to templates" size="sm" onClick={() => setTemplate(null)} className="-ml-1">
             <ChevronLeft />
           </IconButton>
         ) : null
@@ -106,7 +122,10 @@ function AddBotFlow({ open, onClose }: { open: boolean; onClose: () => void }) {
         style={{ height: morph.height }}
       >
         <div ref={morph.ref}>
-          {phase.kind === 'idle' && (
+          {phase.kind === 'idle' && !template && (
+            <TemplateStep key="templates" onPick={setTemplate} />
+          )}
+          {phase.kind === 'idle' && template && (
             <PlatformStep key="platform" listRef={listRef} error={phase.error} onPick={login.start} />
           )}
           {phase.kind === 'waiting' && (
@@ -121,7 +140,9 @@ function AddBotFlow({ open, onClose }: { open: boolean; onClose: () => void }) {
             <NameStep
               key="name"
               platformId={phase.platformId}
-              defaultName={freshName(getPlatform(phase.platformId).name, bots.map((b) => b.name))}
+              emoji={template?.emoji ?? '🤖'}
+              starter={template?.starter ?? ''}
+              defaultName={freshName(template?.name || getPlatform(phase.platformId).name, bots.map((b) => b.name))}
               onDone={(name, avatar) => finish(phase.platformId, name, avatar)}
             />
           )}
@@ -222,10 +243,14 @@ export function LoginWaiting({
 
 function NameStep({
   platformId,
+  emoji,
+  starter,
   defaultName,
   onDone
 }: {
   platformId: PlatformId
+  emoji: string
+  starter: string
   defaultName: string
   onDone: (name: string, avatar: string | undefined) => void
 }) {
@@ -265,7 +290,7 @@ function NameStep({
           className="group press-icon relative block rounded-full"
         >
           <span key={avatar ?? 'mark'} className="inline-flex animate-mark-pop">
-            <BotAvatar emoji="🤖" seed={platformId} avatar={avatar} platformId={platformId} size="xl" />
+            <BotAvatar emoji={emoji} seed={platformId} avatar={avatar} platformId={platformId} size="xl" />
           </span>
           <span className="absolute -right-1 -bottom-1 grid size-7 place-items-center rounded-full border-[0.5px] border-line-strong bg-main text-ink-secondary shadow-float transition-colors group-hover:text-ink">
             <Camera className="size-3.5" aria-hidden />
@@ -294,6 +319,12 @@ function NameStep({
           aria-label="Bot name"
           className="h-10 w-full rounded-lg border border-line-strong bg-surface px-3 text-center text-[14px] text-ink outline-none transition-[border-color,box-shadow] duration-100 placeholder:text-ink-muted focus:border-accent-600 focus:ring-3 focus:ring-accent-100"
         />
+        {starter && (
+          <p className="rounded-lg bg-hover px-3 py-2 text-left text-[12px] leading-[17px] text-ink-secondary">
+            <span className="font-medium text-ink">Starter brief</span> — saved to Notes. Send it as your first message
+            to set the bot up; Muse has no separate persona setting.
+          </p>
+        )}
         {error && (
           <p className="text-center text-[12px] text-status-error" role="alert">
             {error}
@@ -312,5 +343,39 @@ function NameStep({
         </Button>
       </div>
     </form>
+  )
+}
+
+
+/** Grok-style template gallery: local starter presets plus Blank. */
+function TemplateStep({ onPick }: { onPick: (template: BotTemplate) => void }) {
+  const firstRef = useRef<HTMLButtonElement>(null)
+  useEffect(() => firstRef.current?.focus(), [])
+  return (
+    <div className="flex animate-step-in flex-col gap-2 pb-1">
+      <p className="px-0.5 text-[12px] font-medium text-ink-muted">Bot templates</p>
+      <ul className="grid grid-cols-2 gap-2">
+        {BOT_TEMPLATES.map((t, i) => (
+          <li key={t.id}>
+            <button
+              ref={i === 0 ? firstRef : undefined}
+              type="button"
+              onClick={() => onPick(t)}
+              className={cn(
+                'press flex h-full w-full flex-col items-start gap-1.5 rounded-xl border border-line bg-surface p-3 text-left',
+                'transition-colors hover:border-line-strong hover:bg-hover focus-visible:outline-offset-[-2px]',
+                t.id === 'blank' && 'border-dashed'
+              )}
+            >
+              <span className="text-[22px] leading-none" aria-hidden>
+                {t.id === 'blank' ? '＋' : t.emoji}
+              </span>
+              <span className="text-[13px] font-medium text-ink">{t.id === 'blank' ? 'Blank bot' : t.name}</span>
+              <span className="line-clamp-2 text-[12px] leading-[16px] text-ink-secondary">{t.description}</span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
   )
 }

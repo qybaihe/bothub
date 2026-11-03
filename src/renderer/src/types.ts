@@ -107,6 +107,8 @@ export interface NewBotInput {
   avatar?: string
   emoji?: string
   description?: string
+  /** Local notes (template starter brief). */
+  notes?: string
   /** Defaults to the selected bot's group, then the first group. */
   group?: GroupChoice
   accounts: AccountDraft[]

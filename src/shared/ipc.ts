@@ -394,3 +394,66 @@ export type GrokRpcRequest =
 export type GrokRpcResponse =
   | { ok: true; data: unknown }
   | { ok: false; status: number; code?: string; message: string; body?: string }
+
+
+export const HARK_CHANNELS = {
+  openLogin: 'bothub:hark:open-login',
+  cancelLogin: 'bothub:hark:cancel-login',
+  authStatus: 'bothub:hark:auth-status',
+  rpc: 'bothub:hark:rpc',
+  event: 'bothub:hark:event'
+} as const
+
+export type HarkMainEvent =
+  | {
+      type: 'login'
+      accountId: string
+      signedIn: true
+      handle?: string
+      displayName?: string
+    }
+  | {
+      type: 'login'
+      accountId: string
+      signedIn: false
+      windowClosed?: boolean
+    }
+
+export interface HarkOpenLoginRequest {
+  accountId: string
+}
+
+export interface HarkAuthStatus {
+  accountId: string
+  signedIn: boolean
+  handle?: string
+  displayName?: string
+}
+
+export type HarkRpcRequest =
+  | { accountId: string; op: 'authStatus' }
+  | { accountId: string; op: 'getSession' }
+  | { accountId: string; op: 'profile' }
+  | { accountId: string; op: 'listConversations' }
+  | { accountId: string; op: 'mainConversation'; timezone?: string }
+  | { accountId: string; op: 'conversationStatus' }
+  | {
+      accountId: string
+      op: 'sendMessage'
+      conversationId: string
+      text: string
+      timezone?: string
+    }
+  | {
+      accountId: string
+      op: 'pollReply'
+      conversationId: string
+      timezone?: string
+      afterMessageCount?: number
+      afterMessageIds?: string[]
+      timeoutMs?: number
+    }
+
+export type HarkRpcResponse =
+  | { ok: true; data: unknown }
+  | { ok: false; status: number; code?: string; message: string; body?: string }

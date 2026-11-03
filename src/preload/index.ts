@@ -2,10 +2,12 @@ import { contextBridge, ipcRenderer } from 'electron'
 import type { BotHubBridge } from '@shared/bridge'
 import {
   GROK_CHANNELS,
+  HARK_CHANNELS,
   MUSE_CHANNELS,
   UPDATE_CHANNELS,
   WEB_VIEW_CHANNELS,
   type GrokMainEvent,
+  type HarkMainEvent,
   type MuseMainEvent,
   type UpdateStatusEvent
 } from '@shared/ipc'
@@ -81,6 +83,17 @@ const bridge: BotHubBridge = {
       const handler = (_event: unknown, payload: GrokMainEvent) => listener(payload)
       ipcRenderer.on(GROK_CHANNELS.event, handler)
       return () => ipcRenderer.removeListener(GROK_CHANNELS.event, handler)
+    }
+  },
+  hark: {
+    openLogin: (request) => ipcRenderer.invoke(HARK_CHANNELS.openLogin, request),
+    cancelLogin: (accountId) => ipcRenderer.invoke(HARK_CHANNELS.cancelLogin, accountId),
+    authStatus: (accountId) => ipcRenderer.invoke(HARK_CHANNELS.authStatus, accountId),
+    rpc: (request) => ipcRenderer.invoke(HARK_CHANNELS.rpc, request),
+    onEvent: (listener) => {
+      const handler = (_event: unknown, payload: HarkMainEvent) => listener(payload)
+      ipcRenderer.on(HARK_CHANNELS.event, handler)
+      return () => ipcRenderer.removeListener(HARK_CHANNELS.event, handler)
     }
   }
 }

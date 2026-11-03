@@ -4,6 +4,7 @@ import { attachWebViewManager, registerWebViewIpc } from './webViewIpc'
 import { attachMuseSessionManager, registerMuseIpc } from './muse/museIpc'
 import { registerUpdaterIpc, startAutoUpdater } from './updater'
 import { registerGrokIpc } from './grok/grokIpc'
+import { registerHarkIpc } from './hark/harkIpc'
 
 const isMac = process.platform === 'darwin'
 
@@ -57,6 +58,7 @@ app.whenReady().then(() => {
   registerMuseIpc()
   registerUpdaterIpc()
   registerGrokIpc()
+  registerHarkIpc()
   createMainWindow()
   startAutoUpdater()
 

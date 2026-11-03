@@ -22,7 +22,12 @@ import type {
   GrokAuthStatus,
   GrokAuthSessionPayload,
   GrokRpcRequest,
-  GrokRpcResponse
+  GrokRpcResponse,
+  HarkMainEvent,
+  HarkOpenLoginRequest,
+  HarkAuthStatus,
+  HarkRpcRequest,
+  HarkRpcResponse
 } from './ipc'
 
 /** Controls embedded platform web sessions (Electron WebContentsView). */
@@ -101,6 +106,15 @@ export interface GrokBridge {
   onEvent(listener: (event: GrokMainEvent) => void): () => void
 }
 
+
+export interface HarkBridge {
+  openLogin(request: HarkOpenLoginRequest): Promise<HarkAuthStatus>
+  cancelLogin(accountId: string): Promise<HarkAuthStatus>
+  authStatus(accountId: string): Promise<HarkAuthStatus>
+  rpc(request: HarkRpcRequest): Promise<HarkRpcResponse>
+  onEvent(listener: (event: HarkMainEvent) => void): () => void
+}
+
 export interface BotHubBridge {
   /** Node-style platform string, e.g. "darwin", "win32", "linux". */
   readonly platform: string
@@ -113,4 +127,5 @@ export interface BotHubBridge {
   readonly muse: MuseBridge
   readonly updates: UpdateBridge
   readonly grok: GrokBridge
+  readonly hark: HarkBridge
 }

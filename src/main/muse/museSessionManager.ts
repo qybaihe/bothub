@@ -2,6 +2,13 @@ import { BrowserWindow, session as electronSession } from 'electron'
 import type { MuseMainEvent, MuseSessionStatus, WebViewBounds } from '@shared/ipc'
 import { partitionForAccount, WebContentsViewManager } from '../webContentsViewManager'
 import { MUSE_HOOK_SCRIPT, museDomSendScript, museRpcScript } from './hookScript'
+import {
+  MuseGatewayError,
+  MuseNativeRegistry,
+  museTransportMode,
+  streamChat,
+  unwrapMuseResult
+} from '../muse-native'
 import { applyMuseKeepAlive, MUSE_HEALTH_SCRIPT, museWakeScript } from './museKeepAlive'
 
 const MUSE_ORIGIN = 'https://muse.ai'
@@ -42,6 +49,10 @@ export class MuseSessionManager {
   private readonly listeners = new Set<(event: MuseMainEvent) => void>()
   /** Interactive login windows keyed by accountId (same persist partition). */
   private readonly loginWindows = new Map<string, BrowserWindow>()
+  /** Native Noise gateway clients (default transport; hook is the fallback). */
+  private readonly native = new MuseNativeRegistry(partitionForAccount, (accountId, phase, error) =>
+    this.onNativePhase(accountId, phase, error)
+  )
 
   constructor(
     private readonly window: BrowserWindow,
@@ -194,7 +205,14 @@ export class MuseSessionManager {
     if (signedIn) {
       try {
         await this.installHook(accountId)
-        if (session.status.hook === 'sendRequest') {
+        if (this.nativeReady(accountId)) {
+          const pending = unwrapMuseResult(
+            await this.native.get(accountId).gateway.request('egress.approvals', {})
+          )
+          const list = normalizeApprovals(pending)
+          session.status.pendingApprovals = list.length
+          this.emit({ type: 'approvals', accountId, pending: list })
+        } else if (session.status.hook === 'sendRequest') {
           const pending = await this.rpcRaw(accountId, 'egress.approvals', {})
           const list = normalizeApprovals(pending)
           session.status.pendingApprovals = list.length
@@ -227,7 +245,7 @@ export class MuseSessionManager {
       session.notReadySince = undefined
       return
     }
-    if (st.hook === 'sendRequest') {
+    if (st.hook === 'sendRequest' || this.nativeReady(accountId)) {
       st.phase = 'ready'
       st.phaseDetail = undefined
       session.notReadySince = undefined
@@ -288,6 +306,87 @@ export class MuseSessionManager {
     return this.sessions.get(accountId)?.status
   }
 
+  private onNativePhase(accountId: string, phase: string, error: string | null): void {
+    const session = this.sessions.get(accountId)
+    if (!session) return
+    if (phase === 'ready') {
+      session.status.ready = true
+      session.status.phase = 'ready'
+      session.status.phaseDetail = undefined
+    } else if (error && /cvm|owner/i.test(error)) {
+      session.status.phaseDetail = 'Muse needs Owner verification (CVM) — finish it in the web session'
+    }
+    this.emitStatus(accountId)
+  }
+
+  private nativeReady(accountId: string): boolean {
+    return museTransportMode() === 'native' && Boolean(this.native.peek(accountId)?.gateway.isReady())
+  }
+
+  private async hasSessionCookie(accountId: string): Promise<boolean> {
+    const ses = electronSession.fromPartition(partitionForAccount(accountId))
+    return (await ses.cookies.get({ name: 'hatch_sess' })).length > 0
+  }
+
+  /** Native path; returns undefined when the caller should fall back to the hook. */
+  private async rpcNative(
+    accountId: string,
+    method: string,
+    params: unknown,
+    conversationId?: string
+  ): Promise<{ value: unknown } | undefined> {
+    if (museTransportMode() !== 'native') return undefined
+    if (!(await this.hasSessionCookie(accountId))) return undefined
+    const client = this.native.get(accountId)
+    try {
+      await client.gateway.connect()
+    } catch (error) {
+      const cvm = error instanceof MuseGatewayError && error.code === 'cvm_required'
+      console.warn('[muse] native connect failed; using hook', cvm ? 'cvm_required' : (error as Error).message)
+      const session = this.sessions.get(accountId)
+      if (cvm && session) {
+        session.status.phaseDetail = 'Muse needs Owner verification (CVM) — finish it in the web session'
+        this.emitStatus(accountId)
+      }
+      return undefined
+    }
+    if (method === 'chat.stream') {
+      return { value: await this.nativeChatStream(accountId, params, conversationId) }
+    }
+    const p = params && typeof params === 'object' ? (params as Record<string, unknown>) : {}
+    return { value: unwrapMuseResult(await client.gateway.request(method, p)) }
+  }
+
+  private async nativeChatStream(accountId: string, params: unknown, conversationId?: string): Promise<unknown> {
+    const client = this.native.get(accountId)
+    const text = extractChatText(params)
+    const p = params && typeof params === 'object' ? (params as Record<string, unknown>) : {}
+    const sessionId = typeof p['session_id'] === 'string' ? (p['session_id'] as string) : undefined
+    const ids = new Map<string, string>()
+    let last = ''
+    let lastId = ''
+    const result = await streamChat(
+      client.gateway,
+      client.chat,
+      { text, nodeId: client.nodeId, sessionId },
+      (u) => {
+        let id = ids.get(u.messageId)
+        if (!id) {
+          id = `muse_native_${u.messageId}`
+          ids.set(u.messageId, id)
+        }
+        last = u.text
+        lastId = id
+        if (conversationId) {
+          this.emit({ type: 'stream', accountId, conversationId, messageId: id, text: u.text, done: u.done })
+        }
+      },
+      { timeoutMs: 300_000 }
+    )
+    const reply = result.text || last
+    return { ...result.ack, text: reply, display_text: reply, reply, assistant_message_id: lastId || undefined }
+  }
+
   async rpc(
     accountId: string,
     method: string,
@@ -295,8 +394,12 @@ export class MuseSessionManager {
     conversationId?: string
   ): Promise<unknown> {
     await this.ensure('muse', accountId)
+    const viaNative = await this.rpcNative(accountId, method, params, conversationId)
+    if (viaNative) return viaNative.value
     if (method === 'chat.stream') {
-      return this.chatStreamAndCollect(accountId, params, conversationId)
+      // Legacy hook shape (page client fills the real device context).
+      const legacy = { node_id: accountId, capabilities: {}, ...((params as Record<string, unknown>) ?? {}) }
+      return this.chatStreamAndCollect(accountId, legacy, conversationId)
     }
     return this.rpcRaw(accountId, method, params)
   }
@@ -459,11 +562,8 @@ export class MuseSessionManager {
       const result = await this.rpc(
         accountId,
         'chat.stream',
-        {
-          items: [{ type: 'text', text }],
-          node_id: accountId,
-          capabilities: {}
-        },
+        // node_id / capabilities are filled per transport (native: device id + delta_stream).
+        { items: [{ type: 'text', text }] },
         conversationId
       )
       const reply = extractReplyText(result)
@@ -500,6 +600,7 @@ export class MuseSessionManager {
   }
 
   destroyAccount(accountId: string): void {
+    this.native.dispose(accountId)
     const session = this.sessions.get(accountId)
     if (!session) return
     if (session.pollTimer) clearInterval(session.pollTimer)

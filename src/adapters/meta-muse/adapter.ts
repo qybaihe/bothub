@@ -270,9 +270,8 @@ export class MuseAdapter implements PlatformAdapter {
         method: 'chat.stream',
         conversationId: message.conversationId,
         params: {
-          items: [{ type: 'text', text: message.text }],
-          node_id: message.accountId,
-          capabilities: {}
+          // Main fills node_id (stable device id) + capabilities per transport.
+          items: [{ type: 'text', text: message.text }]
         }
       })) as unknown
 

@@ -133,6 +133,7 @@ export const GROK_CHANNELS = {
   clearAuth: 'bothub:grok:clear-auth',
   authStatus: 'bothub:grok:auth-status',
   getSession: 'bothub:grok:get-session',
+  rpc: 'bothub:grok:rpc',
   event: 'bothub:grok:event'
 } as const
 
@@ -174,3 +175,80 @@ export interface GrokAuthSessionPayload {
   teamId?: string
   machineId?: string
 }
+
+/** Renderer → main ConnectRPC unary (avoids api2 CORS). */
+export type GrokRpcRequest =
+  | {
+      accountId: string
+      timeZone?: string
+      op: 'listAgents'
+      role?: string
+      includeTeamAgents?: boolean
+    }
+  | {
+      accountId: string
+      timeZone?: string
+      op: 'listAgentStatuses'
+      agentIds?: string[]
+    }
+  | {
+      accountId: string
+      timeZone?: string
+      op: 'sendUserMessage'
+      agentId: string
+      messageId: string
+      text: string
+      sessionId?: string
+      machineId?: string
+      sentAtMs?: number
+    }
+  | {
+      accountId: string
+      timeZone?: string
+      op: 'getSendStatus'
+      agentId: string
+      messageId: string
+      sessionId?: string
+    }
+  | {
+      accountId: string
+      timeZone?: string
+      op: 'listTranscriptEntries'
+      agentId: string
+      sessionId?: string
+      limit?: number
+      beforeSeq?: string
+    }
+  | {
+      accountId: string
+      timeZone?: string
+      op: 'resolveAutoReview'
+      agentId: string
+      requestId: string
+      resolution: number
+      sessionId?: string
+      approvalPlatform?: string
+      approvedCommand?: string
+    }
+  | {
+      accountId: string
+      timeZone?: string
+      op: 'resolveLocalTool'
+      agentId: string
+      requestId: string
+      resolution: number
+      sessionId?: string
+    }
+  | {
+      accountId: string
+      timeZone?: string
+      op: 'resolveConnectorGrant'
+      agentId: string
+      requestId: string
+      resolution: number
+      sessionId?: string
+    }
+
+export type GrokRpcResponse =
+  | { ok: true; data: unknown }
+  | { ok: false; status: number; code?: string; message: string; body?: string }

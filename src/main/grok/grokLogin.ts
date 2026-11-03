@@ -1,7 +1,7 @@
 import { BrowserWindow, session as electronSession, shell } from "electron"
-import { randomUUID } from "node:crypto"
 import { partitionForAccount } from "../webContentsViewManager"
 import { setGrokMainAuth } from "./grokAuthStore"
+import { getOrCreateGrokMachineId } from "./grokMachineId"
 
 const LOGIN_URL = "https://authenticator.cursor.sh"
 const ALLOWED =
@@ -122,7 +122,7 @@ export async function openGrokLoginWindow(accountId: string, parent?: BrowserWin
 
   const partition = partitionForAccount(`grok-${accountId}`)
   const ses = electronSession.fromPartition(partition)
-  const machineId = randomUUID()
+  const machineId = getOrCreateGrokMachineId(accountId)
 
   const win = new BrowserWindow({
     width: 980,

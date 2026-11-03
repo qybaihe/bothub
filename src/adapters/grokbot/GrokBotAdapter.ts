@@ -1,6 +1,7 @@
 import { createId } from '@shared/id'
-import { GrokConnectClient, GrokConnectError } from './connectClient'
-import { resolveGrokApproval } from './approvals'
+import type { GrokRpcRequest, GrokRpcResponse } from '@shared/ipc'
+import { GrokConnectError } from './connectClient'
+import { grokApprovalRpcRequest } from './approvals'
 import { clearGrokAuth, getGrokAuth, setGrokAuth } from './tokenStore'
 import type { GrokAgentSummary, GrokAuthSession } from './types'
 import {
@@ -19,8 +20,9 @@ import {
 } from '../types'
 
 function mapAgent(raw: Record<string, unknown>): GrokAgentSummary {
+  // Prefer UUID agentId for Send/Transcript RPCs (numeric id is display-only).
   return {
-    id: String(raw['id'] ?? raw['agent_id'] ?? ''),
+    id: String(raw['agentId'] ?? raw['agent_id'] ?? raw['legacyAgentId'] ?? raw['id'] ?? ''),
     name: String(raw['name'] ?? raw['title'] ?? 'Grok Bot'),
     description: typeof raw['description'] === 'string' ? raw['description'] : undefined,
     harness: typeof raw['harness'] === 'string' ? raw['harness'] : undefined,
@@ -48,11 +50,9 @@ function extractAgents(payload: unknown): GrokAgentSummary[] {
 function extractReplyText(entries: unknown, afterMessageId?: string): string {
   if (!entries || typeof entries !== 'object') return ''
   const root = entries as Record<string, unknown>
-  const list = (Array.isArray(root['entries']) ? root['entries'] : Array.isArray(root['items']) ? root['items'] : []) as Record<
-    string,
-    unknown
-  >[]
-  // Prefer newest assistant/text-like entry after the user message.
+  const list = (
+    Array.isArray(root['entries']) ? root['entries'] : Array.isArray(root['items']) ? root['items'] : []
+  ) as Record<string, unknown>[]
   for (let i = list.length - 1; i >= 0; i--) {
     const e = list[i]!
     const id = String(e['id'] ?? e['message_id'] ?? e['messageId'] ?? '')
@@ -71,12 +71,22 @@ function extractReplyText(entries: unknown, afterMessageId?: string): string {
   return ''
 }
 
+async function invokeGrokRpc(request: GrokRpcRequest): Promise<unknown> {
+  const bridge = typeof window !== 'undefined' ? window.electron?.grok : undefined
+  if (!bridge?.rpc) {
+    throw new AdapterError('not-connected', 'Grok IPC unavailable (Electron main required)')
+  }
+  const res = (await bridge.rpc(request)) as GrokRpcResponse
+  if (!res.ok) {
+    throw new GrokConnectError(res.status, res.body ?? res.message, res.code)
+  }
+  return res.data
+}
+
 /**
- * Grok Bot platform adapter (ConnectRPC → api2.cursor.sh).
- *
- * Login/token acquisition is intentionally incomplete: call `setAuth` after the
- * user finishes authenticator.cursor.sh (2FA) and a token is available. We do
- * not read Grok Bot.app sand-secrets / Keychain.
+ * Grok Bot platform adapter.
+ * ConnectRPC unary (List/Send/Transcript/approvals) runs in Electron main via IPC
+ * so the renderer never hits api2.cursor.sh CORS.
  */
 export class GrokBotAdapter implements PlatformAdapter {
   readonly id = 'grok' as const
@@ -87,7 +97,6 @@ export class GrokBotAdapter implements PlatformAdapter {
   private readonly listeners = new Set<AdapterListener>()
   private readonly agentsByAccount = new Map<string, GrokAgentSummary[]>()
   private readonly pendingApprovals = new Map<string, MuseApproval[]>()
-  /** BotHub botId / conversationId → primary Grok agent id for send. */
   private readonly agentForConversation = new Map<string, string>()
 
   private emit(event: AdapterEvent): void {
@@ -105,7 +114,14 @@ export class GrokBotAdapter implements PlatformAdapter {
     this.emit({ type: 'status', accountId, status, detail })
   }
 
-  /** Inject a bearer token after interactive login (dev / manual paste). */
+  private requireAuth(accountId: string) {
+    const auth = getGrokAuth(accountId)
+    if (!auth?.accessToken) {
+      throw new AdapterError('not-connected', 'Sign in to Grok Bot first (authenticator / paste token).')
+    }
+    return auth
+  }
+
   setAuth(session: GrokAuthSession): void {
     setGrokAuth(session)
     if (!this.accounts.has(session.accountId)) {
@@ -122,17 +138,6 @@ export class GrokBotAdapter implements PlatformAdapter {
   clearAuth(accountId: string): void {
     clearGrokAuth(accountId)
     this.setStatus(accountId, 'offline', 'Signed out')
-  }
-
-  private clientFor(accountId: string): GrokConnectClient {
-    const auth = getGrokAuth(accountId)
-    if (!auth?.accessToken) {
-      throw new AdapterError('not-connected', 'Sign in to Grok Bot first (authenticator / paste token).')
-    }
-    return new GrokConnectClient({
-      auth,
-      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
-    })
   }
 
   async listAccounts(): Promise<PlatformAccount[]> {
@@ -173,8 +178,6 @@ export class GrokBotAdapter implements PlatformAdapter {
   }
 
   async openLogin(accountId: string, _botId?: string): Promise<ConnectionStatus> {
-    // Renderer cannot open BrowserWindow; expose intent via status detail.
-    // Main-process grok openLogin IPC is wired separately when available.
     if (!this.accounts.has(accountId)) {
       this.upsertAccount({
         id: accountId,
@@ -199,8 +202,12 @@ export class GrokBotAdapter implements PlatformAdapter {
   }
 
   async refreshAgents(accountId: string): Promise<GrokAgentSummary[]> {
-    const client = this.clientFor(accountId)
-    const payload = await client.listAgents()
+    this.requireAuth(accountId)
+    const payload = await invokeGrokRpc({
+      accountId,
+      op: 'listAgents',
+      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+    })
     const agents = extractAgents(payload)
     this.agentsByAccount.set(accountId, agents)
     return agents
@@ -215,19 +222,16 @@ export class GrokBotAdapter implements PlatformAdapter {
   }
 
   async sendMessage(message: OutgoingMessage): Promise<SendReceipt> {
-    const auth = getGrokAuth(message.accountId)
-    if (!auth?.accessToken) throw new AdapterError('not-connected', 'Sign in to Grok Bot first.')
+    const auth = this.requireAuth(message.accountId)
 
     let agents = this.agentsByAccount.get(message.accountId)
     if (!agents?.length) agents = await this.refreshAgents(message.accountId)
-    const agentId =
-      this.agentForConversation.get(message.conversationId) ??
-      agents[0]?.id
+    const agentId = this.agentForConversation.get(message.conversationId) ?? agents[0]?.id
     if (!agentId) throw new AdapterError('unknown-account', 'No Grok Bot agents on this account.')
 
-    const client = this.clientFor(message.accountId)
     const messageId = createId('tNu')
     const sessionId = auth.accountSlot ?? message.accountId
+    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
 
     this.setStatus(message.accountId, 'busy')
     this.emit({
@@ -238,19 +242,29 @@ export class GrokBotAdapter implements PlatformAdapter {
     })
 
     try {
-      await client.sendUserMessage({
+      await invokeGrokRpc({
+        accountId: message.accountId,
+        timeZone,
+        op: 'sendUserMessage',
         agentId,
         messageId,
         text: message.text,
         sessionId,
         machineId: auth.machineId
       })
-      // Poll transcript for an assistant reply (Watch stream not wired yet).
+
       let reply = ''
       for (let i = 0; i < 20; i++) {
         await sleep(800)
         try {
-          const hist = await client.listTranscriptEntries({ agentId, sessionId, limit: 40 })
+          const hist = await invokeGrokRpc({
+            accountId: message.accountId,
+            timeZone,
+            op: 'listTranscriptEntries',
+            agentId,
+            sessionId,
+            limit: 40
+          })
           reply = extractReplyText(hist, messageId)
           if (reply) break
         } catch {
@@ -316,7 +330,7 @@ export class GrokBotAdapter implements PlatformAdapter {
   }
 
   async decideApproval(accountId: string, approvalId: string, decision: ApprovalDecision): Promise<void> {
-    const client = this.clientFor(accountId)
+    this.requireAuth(accountId)
     const pending = this.pendingApprovals.get(accountId) ?? []
     const card = pending.find((a) => a.id === approvalId)
     const kind =
@@ -326,12 +340,14 @@ export class GrokBotAdapter implements PlatformAdapter {
         ? (card.raw as { agent_id: string }).agent_id
         : this.agentsByAccount.get(accountId)?.[0]?.id) ?? ''
     if (!agentId) throw new AdapterError('unknown-account', 'No agent for approval.')
-    await resolveGrokApproval(client, kind, {
-      agentId,
-      requestId: approvalId,
-      decision,
-      sessionId: getGrokAuth(accountId)?.accountSlot ?? accountId
-    })
+    await invokeGrokRpc(
+      grokApprovalRpcRequest(accountId, kind, {
+        agentId,
+        requestId: approvalId,
+        decision,
+        sessionId: getGrokAuth(accountId)?.accountSlot ?? accountId
+      })
+    )
     this.pendingApprovals.set(
       accountId,
       pending.filter((a) => a.id !== approvalId)

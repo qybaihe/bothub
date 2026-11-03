@@ -11,7 +11,9 @@ import type {
   GrokOpenLoginRequest,
   GrokSetAccessTokenRequest,
   GrokAuthStatus,
-  GrokAuthSessionPayload
+  GrokAuthSessionPayload,
+  GrokRpcRequest,
+  GrokRpcResponse
 } from './ipc'
 
 /** Controls embedded platform web sessions (Electron WebContentsView). */
@@ -68,6 +70,8 @@ export interface GrokBridge {
   authStatus(accountId: string): Promise<GrokAuthStatus>
   /** Hydrate renderer from main in-memory token store. */
   getSession(accountId: string): Promise<GrokAuthSessionPayload>
+  /** ConnectRPC unary via main process (List/Send/Transcript/approvals) — avoids CORS. */
+  rpc(request: GrokRpcRequest): Promise<GrokRpcResponse>
   onEvent(listener: (event: GrokMainEvent) => void): () => void
 }
 

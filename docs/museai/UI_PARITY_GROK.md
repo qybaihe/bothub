@@ -147,3 +147,14 @@ injected by /tmp/parity-shots steps (steps3.json), never shipped in app code.
 
 Remaining gaps: Skills tab; file content preview; persona/instructions RPC for template depth;
 Library Pages; Members/Trusted Network; host section sync; keyboard drag-reorder; pinned order.
+
+## 5f. Account framing, dark mode, zh-CN (2026-11-04)
+
+| Commit | Change |
+|---|---|
+| f24476f | Dark theme via token override on html[data-theme]; app menu 外观 跟随系统/浅色/深色 (default 浅色) + 语言; i18n scaffold |
+| d88cedf | 新建 Bot = 登录一个账号: platform + sign-in first, explicit copy; templates become optional 起始风格 after sign-in |
+| e7ea17b | zh-CN default for all renderer UI strings (English kept); language switch reloads |
+
+Shots: ui-parity/shots/30–34 (light/dark, zh). Gaps: Muse section copy already Chinese stays Chinese in English mode;
+adapter/main-process error strings still English; name step (post-login) not screenshotted (needs real sign-in).

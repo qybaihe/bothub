@@ -3,8 +3,10 @@ import { AddBotDialog } from '@/components/add-bot/AddBotDialog'
 import { ChatArea } from '@/components/chat/ChatArea'
 import { AppShell } from '@/components/layout/AppShell'
 import { InfoPanel } from '@/components/info/InfoPanel'
+import { CommandPalette } from '@/components/palette/CommandPalette'
 import { Sidebar } from '@/components/sidebar/Sidebar'
 import { UpdateBanner } from '@/components/update/UpdateBanner'
+import { useGlobalShortcuts } from '@/lib/shortcuts'
 import { startAdapterBridge } from '@/services/adapterBridge'
 import { useBotStore } from '@/store/botStore'
 
@@ -13,6 +15,7 @@ export default function App() {
   const setAddBotOpen = useBotStore((s) => s.setAddBotOpen)
 
   useEffect(() => startAdapterBridge(), [])
+  useGlobalShortcuts()
 
   // Dev-only test harness for CDP/E2E scripts.
   useEffect(() => {
@@ -37,6 +40,7 @@ export default function App() {
         />
       </div>
       <AddBotDialog />
+      <CommandPalette />
     </>
   )
 }

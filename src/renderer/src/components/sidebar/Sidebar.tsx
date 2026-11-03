@@ -1,12 +1,12 @@
-import { useEffect, useState } from 'react'
-import { MoreHorizontal, Plus, RefreshCw, Search, X } from 'lucide-react'
+import { useEffect, useState, type KeyboardEvent } from 'react'
+import { Plus, RefreshCw, Search } from 'lucide-react'
 import { IconButton } from '@/components/ui/IconButton'
 import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from '@/components/ui/Menu'
 import { getBridge, runtimePlatform } from '@/lib/bridge'
 import { cn } from '@/lib/cn'
+import { shortcutLabel } from '@/lib/shortcuts'
 import { useBotStore } from '@/store/botStore'
 import { BotList } from './BotList'
-import { SearchField } from './SearchField'
 
 interface SidebarProps {
   onAddBot: () => void
@@ -14,7 +14,7 @@ interface SidebarProps {
 
 function BrandMark() {
   return (
-    <span className="grid size-7 place-items-center rounded-[8px] bg-ink shadow-soft" aria-hidden>
+    <span className="grid size-6 place-items-center rounded-[7px] bg-ink" aria-hidden>
       <svg viewBox="0 0 16 16" className="size-3.5 text-white" fill="none">
         <rect x="2.5" y="4" width="11" height="8.5" rx="3" stroke="currentColor" strokeWidth="1.6" />
         <circle cx="6.2" cy="8.25" r="1" fill="currentColor" />
@@ -25,99 +25,83 @@ function BrandMark() {
   )
 }
 
-export function Sidebar({ onAddBot }: SidebarProps) {
-  const search = useBotStore((s) => s.search)
-  const setSearch = useBotStore((s) => s.setSearch)
+/** The brand doubles as the app menu (updates, version). */
+function BrandMenu() {
   const [version, setVersion] = useState('')
   const [checking, setChecking] = useState(false)
-  const [searchOpen, setSearchOpen] = useState(false)
+  const updates = getBridge()?.updates
 
   useEffect(() => {
-    const bridge = getBridge()
-    if (!bridge?.updates) return
-    void bridge.updates.version().then(setVersion)
-    return bridge.updates.onEvent((event) => {
-      if (event.type === 'checking') setChecking(true)
-      else setChecking(false)
-    })
-  }, [])
-
-  useEffect(() => {
-    if (search.trim()) setSearchOpen(true)
-  }, [search])
+    if (!updates) return
+    void updates.version().then(setVersion)
+    return updates.onEvent((event) => setChecking(event.type === 'checking'))
+  }, [updates])
 
   return (
-    <>
-      <header
-        className={cn(
-          'drag-region flex h-[60px] shrink-0 items-center gap-1.5 px-3 pt-2',
-          runtimePlatform === 'darwin' && 'pl-[78px]'
-        )}
+    <Menu>
+      <MenuTrigger
+        className="no-drag press -ml-1 flex h-8 min-w-0 items-center gap-2 rounded-full pr-2.5 pl-1 hover:bg-hover data-[state=open]:bg-hover"
+        aria-label="BotHub menu"
       >
         <BrandMark />
-        <span className="mr-auto text-sm font-semibold tracking-tight">BotHub</span>
-        <div className="no-drag flex items-center gap-0.5">
-          <IconButton
-            round
-            label="Search"
-            active={searchOpen}
-            onClick={() => {
-              setSearchOpen((v) => {
-                if (v) setSearch('')
-                return !v
-              })
-            }}
-          >
-            {searchOpen ? <X /> : <Search />}
+        <span className="truncate text-[15px] font-semibold tracking-tight text-ink">BotHub</span>
+      </MenuTrigger>
+      <MenuContent align="start">
+        <MenuItem
+          disabled={checking || !updates}
+          onSelect={() => {
+            setChecking(true)
+            void updates?.check()
+          }}
+        >
+          <RefreshCw className={cn(checking && 'animate-spin')} aria-hidden />
+          Check for updates
+        </MenuItem>
+        {version ? (
+          <>
+            <MenuSeparator />
+            <MenuItem disabled>BotHub {version}</MenuItem>
+          </>
+        ) : null}
+      </MenuContent>
+    </Menu>
+  )
+}
+
+export function Sidebar({ onAddBot }: SidebarProps) {
+  const openPalette = useBotStore((s) => s.openPalette)
+
+  // Typing while the sidebar has focus starts a search.
+  const typeToSearch = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.defaultPrevented || event.nativeEvent.isComposing) return
+    if (event.key.length !== 1 || event.key === ' ' || event.metaKey || event.ctrlKey || event.altKey) return
+    if (event.target instanceof HTMLElement && event.target.closest('input, textarea')) return
+    event.preventDefault()
+    openPalette(event.key)
+  }
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col" onKeyDown={typeToSearch}>
+      <header
+        className={cn(
+          'drag-region flex h-[60px] shrink-0 items-center gap-2 px-3 pt-2',
+          runtimePlatform === 'darwin' && 'pl-[80px]'
+        )}
+      >
+        <BrandMenu />
+        <div className="no-drag ml-auto flex shrink-0 items-center gap-1">
+          <IconButton round label="Search" shortcut={shortcutLabel('K')} onClick={() => openPalette()}>
+            <Search />
           </IconButton>
-          <IconButton round label="Add bot" onClick={onAddBot}>
+          <IconButton round label="New bot" shortcut={shortcutLabel('N')} onClick={onAddBot}>
             <Plus />
           </IconButton>
-          <Menu>
-            <MenuTrigger asChild>
-              <IconButton round label="App menu">
-                <MoreHorizontal />
-              </IconButton>
-            </MenuTrigger>
-            <MenuContent align="end">
-              <MenuItem
-                disabled={checking || !getBridge()?.updates}
-                onSelect={() => {
-                  setChecking(true)
-                  void getBridge()?.updates.check()
-                }}
-              >
-                <RefreshCw className={cn('size-4', checking && 'animate-spin')} aria-hidden />
-                Check for updates
-              </MenuItem>
-              {version ? (
-                <>
-                  <MenuSeparator />
-                  <MenuItem disabled>Version {version}</MenuItem>
-                </>
-              ) : null}
-            </MenuContent>
-          </Menu>
         </div>
       </header>
 
-      {searchOpen && (
-        <div className="no-drag px-3 pb-2 animate-fade-in">
-          <SearchField
-            value={search}
-            onChange={setSearch}
-            autoFocus
-            onEscape={() => {
-              setSearch('')
-              setSearchOpen(false)
-            }}
-          />
-        </div>
-      )}
-
-      <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-3">
+      <div className="min-h-0 flex-1 overflow-y-auto px-2 pt-1 pb-3">
         <BotList />
       </div>
-    </>
+    </div>
   )
 }

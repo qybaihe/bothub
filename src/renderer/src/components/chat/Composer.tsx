@@ -1,4 +1,4 @@
-import { useRef, useState, type DragEvent, type KeyboardEvent } from 'react'
+import { useEffect, useRef, useState, type DragEvent, type KeyboardEvent } from 'react'
 import type { AttachmentMeta } from '@adapters/types'
 import { createId } from '@shared/id'
 import { ArrowUp, FileText, Loader2, LogIn, Paperclip, PlugZap, X } from 'lucide-react'
@@ -90,6 +90,13 @@ export function Composer({ bot, account, onSend, onConnect, onMuseLogin }: Compo
   const connected = account?.status === 'online' || account?.status === 'busy'
   const hasContent = text.trim().length > 0 || attachments.length > 0
   const canSend = connected && hasContent
+
+  // The palette asks for focus after jumping to a bot.
+  useEffect(() => {
+    const focus = () => textareaRef.current?.focus()
+    window.addEventListener('bothub:focus-composer', focus)
+    return () => window.removeEventListener('bothub:focus-composer', focus)
+  }, [])
 
   const resize = () => {
     const el = textareaRef.current

@@ -83,6 +83,7 @@
   --animate-dialog-sink: dialog-sink 160ms var(--ease-exit) forwards;
   --animate-scrim-in: fade-in 220ms ease-out;
   --animate-scrim-out: fade-out 160ms ease-in forwards;
+  --animate-palette-in: palette-in 420ms var(--ease-spring-shape), veil-in 200ms ease-out;
   --animate-step-in: step-in 420ms var(--ease-spring-shape) both, veil-in 220ms ease-out both;
   --animate-mark-pop: mark-pop 430ms var(--ease-spring-pop) both;
   --animate-typing: typing 1.2s ease-in-out infinite;
@@ -133,6 +134,11 @@
       opacity: 0;
       transform: translateY(6px) scale(0.975);
       filter: blur(3px);
+    }
+  }
+  @keyframes palette-in {
+    from {
+      transform: translateY(-10px) scale(0.96);
     }
   }
   @keyframes step-in {

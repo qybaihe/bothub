@@ -21,22 +21,28 @@ export interface BotHubState {
   /** Bot ids whose reply is currently being generated. */
   typing: Record<string, boolean>
   selectedBotId: string | null
-  search: string
   collapsedGroups: Record<string, boolean>
   infoPanelOpen: boolean
   addBotOpen: boolean
   /** Bumped on every open so each add-bot flow starts fresh. */
   addBotKey: number
+  /** Command palette (⌘K); `paletteQuery` seeds it when typing opens it. */
+  paletteOpen: boolean
+  paletteQuery: string
+  paletteKey: number
   /** Show the embedded platform web session instead of the chat (Electron only). */
   webSessionOpen: boolean
 
   // Navigation & layout
   selectBot: (botId: string) => void
-  setSearch: (query: string) => void
   toggleGroup: (groupId: string) => void
   toggleInfoPanel: () => void
   setAddBotOpen: (open: boolean) => void
   toggleWebSession: () => void
+  openPalette: (query?: string) => void
+  closePalette: () => void
+  /** Select the bot `offset` rows away in sidebar order (wraps). */
+  selectAdjacentBot: (offset: number) => void
 
   // Creation
   /** Create a bot (and any new accounts/group), select it, and connect its accounts. */
@@ -157,11 +163,13 @@ export const useBotStore = create<BotHubState>()(
     ...seed,
     typing: {},
     selectedBotId: seed.bots[0]?.id ?? null,
-    search: '',
     collapsedGroups: {},
     infoPanelOpen: true,
     addBotOpen: false,
     addBotKey: 0,
+    paletteOpen: false,
+    paletteQuery: '',
+    paletteKey: 0,
     webSessionOpen: false,
 
     selectBot: (botId) =>
@@ -169,8 +177,6 @@ export const useBotStore = create<BotHubState>()(
         selectedBotId: botId,
         bots: state.bots.map((b) => (b.id === botId && b.unread > 0 ? { ...b, unread: 0 } : b))
       })),
-
-    setSearch: (query) => set({ search: query }),
 
     toggleGroup: (groupId) =>
       set((state) => ({
@@ -183,6 +189,20 @@ export const useBotStore = create<BotHubState>()(
       set((state) => (open ? { addBotOpen: true, addBotKey: state.addBotKey + 1 } : { addBotOpen: false })),
 
     toggleWebSession: () => set((state) => ({ webSessionOpen: !state.webSessionOpen })),
+
+    openPalette: (query = '') =>
+      set((state) => ({ paletteOpen: true, paletteQuery: query, paletteKey: state.paletteKey + 1 })),
+
+    closePalette: () => set({ paletteOpen: false }),
+
+    selectAdjacentBot: (offset) => {
+      const state = get()
+      const ordered = state.groups.flatMap((g) => state.bots.filter((b) => b.groupId === g.id))
+      if (ordered.length === 0) return
+      const index = ordered.findIndex((b) => b.id === state.selectedBotId)
+      const next = ordered[(index + offset + ordered.length) % ordered.length]
+      if (next) get().selectBot(next.id)
+    },
 
     addBot: (input) => {
       const state = get()
@@ -227,7 +247,6 @@ export const useBotStore = create<BotHubState>()(
         accounts: { ...s.accounts, ...created },
         messages: { ...s.messages, [bot.id]: [] },
         selectedBotId: bot.id,
-        search: '',
         collapsedGroups: { ...s.collapsedGroups, [groupId]: false },
         addBotOpen: false
       }))

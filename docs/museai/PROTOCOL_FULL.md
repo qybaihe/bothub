@@ -53,7 +53,7 @@ Transport details: `protocol.md` + `NATIVE_CLIENT.md`. Protos: `samples/proto/`.
 | `delta.message_start` | **done** | Create streaming stub |
 | `delta.text_append` | **done** | Append payload.text (needs delta_stream cap) |
 | `delta.message_done` | **done** | Finalize; may carry transcript |
-| `delta.presentation` | **partial** | Option widgets parsed; other presentation kinds ignored |
+| `delta.presentation` | **partial** | Option widgets + media parts; shopping/maps/html still ignored |
 | `delta.placeholder` | **missing** | Ignored |
 | `delta.tool_start / delta.tool_done` | **missing** | No tool chip UI |
 | `tool_call.started / tool_call.completed` | **missing** | Seen in JS; not wired |
@@ -68,12 +68,21 @@ Other subscriptions in registry: `chat.stream_events`, `activity.subscribe`, `ar
 | kind | Status | Notes |
 |---|---|---|
 | `option` | **done** | Chip UI + widgets.state.set + resend label |
-| `image / images` | **partial** | Render incoming paths not fully parity |
-| `file / file_ref` | **partial** | Outbound image/file base64 path; large file_ref upload experimental |
+| `image / images` | **partial** | Chat media chips + http(s) `<img>`; workspace `fs.raw` preview still missing |
+| `file / file_ref` | **partial** | Inbound path chips; outbound base64 ≤12MB; large file_ref binary upload still missing |
 | `image_options` | **missing** |  |
 | `shopping_cart / shopping_results(_v2)` | **missing** |  |
 | `local_map / marketplace_map` | **missing** |  |
 | `slides / html / audio / video` | **missing** |  |
+
+
+### 2.4 Tool chips & media (BotHub)
+
+| Surface | Status | Notes |
+|---|---|---|
+| `tool_call.*` / `delta.tool_*` → chat tool chips | **done** | Running/Done/Failed chips under assistant bubbles |
+| Inbound image/file message parts | **partial** | Path chips; http(s) images inline; no `fs.raw` blob yet |
+| Electron Notification (blurred) | **done** | `needs_approval` refresh + stream `done` with text; click focuses window; never auto-approves |
 
 State RPC: `widgets.state.set` (**done** for options), `widgets.state.patch` (**partial**).
 
@@ -620,11 +629,11 @@ upload as **missing** until a redacted capture exists. Prefer base64 items for B
 |---|---|---|
 | Approval attention | `agent.status` needs_approval + `egress.approvals` | **done** (in-chat card) |
 | Desktop OS notifications | client-local | **missing** |
-| Permissions settings pane | `permissions.settings*` / `egress.permissions*` | **missing** UI |
+| Permissions settings pane | `permissions.settings*` / `egress.permissions*` | **partial** — InfoPanel read-only flatten; honest empty; no PATCH yet |
 | Config pane | `config.get` / `config.update` | **partial** (get only) |
 | Themes | `chat.themes*` / `theme.subscribe` | **missing** |
-| Memory pane | `memory.*` | **missing** (local BotHub memory ≠ Muse memory) |
-| Skills pane | `skills.*` | **missing** |
+| Memory pane | `memory.*` | **partial** — Muse MemorySection (`memory.search`/`get`/`consolidate`); local BotHub notes kept separate |
+| Skills pane | `skills.*` | **partial** — SkillsSection list + set_disabled; honest empty when RPC bare |
 | Trusted Network | `peers.*` | **missing** (see GAPS.md) |
 | Per-account proxy | BotHub-local | **missing** (not a Muse RPC) |
 
@@ -644,9 +653,10 @@ upload as **missing** until a redacted capture exists. Prefer base64 items for B
 
 1. ~~Approval refresh on `needs_approval`~~ **done** (session manager + adapter).
 2. ~~Outbound attachments `data_base64`~~ **done** for image/file ≤12MiB; `file_ref` still missing.
-3. Rich inbound blocks: tool chips, image/file message parts, shopping/maps widgets.
-4. `permissions.*` / HITL settings pane.
-5. Muse `memory.*` + `skills.*` panels (distinct from local BotHub notes).
+3. Rich inbound blocks: ~~tool chips + image/file parts~~ (**done** UI); shopping/maps/html widgets still missing.
+4. ~~`permissions.*` settings pane~~ (**partial** read-only).
+5. ~~Muse `memory.*` + `skills.*` panels~~ (**partial**).
+6. Desktop Notification when blurred for `needs_approval` / new agent reply (**done**).
 6. Trusted Network `peers.*` / Shared Agents (see GAPS.md).
 7. Per-account client proxy.
 8. OS notifications when approval pending / reply arrives.

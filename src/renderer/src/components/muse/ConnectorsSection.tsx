@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { adapterRegistry } from '@adapters/registry'
 import type { MuseConnector } from '@adapters/types'
-import { Cable, Loader2 } from 'lucide-react'
-import { Button } from '@/components/ui/Button'
+import { EmptyLine, Section } from '@/components/info/Section'
+import { RefreshButton } from './RefreshButton'
 import { useBotStore } from '@/store/botStore'
 
 export function ConnectorsSection({ accountId }: { accountId: string }) {
@@ -30,43 +30,33 @@ export function ConnectorsSection({ accountId }: { accountId: string }) {
   }, [refresh, status])
 
   return (
-    <div className="flex flex-col gap-2">
-      <div className="flex items-center justify-between gap-2">
-        <p className="flex items-center gap-1.5 text-caption font-medium text-ink-muted">
-          <Cable className="size-3.5" aria-hidden />
-          Connectors
-        </p>
-        <Button variant="ghost" size="sm" onClick={() => void refresh()} disabled={loading}>
-          {loading ? <Loader2 className="size-3.5 animate-spin" /> : 'Refresh'}
-        </Button>
-      </div>
-      {error && <p className="text-caption text-status-error-ink">{error}</p>}
+    <Section
+      title="Connectors"
+      count={items.length}
+      flush={items.length > 0}
+      action={<RefreshButton loading={loading} onClick={() => void refresh()} />}
+    >
+      {error && <p className="px-3 pt-2 text-[12px] text-status-error">{error}</p>}
       {items.length === 0 ? (
-        <p className="text-caption text-ink-muted">No connectors loaded yet. Sign in and refresh.</p>
+        <EmptyLine>No connectors</EmptyLine>
       ) : (
-        <ul className="flex flex-col gap-1.5">
+        <ul className="divide-y divide-line">
           {items.map((c) => (
-            <li
-              key={c.id}
-              className="flex items-center justify-between gap-2 rounded-lg border border-line bg-surface px-2.5 py-2"
-            >
-              <div className="min-w-0">
-                <p className="truncate text-ui font-medium">{c.name}</p>
-                {c.description && <p className="truncate text-caption text-ink-muted">{c.description}</p>}
-              </div>
+            <li key={c.id} className="flex items-center justify-between gap-2 px-3 py-2.5" title={c.description}>
+              <p className="min-w-0 truncate text-[13px] text-ink">{c.name}</p>
               <span
                 className={
                   c.connected
-                    ? 'rounded-full bg-status-online/10 px-2 py-0.5 text-caption font-medium text-status-online-ink'
-                    : 'rounded-full bg-sunken px-2 py-0.5 text-caption font-medium text-ink-muted'
+                    ? 'shrink-0 rounded-[4px] bg-status-online/10 px-1.5 text-[11px] leading-4 text-status-online-ink'
+                    : 'shrink-0 rounded-[4px] bg-sunken px-1.5 text-[11px] leading-4 text-ink-muted'
                 }
               >
-                {c.connected ? 'Connected' : 'Off'}
+                {c.connected ? 'On' : 'Off'}
               </span>
             </li>
           ))}
         </ul>
       )}
-    </div>
+    </Section>
   )
 }

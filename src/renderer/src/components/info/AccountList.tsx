@@ -1,20 +1,9 @@
 import { useState } from 'react'
-import {
-  Check,
-  Loader2,
-  LogIn,
-  MoreHorizontal,
-  Pencil,
-  Plug,
-  LogOut,
-  Unplug,
-  UserMinus,
-  UserRoundCheck
-} from 'lucide-react'
-import { Button } from '@/components/ui/Button'
+import { Check, Loader2, LogIn, LogOut, MoreHorizontal, Pencil, Plug, Unplug, UserMinus, UserRoundCheck } from 'lucide-react'
 import { AccountAvatar } from '@/components/ui/Avatar'
+import { InlineEdit } from '@/components/ui/InlineEdit'
 import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from '@/components/ui/Menu'
-import { StatusBadge } from '@/components/ui/Status'
+import { STATUS_LABEL } from '@/components/ui/Status'
 import { cn } from '@/lib/cn'
 import { useBotStore } from '@/store/botStore'
 import type { Bot, BotAccount } from '@/types'
@@ -24,6 +13,10 @@ interface AccountListProps {
   accounts: BotAccount[]
 }
 
+/**
+ * One row per account: avatar with status dot and name. The row picks the
+ * sending account; everything else lives in the row's ⋯ menu.
+ */
 export function AccountList({ bot, accounts }: AccountListProps) {
   const setActiveAccount = useBotStore((s) => s.setActiveAccount)
   const connectAccount = useBotStore((s) => s.connectAccount)
@@ -33,167 +26,142 @@ export function AccountList({ bot, accounts }: AccountListProps) {
   const removeAndClearAccount = useBotStore((s) => s.removeAndClearAccount)
   const openMuseLogin = useBotStore((s) => s.openMuseLogin)
   const [editingId, setEditingId] = useState<string | null>(null)
-  const [draftName, setDraftName] = useState('')
-
-  const startRename = (account: BotAccount) => {
-    setEditingId(account.id)
-    setDraftName(account.label || account.displayName)
-  }
-
-  const commitRename = (accountId: string) => {
-    renameAccount(accountId, draftName)
-    setEditingId(null)
-  }
+  const [confirmRemove, setConfirmRemove] = useState<string | null>(null)
+  const several = accounts.length > 1
 
   return (
-    <ul className="-mx-2 flex flex-col gap-0.5">
+    <ul className="divide-y divide-line">
       {accounts.map((account) => {
         const active = account.id === bot.activeAccountId
-        const connected =
-          account.status === 'online' || account.status === 'busy' || account.status === 'attention'
+        const connected = account.status === 'online' || account.status === 'busy' || account.status === 'attention'
+        const isMuse = account.platformId === 'meta-muse'
         const unread = account.unread ?? 0
+        const name = account.label || account.displayName
+        const showError = account.status === 'error' && account.statusDetail
         return (
           <li
             key={account.id}
             className={cn(
-              'group flex items-center gap-2.5 rounded-xl px-2 py-1.5 transition-colors',
-              active ? 'bg-accent-50/70 ring-1 ring-accent-100' : 'hover:bg-surface-hover'
+              'group relative flex items-center gap-2.5 px-3',
+              !connected && isMuse && editingId !== account.id ? 'min-h-14 pt-2 pb-7' : 'min-h-12 py-2'
             )}
           >
-            <button
-              type="button"
-              className="relative shrink-0"
-              onClick={() => setActiveAccount(bot.id, account.id)}
-              aria-label={`Use ${account.displayName}`}
-            >
-              <AccountAvatar
-                name={account.displayName}
-                status={account.status}
-                ringClassName={active ? 'ring-accent-50' : 'ring-surface'}
-              />
-              {unread > 0 && (
-                <span className="absolute -top-1 -right-1 grid h-4 min-w-4 place-items-center rounded-full bg-accent-600 px-1 text-[10px] font-semibold text-white tabular-nums">
-                  {unread > 99 ? '99+' : unread}
-                </span>
-              )}
-            </button>
-
-            <div className="min-w-0 flex-1">
-              {editingId === account.id ? (
-                <form
-                  className="flex items-center gap-1"
-                  onSubmit={(e) => {
-                    e.preventDefault()
-                    commitRename(account.id)
-                  }}
-                >
-                  <input
-                    autoFocus
-                    value={draftName}
-                    onChange={(e) => setDraftName(e.target.value)}
-                    onBlur={() => commitRename(account.id)}
-                    className="h-7 w-full rounded-md border border-line bg-surface px-2 text-ui text-ink outline-none focus:border-accent-400"
-                    aria-label="Account label"
-                  />
-                </form>
-              ) : (
-                <button
-                  type="button"
-                  className="block w-full min-w-0 text-left"
-                  onClick={() => setActiveAccount(bot.id, account.id)}
-                >
-                  <p className="flex items-center gap-1.5 truncate text-ui font-medium text-ink">
-                    <span className="truncate">{account.label || account.displayName}</span>
-                    {active && (
-                      <span className="shrink-0 rounded-md bg-accent-100 px-1 text-[10px] leading-4 font-semibold tracking-wide text-accent-700">
-                        ACTIVE
-                      </span>
-                    )}
-                  </p>
-                  <p className="truncate text-[12px] text-ink-muted" title={account.statusDetail}>
-                    {account.status === 'error' && account.statusDetail
-                      ? account.statusDetail
-                      : account.statusDetail === 'Signed out'
-                        ? '已退出'
-                        : account.handle}
-                  </p>
-                </button>
-              )}
-            </div>
-
-            {!connected && account.platformId === 'meta-muse' && (
-              <Button
-                size="sm"
-                variant="primary"
-                className="shrink-0"
-                disabled={account.pending}
-                onClick={() => void openMuseLogin(account.id)}
+            {editingId === account.id ? (
+              <span className="flex min-w-0 flex-1 items-center gap-2.5">
+                <AccountAvatar name={account.displayName} status={account.status} />
+                <InlineEdit
+                  value={name}
+                  label="Account name"
+                  className="text-[13px]"
+                  onCommit={(value) => renameAccount(account.id, value)}
+                  onDone={() => setEditingId(null)}
+                />
+              </span>
+            ) : (
+              <button
+                type="button"
+                disabled={!several}
+                onClick={() => setActiveAccount(bot.id, account.id)}
+                title={[account.handle, STATUS_LABEL[account.status]].filter(Boolean).join(' · ')}
+                className="flex min-w-0 flex-1 items-center gap-2.5 rounded-md text-left disabled:cursor-default"
               >
-                {account.pending ? (
-                  <Loader2 className="size-3.5 animate-spin" aria-hidden />
-                ) : (
-                  <LogIn className="size-3.5" aria-hidden />
-                )}
-                {account.pending ? '登录中…' : '使用 Muse 登录'}
-              </Button>
+                <span className="relative shrink-0">
+                  <AccountAvatar name={account.displayName} status={account.status} />
+                  {unread > 0 && (
+                    <span className="absolute -top-1 -right-1 grid h-4 min-w-4 place-items-center rounded-full bg-accent-600 px-1 text-[10px] font-medium text-white tabular-nums">
+                      {unread > 99 ? '99+' : unread}
+                    </span>
+                  )}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[13px] leading-[18px] text-ink">{name}</span>
+                  {showError && (
+                    <span className="block truncate text-[12px] leading-4 text-status-error">{account.statusDetail}</span>
+                  )}
+                </span>
+              </button>
             )}
 
-            {account.pending && account.platformId !== 'meta-muse' ? (
-              <Loader2 className="size-4 animate-spin text-ink-muted" aria-label="Updating" />
-            ) : connected || account.platformId !== 'meta-muse' ? (
-              <StatusBadge status={account.status} />
-            ) : null}
+            {/* Signed-out Muse accounts get the sign-in action under the name. */}
+            {!connected && isMuse && editingId !== account.id && (
+              <button
+                type="button"
+                disabled={account.pending}
+                onClick={() => void openMuseLogin(account.id)}
+                className="press absolute bottom-1.5 left-[50px] inline-flex h-5 items-center gap-1 rounded-md px-1 text-[12px] text-accent-600 hover:bg-accent-50 disabled:opacity-60"
+              >
+                {account.pending && <Loader2 className="size-3 animate-spin" aria-hidden />}
+                {account.pending ? '登录中…' : '使用 Muse 登录'}
+              </button>
+            )}
 
-            <Menu>
+            {account.pending && !isMuse && <Loader2 className="size-4 animate-spin text-ink-muted" aria-label="Updating" />}
+
+            {/* The check marks the sending account and gives way to ⋯ on hover. */}
+            <span className="relative grid size-7 shrink-0 place-items-center">
+            {several && active && editingId !== account.id && (
+              <Check
+                className="size-4 text-accent-600 transition-opacity duration-100 group-focus-within:opacity-0 group-hover:opacity-0"
+                aria-label="Sending from this account"
+              />
+            )}
+            <Menu onOpenChange={(open) => !open && setConfirmRemove(null)}>
               <MenuTrigger
-                aria-label={`Actions for ${account.displayName}`}
+                aria-label={`Actions for ${name}`}
                 disabled={account.pending}
                 className={cn(
-                  'grid size-6 shrink-0 place-items-center rounded-md text-ink-muted transition-opacity hover:bg-sunken hover:text-ink',
-                  'opacity-0 group-hover:opacity-100 focus-visible:opacity-100 data-[state=open]:bg-sunken data-[state=open]:opacity-100'
+                  'press-icon absolute inset-0 grid place-items-center rounded-full text-ink-secondary hover:bg-hover hover:text-ink',
+                  'opacity-0 group-hover:opacity-100 focus-visible:opacity-100 data-[state=open]:bg-hover data-[state=open]:opacity-100'
                 )}
               >
                 <MoreHorizontal className="size-4" />
               </MenuTrigger>
               <MenuContent align="end">
-                <MenuItem disabled={active} onSelect={() => setActiveAccount(bot.id, account.id)}>
-                  {active ? (
-                    <Check className="size-4 text-accent-600" />
-                  ) : (
-                    <UserRoundCheck className="size-4 text-ink-muted" />
-                  )}
-                  {active ? '当前发送账号' : '用此账号发送'}
-                </MenuItem>
-                <MenuItem onSelect={() => startRename(account)}>
-                  <Pencil className="size-4 text-ink-muted" /> 重命名
+                {several && (
+                  <MenuItem disabled={active} onSelect={() => setActiveAccount(bot.id, account.id)}>
+                    {active ? <Check aria-hidden /> : <UserRoundCheck aria-hidden />}
+                    {active ? '当前发送账号' : '用此账号发送'}
+                  </MenuItem>
+                )}
+                <MenuItem onSelect={() => setEditingId(account.id)}>
+                  <Pencil aria-hidden /> 重命名
                 </MenuItem>
                 {connected ? (
                   <MenuItem onSelect={() => void disconnectAccount(account.id)}>
-                    <Unplug className="size-4 text-ink-muted" /> 断开
+                    <Unplug aria-hidden /> 断开
                   </MenuItem>
-                ) : account.platformId === 'meta-muse' ? (
+                ) : isMuse ? (
                   <MenuItem onSelect={() => void openMuseLogin(account.id)}>
-                    <LogIn className="size-4 text-ink-muted" /> 使用 Muse 登录
+                    <LogIn aria-hidden /> 使用 Muse 登录
                   </MenuItem>
                 ) : (
                   <MenuItem onSelect={() => void connectAccount(account.id)}>
-                    <Plug className="size-4 text-ink-muted" />{' '}
-                    {account.status === 'error' ? '重试连接' : '连接'}
+                    <Plug aria-hidden /> {account.status === 'error' ? '重试连接' : '连接'}
                   </MenuItem>
                 )}
                 <MenuItem onSelect={() => void signOutAccount(account.id)}>
-                  <LogOut className="size-4 text-ink-muted" /> 退出登录
+                  <LogOut aria-hidden /> 退出登录
                 </MenuItem>
                 <MenuSeparator />
                 <MenuItem
-                  disabled={accounts.length <= 1}
-                  onSelect={() => void removeAndClearAccount(bot.id, account.id)}
-                  className="text-status-error-ink"
+                  danger
+                  disabled={!several}
+                  className={cn(confirmRemove === account.id && 'bg-status-error/10 data-[highlighted]:bg-status-error/15')}
+                  onSelect={(event) => {
+                    // Wiping a session cannot be undone, so it takes a second click.
+                    if (confirmRemove !== account.id) {
+                      event.preventDefault()
+                      setConfirmRemove(account.id)
+                      return
+                    }
+                    void removeAndClearAccount(bot.id, account.id)
+                  }}
                 >
-                  <UserMinus className="size-4" /> 移除并清除会话
+                  <UserMinus aria-hidden /> {confirmRemove === account.id ? '再点一次确认移除' : '移除并清除会话'}
                 </MenuItem>
               </MenuContent>
             </Menu>
+            </span>
           </li>
         )
       })}

@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
 import { adapterRegistry } from '@adapters/registry'
 import type { ApprovalDecision, MuseApproval } from '@adapters/types'
-import { Loader2, ShieldAlert } from 'lucide-react'
+import { EmptyLine, Section } from '@/components/info/Section'
 import { Button } from '@/components/ui/Button'
+import { RefreshButton } from './RefreshButton'
 import { useBotStore } from '@/store/botStore'
 
 export function ApprovalsSection({ accountId }: { accountId: string }) {
@@ -45,40 +46,25 @@ export function ApprovalsSection({ accountId }: { accountId: string }) {
   }
 
   return (
-    <div className="flex flex-col gap-2">
-      <div className="flex items-center justify-between gap-2">
-        <p className="flex items-center gap-1.5 text-caption font-medium text-ink-muted">
-          <ShieldAlert className="size-3.5 text-status-attention" aria-hidden />
-          Sentinel approvals
-        </p>
-        <Button variant="ghost" size="sm" onClick={() => void refresh()} disabled={loading}>
-          {loading ? <Loader2 className="size-3.5 animate-spin" /> : 'Refresh'}
-        </Button>
-      </div>
-      {error && <p className="text-caption text-status-error-ink">{error}</p>}
+    <Section
+      title="Approvals"
+      count={pending.length}
+      action={<RefreshButton loading={loading} onClick={() => void refresh()} />}
+    >
+      {error && <p className="pb-1 text-[12px] text-status-error">{error}</p>}
       {pending.length === 0 ? (
-        <p className="text-caption text-ink-muted">No pending confirmation cards.</p>
+        <EmptyLine>No pending approvals</EmptyLine>
       ) : (
-        <ul className="flex flex-col gap-2">
+        <ul className="flex flex-col gap-2 py-0.5">
           {pending.map((a) => (
-            <li key={a.id} className="rounded-xl border border-status-attention/30 bg-status-attention/5 p-3">
-              <p className="text-ui font-medium text-ink">{a.title}</p>
-              {a.detail && <p className="mt-0.5 text-caption text-ink-muted">{a.detail}</p>}
-              {a.approvalType && <p className="mt-1 text-caption text-ink-faint">{a.approvalType}</p>}
+            <li key={a.id} className="animate-step-in rounded-lg bg-status-attention/8 p-2.5">
+              <p className="text-[13px] font-medium text-ink">{a.title}</p>
+              {a.detail && <p className="mt-0.5 text-[12px] text-ink-secondary">{a.detail}</p>}
               <div className="mt-2 flex flex-wrap gap-1.5">
-                <Button
-                  size="sm"
-                  disabled={busyId === a.id}
-                  onClick={() => void decide(a.id, 'allow_once')}
-                >
+                <Button size="sm" variant="primary" disabled={busyId === a.id} onClick={() => void decide(a.id, 'allow_once')}>
                   Allow
                 </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  disabled={busyId === a.id}
-                  onClick={() => void decide(a.id, 'deny')}
-                >
+                <Button size="sm" disabled={busyId === a.id} onClick={() => void decide(a.id, 'deny')}>
                   Deny
                 </Button>
               </div>
@@ -86,6 +72,6 @@ export function ApprovalsSection({ accountId }: { accountId: string }) {
           ))}
         </ul>
       )}
-    </div>
+    </Section>
   )
 }

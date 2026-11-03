@@ -1,7 +1,8 @@
-import { memo, useEffect, useRef, useState } from 'react'
+import { memo, useRef, useState } from 'react'
 import type { ConnectionStatus } from '@adapters/types'
 import { ImageMinus, ImagePlus, MoreHorizontal, Pencil, Trash2 } from 'lucide-react'
 import { BotAvatar } from '@/components/ui/Avatar'
+import { InlineEdit } from '@/components/ui/InlineEdit'
 import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from '@/components/ui/Menu'
 import { avatarFromFile } from '@/lib/avatarImage'
 import { cn } from '@/lib/cn'
@@ -26,45 +27,6 @@ function previewText(last: ChatMessage | undefined, typing: boolean): string {
   return last.role === 'user' ? `You: ${body}` : body
 }
 
-function RenameField({ bot, onDone }: { bot: Bot; onDone: () => void }) {
-  const renameBot = useBotStore((s) => s.renameBot)
-  const [draft, setDraft] = useState(bot.name)
-  const ref = useRef<HTMLInputElement>(null)
-  const settled = useRef(false)
-
-  useEffect(() => {
-    ref.current?.focus()
-    ref.current?.select()
-  }, [])
-
-  const commit = (save: boolean) => {
-    if (settled.current) return
-    settled.current = true
-    if (save) renameBot(bot.id, draft)
-    onDone()
-  }
-
-  return (
-    <input
-      ref={ref}
-      value={draft}
-      maxLength={40}
-      aria-label="Bot name"
-      onChange={(event) => setDraft(event.target.value)}
-      onBlur={() => commit(true)}
-      onKeyDown={(event) => {
-        if (event.nativeEvent.isComposing) return
-        if (event.key === 'Enter') commit(true)
-        else if (event.key === 'Escape') {
-          event.stopPropagation()
-          commit(false)
-        }
-      }}
-      className="-ml-1 h-7 w-full rounded-md border border-accent-600 bg-surface px-1 text-[14px] text-ink outline-none ring-3 ring-accent-100"
-    />
-  )
-}
-
 export const BotListItem = memo(function BotListItem({
   bot,
   status,
@@ -74,6 +36,7 @@ export const BotListItem = memo(function BotListItem({
   onSelect
 }: BotListItemProps) {
   const setBotAvatar = useBotStore((s) => s.setBotAvatar)
+  const renameBot = useBotStore((s) => s.renameBot)
   const removeBot = useBotStore((s) => s.removeBot)
   const [menuOpen, setMenuOpen] = useState(false)
   const [renaming, setRenaming] = useState(false)
@@ -94,8 +57,11 @@ export const BotListItem = memo(function BotListItem({
       />
       <span className="min-w-0 flex-1">
         {renaming ? (
-          <RenameField
-            bot={bot}
+          <InlineEdit
+            value={bot.name}
+            label="Bot name"
+            className="-ml-1.5 text-[14px]"
+            onCommit={(name) => renameBot(bot.id, name)}
             onDone={() => {
               setRenaming(false)
               requestAnimationFrame(() => rowRef.current?.focus())

@@ -1,9 +1,10 @@
-import { memo, useState } from 'react'
+import { memo, useEffect, useState } from 'react'
 import { AlertCircle, Check, Clock3, FileText, Image as ImageIcon, Loader2, RotateCw, Wrench } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { formatBytes, formatClock } from '@/lib/format'
 import { useBotStore } from '@/store/botStore'
-import type { ChatMediaPart, ChatMessage, ChatOptionWidget, ChatToolCall } from '@/types'
+import type { ChatMediaPart, ChatMessage, ChatOptionWidget, ChatRichWidget, ChatToolCall } from '@/types'
+import { getBridge } from '@/lib/bridge'
 import { MarkdownText } from './MarkdownText'
 import { t } from '@/lib/i18n'
 
@@ -88,40 +89,265 @@ function ToolChips({ tools }: { tools: ChatToolCall[] }) {
   )
 }
 
-function MediaParts({ parts }: { parts: ChatMediaPart[] }) {
+function isHttp(path: string): boolean {
+  return /^https?:\/\//i.test(path)
+}
+
+function looksLikeImage(part: ChatMediaPart): boolean {
+  if (part.kind === 'image') return true
+  const mime = (part.mimeType || '').toLowerCase()
+  if (mime.startsWith('image/')) return true
+  return /\.(png|jpe?g|gif|webp|svg)$/i.test(part.path || part.name || '')
+}
+
+function WorkspaceImage({
+  part,
+  accountId
+}: {
+  part: ChatMediaPart
+  accountId?: string
+}) {
+  const [src, setSrc] = useState<string | null>(isHttp(part.path) ? part.path : null)
+  const [failed, setFailed] = useState(false)
+
+  useEffect(() => {
+    if (src || failed || !accountId) return
+    if (!part.path.startsWith('workspace/')) {
+      setFailed(true)
+      return
+    }
+    let cancelled = false
+    void (async () => {
+      try {
+        const muse = getBridge()?.muse
+        if (!muse?.previewWorkspaceFile) {
+          if (!cancelled) setFailed(true)
+          return
+        }
+        const preview = await muse.previewWorkspaceFile(accountId, part.path)
+        if (cancelled) return
+        if (!preview.mimeType.startsWith('image/') || !preview.dataBase64) {
+          setFailed(true)
+          return
+        }
+        setSrc(`data:${preview.mimeType};base64,${preview.dataBase64}`)
+      } catch {
+        if (!cancelled) setFailed(true)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [accountId, part.path, src, failed])
+
+  if (src) {
+    return (
+      <a href={isHttp(part.path) ? part.path : undefined} target="_blank" rel="noreferrer" className="block">
+        <img src={src} alt={part.name || part.path} className="max-h-64 max-w-full object-contain" />
+      </a>
+    )
+  }
+  return (
+    <div className="flex items-center gap-2 px-2.5 py-2 text-[12px]">
+      <span className="grid size-7 place-items-center rounded-lg bg-accent-50 text-accent-600">
+        <ImageIcon className="size-4" aria-hidden />
+      </span>
+      <span className="min-w-0">
+        <span className="block max-w-56 truncate font-medium text-ink">{part.name || part.path}</span>
+        <span className="block truncate text-caption text-ink-muted" title={part.path}>
+          {failed ? t('Preview unavailable') : t('Loading preview…')}
+        </span>
+      </span>
+    </div>
+  )
+}
+
+function MediaParts({ parts, accountId }: { parts: ChatMediaPart[]; accountId?: string }) {
   if (!parts.length) return null
   return (
     <ul className="mb-1.5 flex max-w-[78%] flex-col gap-1.5" aria-label={t('Media')}>
-      {parts.map((part) => {
-        const http = /^https?:\/\//i.test(part.path)
-        return (
-          <li
-            key={part.path}
-            className="overflow-hidden rounded-xl border border-line bg-surface shadow-soft"
-          >
-            {part.kind === 'image' && http ? (
-              <a href={part.path} target="_blank" rel="noreferrer" className="block">
-                <img src={part.path} alt={part.name || part.path} className="max-h-64 max-w-full object-contain" />
-              </a>
-            ) : (
-              <div className="flex items-center gap-2 px-2.5 py-2 text-[12px]">
-                <span className="grid size-7 place-items-center rounded-lg bg-accent-50 text-accent-600">
-                  {part.kind === 'image' ? (
-                    <ImageIcon className="size-4" aria-hidden />
-                  ) : (
-                    <FileText className="size-4" aria-hidden />
-                  )}
+      {parts.map((part) => (
+        <li
+          key={part.path}
+          className="overflow-hidden rounded-xl border border-line bg-surface shadow-soft"
+        >
+          {looksLikeImage(part) ? (
+            <WorkspaceImage part={part} accountId={accountId} />
+          ) : (
+            <div className="flex items-center gap-2 px-2.5 py-2 text-[12px]">
+              <span className="grid size-7 place-items-center rounded-lg bg-accent-50 text-accent-600">
+                <FileText className="size-4" aria-hidden />
+              </span>
+              <span className="min-w-0">
+                <span className="block max-w-56 truncate font-medium text-ink">{part.name || part.path}</span>
+                <span className="block truncate text-caption text-ink-muted" title={part.path}>
+                  {part.path}
                 </span>
-                <span className="min-w-0">
-                  <span className="block max-w-56 truncate font-medium text-ink">{part.name || part.path}</span>
-                  <span className="block truncate text-caption text-ink-muted" title={part.path}>
-                    {part.path}
-                  </span>
-                </span>
-              </div>
-            )}
-          </li>
-        )
+              </span>
+            </div>
+          )}
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+function RichWidgets({ widgets }: { widgets: ChatRichWidget[] }) {
+  if (!widgets.length) return null
+  return (
+    <ul className="mb-1.5 flex max-w-[85%] flex-col gap-2" aria-label={t('Widgets')}>
+      {widgets.map((w) => {
+        if (w.kind === 'shopping_results' || w.kind === 'shopping_results_v2') {
+          return (
+            <li key={w.widgetId} className="rounded-xl border border-line bg-surface p-2.5 shadow-soft">
+              <p className="mb-1.5 text-[12px] font-medium text-ink-secondary">{t('Shopping results')}</p>
+              <ul className="flex flex-col gap-1.5">
+                {w.products.slice(0, 8).map((p, i) => (
+                  <li key={`${p.name}-${i}`} className="flex gap-2 text-[12px]">
+                    {p.imageUrl ? (
+                      <img src={p.imageUrl} alt="" className="size-10 rounded-md object-cover" />
+                    ) : null}
+                    <span className="min-w-0">
+                      <span className="block truncate font-medium text-ink">{p.name}</span>
+                      <span className="block text-ink-muted">
+                        {[p.price, p.retailer].filter(Boolean).join(' · ')}
+                      </span>
+                      {p.url ? (
+                        <a
+                          href={p.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-accent-600 underline-offset-2 hover:underline"
+                        >
+                          {t('Open link')}
+                        </a>
+                      ) : null}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-1.5 text-[11px] text-ink-muted">{t('Read-only — checkout not available in BotHub')}</p>
+            </li>
+          )
+        }
+        if (w.kind === 'shopping_cart') {
+          return (
+            <li key={w.widgetId} className="rounded-xl border border-line bg-surface p-2.5 shadow-soft">
+              <p className="mb-1 text-[12px] font-medium text-ink-secondary">
+                {t('Shopping cart')}
+                {w.retailerName ? ` · ${w.retailerName}` : ''}
+              </p>
+              <ul className="flex flex-col gap-1 text-[12px]">
+                {w.items.slice(0, 12).map((it) => (
+                  <li key={it.id} className="flex justify-between gap-2">
+                    <span className="truncate text-ink">
+                      {it.name} × {it.quantity}
+                    </span>
+                    {it.linePrice ? <span className="shrink-0 text-ink-muted">{it.linePrice}</span> : null}
+                  </li>
+                ))}
+              </ul>
+              {w.subtotal ? (
+                <p className="mt-1 text-[12px] font-medium text-ink">
+                  {t('Subtotal')}: {w.subtotal}
+                </p>
+              ) : null}
+              <p className="mt-1 text-[11px] text-ink-muted">{t('Read-only — checkout not available in BotHub')}</p>
+            </li>
+          )
+        }
+        if (w.kind === 'local_map') {
+          return (
+            <li key={w.widgetId} className="rounded-xl border border-line bg-surface p-2.5 shadow-soft">
+              <p className="mb-1 text-[12px] font-medium text-ink-secondary">{t('Map')}</p>
+              {w.places.length ? (
+                <ul className="mb-1.5 flex flex-col gap-1 text-[12px]">
+                  {w.places.slice(0, 12).map((pl) => (
+                    <li key={pl.id}>
+                      <span className="font-medium text-ink">{pl.name}</span>
+                      <span className="text-ink-muted">
+                        {' '}
+                        ({pl.latitude.toFixed(4)}, {pl.longitude.toFixed(4)})
+                        {pl.category ? ` · ${pl.category}` : ''}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+              {w.html ? (
+                <iframe
+                  title={t('Map')}
+                  sandbox=""
+                  srcDoc={w.html}
+                  className="h-40 w-full rounded-lg border border-line bg-white"
+                />
+              ) : null}
+            </li>
+          )
+        }
+        if (w.kind === 'marketplace_map') {
+          return (
+            <li key={w.widgetId} className="rounded-xl border border-line bg-surface p-2.5 shadow-soft">
+              <p className="mb-1.5 text-[12px] font-medium text-ink-secondary">{t('Marketplace map')}</p>
+              <ul className="flex flex-col gap-1.5 text-[12px]">
+                {w.listings.slice(0, 12).map((l) => (
+                  <li key={l.id} className="flex gap-2">
+                    {l.imageUrl ? (
+                      <img src={l.imageUrl} alt="" className="size-10 rounded-md object-cover" />
+                    ) : null}
+                    <span className="min-w-0">
+                      <span className="block truncate font-medium text-ink">{l.name}</span>
+                      <span className="block text-ink-muted">
+                        {[l.price, l.latitude != null ? `${l.latitude.toFixed(3)}, ${l.longitude?.toFixed(3)}` : null]
+                          .filter(Boolean)
+                          .join(' · ')}
+                      </span>
+                      {l.url ? (
+                        <a
+                          href={l.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-accent-600 underline-offset-2 hover:underline"
+                        >
+                          {t('Open link')}
+                        </a>
+                      ) : null}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-1 text-[11px] text-ink-muted">{t('Read-only — checkout not available in BotHub')}</p>
+            </li>
+          )
+        }
+        if (w.kind === 'html') {
+          return (
+            <li key={w.widgetId} className="overflow-hidden rounded-xl border border-line bg-surface shadow-soft">
+              <p className="border-b border-line px-2.5 py-1.5 text-[12px] font-medium text-ink-secondary">
+                {t('HTML widget')}
+                {w.downloadable ? ` · ${t('Downloadable')}` : ''}
+              </p>
+              <iframe
+                title={t('HTML widget')}
+                sandbox=""
+                srcDoc={w.html}
+                className="h-48 w-full bg-white"
+              />
+            </li>
+          )
+        }
+        if (w.kind === 'slides') {
+          return (
+            <li key={w.widgetId} className="rounded-xl border border-line bg-surface px-2.5 py-2 shadow-soft">
+              <p className="text-[13px] font-medium text-ink">{w.label}</p>
+              <p className="text-[12px] text-ink-muted">
+                {t('Slides')} · {w.slug}
+                {w.path ? ` · ${w.path}` : ''}
+              </p>
+            </li>
+          )
+        }
+        return null
       })}
     </ul>
   )
@@ -214,11 +440,13 @@ export const MessageBubble = memo(function MessageBubble({
   const optionWidgets = (!mine && message.widgets?.filter((w) => w.kind === 'option')) || []
   const tools = (!mine && message.tools) || []
   const media = (!mine && message.media) || []
+  const rich = (!mine && message.richWidgets) || []
 
   return (
     <div className={cn('flex flex-col', mine ? 'items-end' : 'items-start')}>
       {!mine && tools.length > 0 && <ToolChips tools={tools} />}
-      {!mine && media.length > 0 && <MediaParts parts={media} />}
+      {!mine && rich.length > 0 && <RichWidgets widgets={rich} />}
+      {!mine && media.length > 0 && <MediaParts parts={media} accountId={message.accountId} />}
       {message.attachments && message.attachments.length > 0 && (
         <ul className={cn('mb-1 flex max-w-[78%] flex-wrap gap-1.5', mine && 'justify-end')}>
           {message.attachments.map((file) => (

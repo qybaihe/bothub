@@ -22,7 +22,9 @@ interface ComposerProps {
 
 const MAX_HEIGHT_PX = 200
 
-const MAX_INLINE_ATTACHMENT_BYTES = 12 * 1024 * 1024 // under Muse's 10MiB file_ref gate + headroom for images
+const MAX_IMAGE_ATTACHMENT_BYTES = 12 * 1024 * 1024
+/** Non-image ≥10MiB uses file_ref (fs.write); allow up to 40MiB in BotHub. */
+const MAX_FILE_ATTACHMENT_BYTES = 40 * 1024 * 1024
 
 async function fileToAttachment(file: File): Promise<AttachmentMeta> {
   const mimeType = file.type || 'application/octet-stream'
@@ -32,8 +34,10 @@ async function fileToAttachment(file: File): Promise<AttachmentMeta> {
     size: file.size,
     mimeType
   }
-  if (file.size > MAX_INLINE_ATTACHMENT_BYTES) {
-    return base
+  const isImage = mimeType.startsWith("image/")
+  const limit = isImage ? MAX_IMAGE_ATTACHMENT_BYTES : MAX_FILE_ATTACHMENT_BYTES
+  if (file.size > limit) {
+    return base // no dataBase64 → Composer shows oversized notice
   }
   const buf = await file.arrayBuffer()
   const bytes = new Uint8Array(buf)

@@ -1,0 +1,16 @@
+[
+  "getAgentThread",
+  "getAgentTranscript",
+  "getAgentTranscriptPage",
+  "getAgentTranscriptTail",
+  "getAgentTranscriptWindow",
+  "openAgentTail",
+  "openAgentWindowed",
+  "promptAcceptanceStatus",
+  "resolveAutoReviewApproval",
+  "resolveConnectorGrant",
+  "resolveLocalToolPermission",
+  "resolveVirtualCardApproval",
+  "respondToWidget",
+  "sendPrompt"
+]

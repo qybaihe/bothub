@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "value": {
+    "capabilities": [
+      "attachmentStoreSizedV1",
+      "orderedReplicasV1",
+      "sendAcceptanceV1",
+      "voiceSettingsV1",
+      "botTemplateJsonShareV1",
+      "botTemplateVisibilityV1"
+    ]
+  }
+}

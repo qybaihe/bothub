@@ -1,0 +1,102 @@
+[
+  {
+    "name": "ListAgentStores",
+    "kind": "i.Unary"
+  },
+  {
+    "name": "ListAgentStoreEntries",
+    "kind": "i.Unary"
+  },
+  {
+    "name": "ReadAgentStoreFile",
+    "kind": "i.Unary"
+  },
+  {
+    "name": "WriteAgentStoreDocument",
+    "kind": "i.Unary"
+  },
+  {
+    "name": "SetAgentStoreDocumentVisibility",
+    "kind": "i.Unary"
+  },
+  {
+    "name": "MintAgentStoreToken",
+    "kind": "i.Unary"
+  },
+  {
+    "name": "ListAgentStoreFiles",
+    "kind": "i.Unary"
+  },
+  {
+    "name": "ListAgentStoreDirectory",
+    "kind": "i.Unary"
+  },
+  {
+    "name": "CheckAgentStoreVersions",
+    "kind": "i.Unary"
+  },
+  {
+    "name": "RecordAgentStoreListingVersionAudit",
+    "kind": "i.Unary"
+  },
+  {
+    "name": "PresignAgentStoreReads",
+    "kind": "i.Unary"
+  },
+  {
+    "name": "PresignAgentStoreWrites",
+    "kind": "i.Unary"
+  },
+  {
+    "name": "CompleteAgentStoreMultipartWrites",
+    "kind": "i.Unary"
+  },
+  {
+    "name": "AbortAgentStoreMultipartWrites",
+    "kind": "i.Unary"
+  },
+  {
+    "name": "AcquireAgentStoreFileLock",
+    "kind": "i.Unary"
+  },
+  {
+    "name": "RenewAgentStoreFileLock",
+    "kind": "i.Unary"
+  },
+  {
+    "name": "ReleaseAgentStoreFileLock",
+    "kind": "i.Unary"
+  },
+  {
+    "name": "GetAgentStoreFileLock",
+    "kind": "i.Unary"
+  },
+  {
+    "name": "DeleteAgentStoreFiles",
+    "kind": "i.Unary"
+  },
+  {
+    "name": "RmdirAgentStore",
+    "kind": "i.Unary"
+  },
+  {
+    "name": "UndeleteAgentStoreFiles",
+    "kind": "i.Unary"
+  },
+  {
+    "name": "ListAgentStoreTombstones",
+    "kind": "i.Unary"
+  },
+  {
+    "name": "ShareAgentStore",
+    "kind": "i.Unary"
+  },
+  {
+    "name": "UnshareAgentStore",
+    "kind": "i.Unary"
+  },
+  {
+    "name": "ListSharedAgentStores",
+    "kind": "i.Unary"
+  }
+]

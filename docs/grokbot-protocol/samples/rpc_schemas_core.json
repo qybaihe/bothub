@@ -1,0 +1,88 @@
+{
+  "SendGrokBotUserMessageRequest": {
+    "agent_id": "string",
+    "message_id": "string",
+    "text": "string",
+    "sent_at_ms": "int64",
+    "rich_text": "string?",
+    "reply_to_id": "string?",
+    "is_fork": "bool",
+    "reply_quote": "string?",
+    "attachment_paths": "string[]",
+    "attachment_names": "string[]",
+    "traceparent": "string?",
+    "enter_epoch_ms": "int64?",
+    "composed_at_ms": "int64?",
+    "source": "enum",
+    "mcp_config_json": "string?",
+    "session_id": "string",
+    "machine_id": "string?",
+    "one_password_app_installed": "bool?",
+    "initiator": "enum",
+    "task_id": "string?",
+    "language": "string?",
+    "send_source": "enum",
+    "first_sent_age_ms": "int64?",
+    "renders_mcp_elicitation_forms": "bool?"
+  },
+  "SendGrokBotUserMessageResponse": {
+    "dispatched": "bool",
+    "mode": "enum",
+    "workflow_id": "string?",
+    "delivery": "message?",
+    "refusal": "message?"
+  },
+  "WatchGrokBotTranscriptsRequest": {
+    "cursors": "message[]",
+    "include_unlisted_agents": "bool?",
+    "inline_body_max_bytes": "uint32"
+  },
+  "CommitGrokBotTranscriptEntriesRequest": {
+    "agent_id": "string",
+    "generation": "uint32",
+    "entries": "message[]",
+    "deletes": "message[]",
+    "session_id": "string"
+  },
+  "ListGrokBotTranscriptEntriesRequest": {
+    "agent_id": "string",
+    "generation": "uint32?",
+    "before_seq": "int64?",
+    "limit": "uint32",
+    "session_id": "string",
+    "unread_boundary_ms": "int64?"
+  },
+  "ResolveGrokBotAutoReviewApprovalRequest": {
+    "agent_id": "string",
+    "request_id": "string",
+    "resolution": "enum",
+    "approval_platform": "string",
+    "approved_command": "string?",
+    "session_id": "string?",
+    "mcp_elicitation_content": "string?"
+  },
+  "CreateGrokBotAgentRequest": {
+    "legacy_agent_id": "string",
+    "name": "string",
+    "description": "string",
+    "title": "string",
+    "avatar_shape": "string",
+    "avatar_color": "string",
+    "avatar_data_url": "string?",
+    "agent_id": "string",
+    "harness": "enum (temporal|box|...)",
+    "kickstart_requested": "bool?",
+    "introduction_suppressed": "bool?",
+    "purpose": "string?",
+    "origin": "string?",
+    "language": "string?",
+    "create_intent": "enum",
+    "create_caller": "enum",
+    "created_automatically": "bool?"
+  },
+  "ListGrokBotAgentsRequest": {
+    "role": "string?",
+    "include_team_agents": "bool?",
+    "added_team_agents_only": "bool?"
+  }
+}

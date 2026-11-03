@@ -1,0 +1,91 @@
+{
+  "schemaVersion": 1,
+  "value": {
+    "entries": [
+      {
+        "kind": "send-message",
+        "id": "tbs0",
+        "message": {
+          "type": "text",
+          "content": "REDACTED"
+        },
+        "timestampMs": 1793543866139,
+        "requestId": "b246fc11-b9d6-4e91-a790-2382ce44e7e8",
+        "seq": 1
+      },
+      {
+        "kind": "send-message",
+        "id": "tbs1",
+        "message": {
+          "type": "text",
+          "content": "REDACTED"
+        },
+        "timestampMs": 1793543884160,
+        "requestId": "b246fc11-b9d6-4e91-a790-2382ce44e7e8",
+        "seq": 2
+      },
+      {
+        "kind": "send-message",
+        "id": "tbs2",
+        "message": {
+          "type": "widget",
+          "widget": {
+            "prompt": "Claude Code 跑在哪台电脑上？",
+            "options": [
+              {
+                "label": "我的 Mac mini（已在 Tailscale）",
+                "value": "Mac mini，已经在 Tailscale 上",
+                "style": "primary"
+              },
+              {
+                "label": "另一台电脑，也在 Tailscale",
+                "value": "另一台电脑，也在 Tailscale"
+              },
+              {
+                "label": "还没装 Tailscale，先帮我弄好",
+                "value": "还没装 Tailscale，先帮我弄好"
+              },
+              {
+                "label": "我想先说明一下情况",
+                "value": "我想先说明一下情况",
+                "style": "default"
+              }
+            ],
+            "allowCustom": true
+          }
+        },
+        "timestampMs": 1793543884779,
+        "requestId": "b246fc11-b9d6-4e91-a790-2382ce44e7e8",
+        "widgetSkipped": true,
+        "seq": 3
+      },
+      {
+        "kind": "message",
+        "id": "t0u",
+        "role": "user",
+        "content": "REDACTED",
+        "isStreaming": false,
+        "timestampMs": 1793543886647,
+        "clientNonce": "56345bac-9f3e-41c9-8ff7-90b3aebc2f69",
+        "requestId": "3202a723-3108-4fb3-a0b7-3e7c227ccc39",
+        "seq": 4
+      },
+      {
+        "kind": "send-message",
+        "id": "t0s0",
+        "message": {
+          "type": "text",
+          "content": "REDACTED"
+        },
+        "timestampMs": 1793543888669,
+        "requestId": "3202a723-3108-4fb3-a0b7-3e7c227ccc39",
+        "seq": 6
+      }
+    ],
+    "epochHint": "4c5abc6d-8850-43a0-9824-09cc638b5c9b:0:10",
+    "acceptedSequenceHint": 1,
+    "persistedAt": 1793628675924,
+    "cloudAgentPeerIds": null,
+    "_note": "truncated; full cache had 9 entries"
+  }
+}

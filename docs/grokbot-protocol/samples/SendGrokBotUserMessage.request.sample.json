@@ -1,0 +1,13 @@
+{
+  "_comment": "Shape from proto descriptors; illustrative values",
+  "agent_id": "REDACTED-UUID",
+  "message_id": "tNu",
+  "text": "hi",
+  "sent_at_ms": 1793700000000,
+  "is_fork": false,
+  "attachment_paths": [],
+  "attachment_names": [],
+  "session_id": "REDACTED_SESSION",
+  "machine_id": "REDACTED_MACHINE",
+  "initiator": "composer"
+}

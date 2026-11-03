@@ -1,0 +1,277 @@
+[
+  {
+    "jsKey": "ensureSandBox",
+    "name": "EnsureSandBox",
+    "kind": "i.Unary"
+  },
+  {
+    "jsKey": "ensureSandBoxWindow",
+    "name": "EnsureSandBoxWindow",
+    "kind": "i.Unary"
+  },
+  {
+    "jsKey": "recreateSandBox",
+    "name": "RecreateSandBox",
+    "kind": "i.Unary"
+  },
+  {
+    "jsKey": "forceRecreateSandBox",
+    "name": "ForceRecreateSandBox",
+    "kind": "i.Unary"
+  },
+  {
+    "jsKey": "adminRecreateSandBox",
+    "name": "AdminRecreateSandBox",
+    "kind": "i.Unary"
+  },
+  {
+    "jsKey": "adminForceRecreateSandBox",
+    "name": "AdminForceRecreateSandBox",
+    "kind": "i.Unary"
+  },
+  {
+    "jsKey": "adminBreakGlassDeleteSandBoxPod",
+    "name": "AdminBreakGlassDeleteSandBoxPod",
+    "kind": "i.Unary"
+  },
+  {
+    "jsKey": "presignSandBoxStoreWrites",
+    "name": "PresignSandBoxStoreWrites",
+    "kind": "i.Unary"
+  },
+  {
+    "jsKey": "completeSandBoxStoreMultipartWrites",
+    "name": "CompleteSandBoxStoreMultipartWrites",
+    "kind": "i.Unary"
+  },
+  {
+    "jsKey": "commitSandBoxStoreManifest",
+    "name": "CommitSandBoxStoreManifest",
+    "kind": "i.Unary"
+  },
+  {
+    "jsKey": "abortSandBoxStoreMultipartWrites",
+    "name": "AbortSandBoxStoreMultipartWrites",
+    "kind": "i.Unary"
+  },
+  {
+    "jsKey": "presignSandBoxStoreReads",
+    "name": "PresignSandBoxStoreReads",
+    "kind": "i.Unary"
+  },
+  {
+    "jsKey": "statSandBoxStoreObject",
+    "name": "StatSandBoxStoreObject",
+    "kind": "i.Unary"
+  },
+  {
+    "jsKey": "listSandBoxStoreObjects",
+    "name": "ListSandBoxStoreObjects",
+    "kind": "i.Unary"
+  },
+  {
+    "jsKey": "adminGetSandBoxStoreStatus",
+    "name": "AdminGetSandBoxStoreStatus",
+    "kind": "i.Unary"
+  },
+  {
+    "jsKey": "adminUpdateSandBoxHost",
+    "name": "AdminUpdateSandBoxHost",
+    "kind": "i.Unary"
+  },
+  {
+    "jsKey": "adminGetSandBoxHostStatus",
+    "name": "AdminGetSandBoxHostStatus",
+    "kind": "i.Unary"
+  },
+  {
+    "jsKey": "adminSnapshotSandBoxStore",
+    "name": "AdminSnapshotSandBoxStore",
+    "kind": "i.Unary"
+  },
+  {
+    "jsKey": "adminListSandBoxStoreManifestVersions",
+    "name": "AdminListSandBoxStoreManifestVersions",
+    "kind": "i.Unary"
+  },
+  {
+    "jsKey": "adminStatSandBoxStoreObject",
+    "name": "AdminStatSandBoxStoreObject",
+    "kind": "i.Unary"
+  },
+  {
+    "jsKey": "adminRestoreSandBoxStoreSnapshot",
+    "name": "AdminRestoreSandBoxStoreSnapshot",
+    "kind": "i.Unary"
+  },
+  {
+    "jsKey": "adminHibernateSandBox",
+    "name": "AdminHibernateSandBox",
+    "kind": "i.Unary"
+  },
+  {
+    "jsKey": "adminRefreshSandBoxEgress",
+    "name": "AdminRefreshSandBoxEgress",
+    "kind": "i.Unary"
+  },
+  {
+    "jsKey": "adminListSandAgents",
+    "name": "AdminListSandAgents",
+    "kind": "i.Unary"
+  },
+  {
+    "jsKey": "adminGetSandAgentTranscriptPage",
+    "name": "AdminGetSandAgentTranscriptPage",
+    "kind": "i.Unary"
+  },
+  {
+    "jsKey": "watchSandBoxMigration",
+    "name": "WatchSandBoxMigration",
+    "kind": "i.ServerStreaming"
+  },
+  {
+    "jsKey": "adminWatchSandBoxMigration",
+    "name": "AdminWatchSandBoxMigration",
+    "kind": "i.ServerStreaming"
+  },
+  {
+    "jsKey": "getSandBoxRunState",
+    "name": "GetSandBoxRunState",
+    "kind": "i.Unary"
+  },
+  {
+    "jsKey": "getSandBoxUpgradeSchedule",
+    "name": "GetSandBoxUpgradeSchedule",
+    "kind": "i.Unary"
+  },
+  {
+    "jsKey": "scheduleSandBoxUpgrade",
+    "name": "ScheduleSandBoxUpgrade",
+    "kind": "i.Unary"
+  },
+  {
+    "jsKey": "cancelSandBoxUpgrade",
+    "name": "CancelSandBoxUpgrade",
+    "kind": "i.Unary"
+  },
+  {
+    "jsKey": "rescheduleSandBoxUpgrade",
+    "name": "RescheduleSandBoxUpgrade",
+    "kind": "i.Unary"
+  },
+  {
+    "jsKey": "listSandBoxes",
+    "name": "ListSandBoxes",
+    "kind": "i.Unary"
+  },
+  {
+    "jsKey": "notifySandAgentTurnFinished",
+    "name": "NotifySandAgentTurnFinished",
+    "kind": "i.Unary"
+  },
+  {
+    "jsKey": "listSandSetupManifests",
+    "name": "ListSandSetupManifests",
+    "kind": "i.Unary"
+  },
+  {
+    "jsKey": "listTeamSandSetupManifests",
+    "name": "ListTeamSandSetupManifests",
+    "kind": "i.Unary"
+  },
+  {
+    "jsKey": "saveTeamSandSetupManifest",
+    "name": "SaveTeamSandSetupManifest",
+    "kind": "i.Unary"
+  },
+  {
+    "jsKey": "deleteTeamSandSetupManifest",
+    "name": "DeleteTeamSandSetupManifest",
+    "kind": "i.Unary"
+  },
+  {
+    "jsKey": "listTeamMemberSandBoxes",
+    "name": "ListTeamMemberSandBoxes",
+    "kind": "i.Unary"
+  },
+  {
+    "jsKey": "killTeamMemberSandBox",
+    "name": "KillTeamMemberSandBox",
+    "kind": "i.Unary"
+  },
+  {
+    "jsKey": "recreateTeamMemberSandBox",
+    "name": "RecreateTeamMemberSandBox",
+    "kind": "i.Unary"
+  },
+  {
+    "jsKey": "getTeamMemberSandBoxMigrationStatus",
+    "name": "GetTeamMemberSandBoxMigrationStatus",
+    "kind": "i.Unary"
+  },
+  {
+    "jsKey": "startBulkTeamMemberSandBoxOperation",
+    "name": "StartBulkTeamMemberSandBoxOperation",
+    "kind": "i.Unary"
+  },
+  {
+    "jsKey": "getBulkTeamMemberSandBoxOperationStatus",
+    "name": "GetBulkTeamMemberSandBoxOperationStatus",
+    "kind": "i.Unary"
+  },
+  {
+    "jsKey": "mintSandVoiceCallSecret",
+    "name": "MintSandVoiceCallSecret",
+    "kind": "i.Unary"
+  },
+  {
+    "jsKey": "beginOnePasswordConnection",
+    "name": "BeginOnePasswordConnection",
+    "kind": "i.Unary"
+  },
+  {
+    "jsKey": "completeOnePasswordConnection",
+    "name": "CompleteOnePasswordConnection",
+    "kind": "i.Unary"
+  },
+  {
+    "jsKey": "getOnePasswordState",
+    "name": "GetOnePasswordState",
+    "kind": "i.Unary"
+  },
+  {
+    "jsKey": "syncOnePasswordConnections",
+    "name": "SyncOnePasswordConnections",
+    "kind": "i.Unary"
+  },
+  {
+    "jsKey": "deleteOnePasswordConnection",
+    "name": "DeleteOnePasswordConnection",
+    "kind": "i.Unary"
+  },
+  {
+    "jsKey": "startOnePasswordOAuth",
+    "name": "StartOnePasswordOAuth",
+    "kind": "i.Unary"
+  },
+  {
+    "jsKey": "storeOnePasswordIntegrationKey",
+    "name": "StoreOnePasswordIntegrationKey",
+    "kind": "i.Unary"
+  },
+  {
+    "jsKey": "completeOnePasswordOAuth",
+    "name": "CompleteOnePasswordOAuth",
+    "kind": "i.Unary"
+  },
+  {
+    "jsKey": "approveOnePasswordCredentialRequest",
+    "name": "ApproveOnePasswordCredentialRequest",
+    "kind": "i.Unary"
+  },
+  {
+    "jsKey": "denyOnePasswordCredentialRequest",
+    "name": "DenyOnePasswordCredentialRequest",
+    "kind": "i.Unary"
+  }
+]

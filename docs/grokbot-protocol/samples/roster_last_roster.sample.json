@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 4,
+  "value": {
+    "rows": [
+      {
+        "id": "c3790921-be0d-4431-a325-acd6205cd8b8",
+        "name": "mu",
+        "harness": "temporal",
+        "visibility": "owner",
+        "avatarShape": "blob",
+        "avatarColor": "orange",
+        "voiceId": "liora",
+        "isGroup": false,
+        "memberIds": [],
+        "path": "/home/box/sand-data/agents/c3790921-be0d-4431-a325-acd6205cd8b8/store.db",
+        "createdAt": 1792674294294,
+        "updatedAt": 1793628187719,
+        "lastMessageId": "t224s1176",
+        "newestEntryId": "t225u",
+        "lastEntry": {
+          "kind": "text",
+          "text": "REDACTED"
+        }
+      },
+      {
+        "id": "07991e41-428f-4ddd-bfbe-20316ecddf86",
+        "name": "bla",
+        "harness": "temporal",
+        "visibility": "owner",
+        "avatarShape": "flower",
+        "avatarColor": "blue",
+        "voiceId": null,
+        "isGroup": false,
+        "memberIds": [],
+        "path": "/home/box/sand-data/agents/07991e41-428f-4ddd-bfbe-20316ecddf86/store.db",
+        "createdAt": 1792902530950,
+        "updatedAt": 1793627039680,
+        "lastMessageId": "t46s265",
+        "newestEntryId": "t46s265",
+        "lastEntry": {
+          "kind": "text",
+          "text": "REDACTED"
+        }
+      }
+    ],
+    "_note": "total_rows=11; sample of 2"
+  }
+}

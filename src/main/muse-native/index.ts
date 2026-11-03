@@ -10,7 +10,18 @@ import { MuseChatChannel } from './chat'
 import { MuseNativeGateway } from './gateway'
 
 export { MuseGatewayError, MuseNativeGateway } from './gateway'
-export { MuseChatChannel, streamChat, MUSE_CHAT_CAPABILITIES } from './chat'
+export {
+  MuseChatChannel,
+  streamChat,
+  selectOptionWidget,
+  MUSE_CHAT_CAPABILITIES,
+  MUSE_BUSY_ACTIVITY,
+  isMuseBusyActivity,
+  isMuseIdleActivity,
+  parseAgentStatus,
+  parseOptionWidgets
+} from './chat'
+export type { MuseOptionWidget, MuseAgentActivity, ChatStreamUpdate, MuseChatEvent } from './chat'
 
 export type MuseTransportMode = 'native' | 'hook'
 

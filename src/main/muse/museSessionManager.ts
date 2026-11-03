@@ -198,12 +198,15 @@ export class MuseSessionManager {
   async refreshSession(accountId: string): Promise<MuseSessionStatus | undefined> {
     const session = this.sessions.get(accountId)
     const view = session && this.views.getView(session.viewId)
-    if (!session || !view || view.webContents.isDestroyed()) return session?.status
+    if (!session) return undefined
 
     const partition = partitionForAccount(accountId)
     const ses = electronSession.fromPartition(partition)
     const cookies = await ses.cookies.get({ name: 'hatch_sess' })
-    const signedIn = cookies.length > 0 && !/auth\.meta\.com|facebook\.com\/login/i.test(session.status.url)
+    // hatch_sess is the source of truth. The embedded WebContentsView often still
+    // sits on Meta/Facebook auth from the pre-login redirect; that URL must not
+    // veto a cookie that the login window just wrote into the shared partition.
+    const signedIn = cookies.length > 0
 
     if (signedIn !== session.status.signedIn) {
       session.status.signedIn = signedIn
@@ -225,9 +228,11 @@ export class MuseSessionManager {
       this.ensureQuotaPolling(accountId)
     }
 
-    session.status.url = view.webContents.getURL()
+    if (view && !view.webContents.isDestroyed()) {
+      session.status.url = view.webContents.getURL()
+    }
 
-    if (signedIn) {
+    if (signedIn && view && !view.webContents.isDestroyed()) {
       try {
         await this.installHook(accountId)
         if (this.nativeReady(accountId)) {
@@ -812,13 +817,15 @@ export class MuseSessionManager {
     const finishIfSignedIn = async (): Promise<void> => {
       if (settling || win.isDestroyed()) return
       const cookies = await ses.cookies.get({ name: 'hatch_sess' })
-      const url = win.webContents.getURL()
+      if (cookies.length === 0) return
+      // Prefer waiting until the login window left the IdP, but do not block
+      // forever if muse.ai already set hatch_sess on an intermediate host.
+      const url = win.isDestroyed() ? '' : win.webContents.getURL()
       const onAuthHost = /auth\.meta\.com|facebook\.com\/login|auth\.muse\.ai/i.test(url)
-      if (cookies.length === 0 || onAuthHost) return
+      if (onAuthHost && !/muse\.ai/i.test(url)) return
 
       settling = true
       try {
-        await this.refreshSession(accountId)
         const session = this.sessions.get(accountId)
         const view = session && this.views.getView(session.viewId)
         if (view && !view.webContents.isDestroyed()) {
@@ -828,7 +835,12 @@ export class MuseSessionManager {
             console.error('[muse] reload embedded view after login failed', error)
           }
         }
-        await this.refreshSession(accountId)
+        const status = await this.refreshSession(accountId)
+        // Belt-and-suspenders: cookie exists so the add-bot flow must advance,
+        // even if status was already marked signed-in from a prior poll.
+        if (status?.signedIn) {
+          this.emit({ type: 'login', accountId, signedIn: true })
+        }
       } finally {
         if (!win.isDestroyed()) win.close()
       }
@@ -855,12 +867,35 @@ export class MuseSessionManager {
     win.on('closed', () => {
       ses.cookies.off('changed', onCookie)
       this.loginWindows.delete(accountId)
-      void this.refreshSession(accountId).then((status) => {
-        // Tell the renderer the window went away without a session, so a
-        // waiting add-bot flow can offer to reopen it.
-        if (!status?.signedIn) this.emit({ type: 'login', accountId, signedIn: false, windowClosed: true })
-      })
+      void (async () => {
+        const status = await this.refreshSession(accountId)
+        if (status?.signedIn) {
+          this.emit({ type: 'login', accountId, signedIn: true })
+          return
+        }
+        if (await this.hasSessionCookie(accountId)) {
+          const session = this.sessions.get(accountId)
+          if (session) {
+            session.status.signedIn = true
+            session.status.phase = 'connecting'
+            this.emit({ type: 'login', accountId, signedIn: true })
+            this.emitStatus(accountId)
+          }
+          return
+        }
+        // Window went away without a session — offer reopen in add-bot UI.
+        this.emit({ type: 'login', accountId, signedIn: false, windowClosed: true })
+      })()
     })
+
+    const poll = setInterval(() => {
+      if (win.isDestroyed() || settling) {
+        clearInterval(poll)
+        return
+      }
+      void finishIfSignedIn()
+    }, 1000)
+    win.on('closed', () => clearInterval(poll))
 
     try {
       await win.loadURL(MUSE_ORIGIN)

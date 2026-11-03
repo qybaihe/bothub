@@ -105,6 +105,7 @@ function materializeAccounts(
   const created: Record<string, BotAccount> = {}
   for (const draft of drafts) {
     const displayName = draft.displayName.trim() || draft.handle.trim()
+    // Keep drafts that already have a partition account id even if the name is empty.
     if (!displayName && !draft.accountId) continue
     if (draft.accountId && existing[draft.accountId]) {
       if (!ids.includes(draft.accountId)) ids.push(draft.accountId)

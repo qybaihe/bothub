@@ -88,7 +88,10 @@ export function usePlatformLogin(botId: string) {
     unsubscribe.current = adapter.subscribe((event: AdapterEvent) => {
       if (event.type === 'login' && event.accountId === id) {
         if (event.signedIn) signedIn(platformId)
-        else if (event.windowClosed) setPhase((p) => (p.kind === 'waiting' ? { ...p, windowClosed: true } : p))
+        else if (event.windowClosed) {
+          // Only surface "window closed" while still waiting — never after Name step.
+          setPhase((p) => (p.kind === 'waiting' ? { ...p, windowClosed: true } : p))
+        }
       } else if (event.type === 'status' && event.accountId === id && LIVE.has(event.status)) {
         signedIn(platformId)
       }
@@ -99,7 +102,9 @@ export function usePlatformLogin(botId: string) {
   return {
     phase,
     /** Id of the account being signed in (stable until `discard`). */
-    accountId: accountId.current,
+    get accountId() {
+      return accountId.current
+    },
     start,
     reopen: () => phase.kind === 'waiting' && void openWindow(phase.platformId),
     discard,

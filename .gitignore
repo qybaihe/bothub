@@ -1,8 +1,15 @@
 node_modules
 dist
 out
+release
 .DS_Store
 *.log*
 *.tsbuildinfo
 .vite
 .eslintcache
+.env
+.env.*
+!.env.example
+hold-*.mjs
+*.bak
+*.local

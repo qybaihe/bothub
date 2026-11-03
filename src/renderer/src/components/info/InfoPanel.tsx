@@ -103,7 +103,7 @@ function Tabs({ tab, onChange }: { tab: InfoTab; onChange: (tab: InfoTab) => voi
       ref={glide.ref}
       role="tablist"
       aria-label="Details panels"
-      className="relative mx-5 flex rounded-[10px] bg-hover p-0.5"
+      className="relative mx-4 flex rounded-[10px] bg-hover p-0.5"
       onKeyDown={(event) => {
         if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
         event.preventDefault()
@@ -125,7 +125,7 @@ function Tabs({ tab, onChange }: { tab: InfoTab; onChange: (tab: InfoTab) => voi
           tabIndex={tab === id ? 0 : -1}
           onClick={() => onChange(id)}
           className={cn(
-            'press relative h-[30px] min-w-0 flex-1 truncate rounded-lg px-1 text-[12px] transition-colors',
+            'press relative h-[30px] min-w-0 flex-1 rounded-lg px-0 text-[12px] tracking-tight whitespace-nowrap transition-colors',
             tab === id ? 'text-ink' : 'text-ink-secondary hover:text-ink'
           )}
         >

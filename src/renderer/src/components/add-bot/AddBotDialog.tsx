@@ -364,7 +364,7 @@ function TemplateStep({ onPick }: { onPick: (template: BotTemplate) => void }) {
               className={cn(
                 'press flex h-full w-full flex-col items-start gap-1.5 rounded-xl border border-line bg-surface p-3 text-left',
                 'transition-colors hover:border-line-strong hover:bg-hover focus-visible:outline-offset-[-2px]',
-                t.id === 'blank' && 'border-dashed'
+                t.id === 'blank' && 'border-dashed border-line-strong bg-transparent'
               )}
             >
               <span className="text-[22px] leading-none" aria-hidden>

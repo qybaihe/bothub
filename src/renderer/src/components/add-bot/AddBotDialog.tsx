@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type RefObject } from 'react'
 import { getPlatform } from '@adapters/platforms'
 import { adapterRegistry } from '@adapters/registry'
-import type { AdapterEvent, ConnectionStatus, PlatformId } from '@adapters/types'
+import type { PlatformId } from '@adapters/types'
 import { createId } from '@shared/id'
 import { Camera, ChevronLeft, ChevronRight } from 'lucide-react'
 import { BotAvatar } from '@/components/ui/Avatar'
@@ -10,17 +10,12 @@ import { Dialog } from '@/components/ui/Dialog'
 import { IconButton } from '@/components/ui/IconButton'
 import { PlatformGlyph } from '@/components/ui/PlatformGlyph'
 import { useMorphHeight } from '@/hooks/useMorphHeight'
+import { usePlatformLogin } from '@/hooks/usePlatformLogin'
 import { avatarFromFile } from '@/lib/avatarImage'
 import { cn } from '@/lib/cn'
 import { useBotStore } from '@/store/botStore'
 
 const NAME_MAX = 40
-const LIVE: ReadonlySet<ConnectionStatus> = new Set(['online', 'busy', 'attention'])
-
-type Step =
-  | { kind: 'platform'; error?: string }
-  | { kind: 'login'; platformId: PlatformId; windowClosed: boolean }
-  | { kind: 'name'; platformId: PlatformId }
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'Something went wrong.'
@@ -53,102 +48,32 @@ export function AddBotDialog() {
 function AddBotFlow({ open, onClose }: { open: boolean; onClose: () => void }) {
   const addBot = useBotStore((s) => s.addBot)
   const bots = useBotStore((s) => s.bots)
-  const [step, setStep] = useState<Step>({ kind: 'platform' })
-  const ids = useRef({ botId: createId('bot'), accountId: createId('acc') })
-  /** Platform whose login is in flight and must be discarded unless finished. */
-  const pendingLogin = useRef<PlatformId | null>(null)
-  const unsubscribe = useRef<(() => void) | null>(null)
+  const botId = useRef(createId('bot')).current
+  const login = usePlatformLogin(botId)
   const listRef = useRef<HTMLUListElement>(null)
   const morph = useMorphHeight<HTMLDivElement>()
-
-  const stopListening = () => {
-    unsubscribe.current?.()
-    unsubscribe.current = null
-  }
-
-  const discardLogin = () => {
-    stopListening()
-    const platformId = pendingLogin.current
-    if (!platformId) return
-    pendingLogin.current = null
-    void adapterRegistry
-      .get(platformId)
-      ?.cancelLogin?.(ids.current.accountId)
-      .catch(() => {})
-  }
-
-  // Leaving without "Done" (Esc, scrim, close button, unmount) drops the session.
-  useEffect(() => () => discardLogin(), [])
+  const { phase } = login
 
   const close = () => {
-    discardLogin()
+    // Leaving before "Done" (Esc, scrim, close button) drops the session.
+    login.discard()
     onClose()
   }
 
-  const toName = (platformId: PlatformId) => {
-    stopListening()
-    setStep({ kind: 'name', platformId })
-  }
-
-  const openLoginWindow = async (platformId: PlatformId) => {
-    const adapter = adapterRegistry.get(platformId)
-    if (!adapter?.openLogin) return
-    setStep({ kind: 'login', platformId, windowClosed: false })
-    try {
-      const status = await adapter.openLogin(ids.current.accountId, ids.current.botId)
-      if (LIVE.has(status)) toName(platformId)
-    } catch (error) {
-      discardLogin()
-      setStep({ kind: 'platform', error: errorMessage(error) })
-    }
-  }
-
-  const startLogin = (platformId: PlatformId) => {
-    const adapter = adapterRegistry.get(platformId)
-    if (!adapter) return
-    // Adapters without an interactive login (the mock) go straight to naming.
-    if (!adapter.openLogin) {
-      setStep({ kind: 'name', platformId })
-      return
-    }
-    pendingLogin.current = platformId
-    const accountId = ids.current.accountId
-    // Subscribe before opening so a session that already exists is not missed.
-    stopListening()
-    unsubscribe.current = adapter.subscribe((event: AdapterEvent) => {
-      if (event.type === 'login' && event.accountId === accountId) {
-        if (event.signedIn) toName(platformId)
-        else if (event.windowClosed)
-          setStep((s) => (s.kind === 'login' ? { ...s, windowClosed: true } : s))
-      } else if (event.type === 'status' && event.accountId === accountId && LIVE.has(event.status)) {
-        toName(platformId)
-      }
-    })
-    void openLoginWindow(platformId)
-  }
-
-  const back = () => {
-    discardLogin()
-    // A fresh account id keeps late events from the abandoned window out.
-    ids.current = { ...ids.current, accountId: createId('acc') }
-    setStep({ kind: 'platform' })
-  }
-
   const finish = (platformId: PlatformId, name: string, avatar: string | undefined) => {
-    stopListening()
-    pendingLogin.current = null
+    login.keep()
     addBot({
-      id: ids.current.botId,
+      id: botId,
       platformId,
       name,
       avatar,
-      accounts: [{ key: ids.current.accountId, accountId: ids.current.accountId, displayName: name, handle: '' }]
+      accounts: [{ key: login.accountId, accountId: login.accountId, displayName: name, handle: '' }]
     })
   }
 
-  const platform = step.kind === 'platform' ? undefined : getPlatform(step.platformId)
+  const platform = phase.kind === 'idle' ? undefined : getPlatform(phase.platformId)
   const title =
-    step.kind === 'platform' ? 'New bot' : step.kind === 'login' ? `Sign in to ${platform!.name}` : 'Name your bot'
+    phase.kind === 'idle' ? 'New bot' : phase.kind === 'waiting' ? `Sign in to ${platform!.name}` : 'Name your bot'
 
   return (
     <Dialog
@@ -157,8 +82,8 @@ function AddBotFlow({ open, onClose }: { open: boolean; onClose: () => void }) {
       title={title}
       className="w-[min(92vw,420px)]"
       headerStart={
-        step.kind === 'login' ? (
-          <IconButton label="Back" size="sm" onClick={back} className="-ml-1">
+        phase.kind === 'waiting' ? (
+          <IconButton label="Back" size="sm" onClick={login.discard} className="-ml-1">
             <ChevronLeft />
           </IconButton>
         ) : null
@@ -173,23 +98,23 @@ function AddBotFlow({ open, onClose }: { open: boolean; onClose: () => void }) {
         style={{ height: morph.height }}
       >
         <div ref={morph.ref}>
-          {step.kind === 'platform' && (
-            <PlatformStep key="platform" listRef={listRef} error={step.error} onPick={startLogin} />
+          {phase.kind === 'idle' && (
+            <PlatformStep key="platform" listRef={listRef} error={phase.error} onPick={login.start} />
           )}
-          {step.kind === 'login' && (
-            <LoginStep
+          {phase.kind === 'waiting' && (
+            <LoginWaiting
               key="login"
-              platformId={step.platformId}
-              windowClosed={step.windowClosed}
-              onReopen={() => void openLoginWindow(step.platformId)}
+              platformId={phase.platformId}
+              windowClosed={phase.windowClosed}
+              onReopen={login.reopen}
             />
           )}
-          {step.kind === 'name' && (
+          {phase.kind === 'signed-in' && (
             <NameStep
               key="name"
-              platformId={step.platformId}
-              defaultName={freshName(getPlatform(step.platformId).name, bots.map((b) => b.name))}
-              onDone={(name, avatar) => finish(step.platformId, name, avatar)}
+              platformId={phase.platformId}
+              defaultName={freshName(getPlatform(phase.platformId).name, bots.map((b) => b.name))}
+              onDone={(name, avatar) => finish(phase.platformId, name, avatar)}
             />
           )}
         </div>
@@ -258,7 +183,8 @@ function PlatformStep({
   )
 }
 
-function LoginStep({
+/** Shared by the add-bot and add-account flows. */
+export function LoginWaiting({
   platformId,
   windowClosed,
   onReopen

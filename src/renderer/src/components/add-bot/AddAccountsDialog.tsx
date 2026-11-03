@@ -1,69 +1,86 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState } from 'react'
 import { getPlatform } from '@adapters/platforms'
 import { Plus } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Dialog } from '@/components/ui/Dialog'
+import { usePlatformLogin } from '@/hooks/usePlatformLogin'
 import { useBotStore } from '@/store/botStore'
-import type { AccountDraft, Bot } from '@/types'
-import { AccountsEditor, emptyDraft, isDraftFilled } from './AccountsEditor'
+import type { Bot } from '@/types'
+import { LoginWaiting } from './AddBotDialog'
 
-const FORM_ID = 'add-accounts-form'
-
-function AddAccountsForm({ bot, onClose }: { bot: Bot; onClose: () => void }) {
+/** Opens the login window at once; the signed-in account joins the bot. */
+function AddAccountFlow({ bot, open, onClose }: { bot: Bot; open: boolean; onClose: () => void }) {
   const addAccountsToBot = useBotStore((s) => s.addAccountsToBot)
-  const [drafts, setDrafts] = useState<AccountDraft[]>(() => [emptyDraft()])
-  const [submitted, setSubmitted] = useState(false)
+  const login = usePlatformLogin(bot.id)
+  const { phase } = login
+  const platform = getPlatform(bot.platformId)
 
-  const filled = drafts.filter((d) => d.accountId || isDraftFilled(d))
-  const error = submitted && filled.length === 0 ? 'Add at least one account.' : undefined
+  useEffect(() => {
+    login.start(bot.platformId)
+  }, [])
 
-  const onSubmit = (event: FormEvent) => {
-    event.preventDefault()
-    setSubmitted(true)
-    if (filled.length === 0) return
-    addAccountsToBot(bot.id, filled)
+  useEffect(() => {
+    if (phase.kind !== 'signed-in') return
+    login.keep()
+    addAccountsToBot(bot.id, [
+      {
+        key: login.accountId,
+        accountId: login.accountId,
+        displayName: `Account ${bot.accountIds.length + 1}`,
+        handle: ''
+      }
+    ])
+    onClose()
+  }, [phase.kind])
+
+  const close = () => {
+    login.discard()
     onClose()
   }
 
   return (
     <Dialog
-      open
-      onOpenChange={(open) => !open && onClose()}
-      title={`Add accounts to ${bot.name}`}
-      description={`${getPlatform(bot.platformId).name} accounts this bot can send from.`}
-      footer={
-        <>
-          <Button variant="ghost" className="ml-auto" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button variant="primary" type="submit" form={FORM_ID}>
-            Add {filled.length > 1 ? `${filled.length} accounts` : 'account'}
-          </Button>
-        </>
-      }
+      open={open}
+      onOpenChange={(next) => !next && close()}
+      title={`Sign in to ${platform.name}`}
+      className="w-[min(92vw,420px)]"
     >
-      <form id={FORM_ID} onSubmit={onSubmit} noValidate>
-        <AccountsEditor
-          platformId={bot.platformId}
-          drafts={drafts}
-          onChange={setDrafts}
-          excludeIds={bot.accountIds}
-          error={error}
-        />
-      </form>
+      {phase.kind === 'waiting' ? (
+        <LoginWaiting platformId={bot.platformId} windowClosed={phase.windowClosed} onReopen={login.reopen} />
+      ) : phase.kind === 'idle' && phase.error ? (
+        <div className="flex animate-step-in flex-col items-center gap-4 pt-2 pb-2 text-center">
+          <p className="text-[14px] text-status-error" role="alert">
+            {phase.error}
+          </p>
+          <Button variant="primary" onClick={() => login.start(bot.platformId)}>
+            Try again
+          </Button>
+        </div>
+      ) : (
+        <div className="h-[148px]" />
+      )}
     </Dialog>
   )
 }
 
-/** "+ Add" action for the info panel's accounts section. */
+/** "+ Add" action for the details panel's accounts section. */
 export function AddAccountsButton({ bot }: { bot: Bot }) {
+  const [session, setSession] = useState(0)
   const [open, setOpen] = useState(false)
   return (
     <>
-      <Button variant="ghost" size="sm" className="-mr-2" onClick={() => setOpen(true)}>
+      <Button
+        variant="ghost"
+        size="sm"
+        className="-mr-2"
+        onClick={() => {
+          setSession((n) => n + 1)
+          setOpen(true)
+        }}
+      >
         <Plus aria-hidden /> Add
       </Button>
-      {open && <AddAccountsForm bot={bot} onClose={() => setOpen(false)} />}
+      {session > 0 && <AddAccountFlow key={session} bot={bot} open={open} onClose={() => setOpen(false)} />}
     </>
   )
 }

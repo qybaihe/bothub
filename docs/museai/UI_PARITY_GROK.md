@@ -132,3 +132,18 @@ Never surface Grok-only host RPCs through Muse adapters. Never fabricate Compute
 ## 5d. Slice 4 — Members chip (shell) ✅
 - Fourth tab **Members**: Muse Hatch invite moved here + honest empty state ("Trusted Network not connected").
 - `peers.*` remains unwired (see GAPS.md §1.A).
+
+## 5e. Visual pass + slices a/b/c (2026-11-04)
+
+| Commit | Change |
+|---|---|
+| 921703a | Four info tabs fit without truncation; Blank template card border clearer |
+| a896e60 | Library: Grok-like list — search, All/Pinned/Artifacts/Library chips, type glyphs, relative time, local pins (localStorage `bothub-library-pins:<account>`), inline detail. No content preview (no read RPC). |
+| 889e0f3 | Sidebar: local Pinned row (Bot.pinned) + HTML5 drag-reorder within/between sections (`reorderBot`) |
+| 59ffba4 | Chat header: capsule status subline when not Idle; pin toggle button |
+
+Screenshots: ui-parity/shots/20–23. Library shot (21/22) uses an **e2e-only harness fixture**
+injected by /tmp/parity-shots steps (steps3.json), never shipped in app code.
+
+Remaining gaps: Skills tab; file content preview; persona/instructions RPC for template depth;
+Library Pages; Members/Trusted Network; host section sync; keyboard drag-reorder; pinned order.

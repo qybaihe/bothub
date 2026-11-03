@@ -25,6 +25,8 @@ export interface BotHubState {
   collapsedGroups: Record<string, boolean>
   infoPanelOpen: boolean
   addBotOpen: boolean
+  /** Bumped on every open so each add-bot flow starts fresh. */
+  addBotKey: number
   /** Show the embedded platform web session instead of the chat (Electron only). */
   webSessionOpen: boolean
 
@@ -40,6 +42,8 @@ export interface BotHubState {
   /** Create a bot (and any new accounts/group), select it, and connect its accounts. */
   addBot: (input: NewBotInput) => string
   addAccountsToBot: (botId: string, drafts: AccountDraft[]) => void
+  renameBot: (botId: string, name: string) => void
+  setBotAvatar: (botId: string, avatar: string | undefined) => void
 
   // Conversation
   sendMessage: (botId: string, text: string, attachments?: AttachmentMeta[]) => Promise<void>
@@ -81,7 +85,7 @@ function materializeAccounts(
   const created: Record<string, BotAccount> = {}
   for (const draft of drafts) {
     const displayName = draft.displayName.trim() || draft.handle.trim()
-    if (!displayName) continue
+    if (!displayName && !draft.accountId) continue
     if (draft.accountId && existing[draft.accountId]) {
       if (!ids.includes(draft.accountId)) ids.push(draft.accountId)
       continue
@@ -90,8 +94,8 @@ function materializeAccounts(
     created[id] = {
       id,
       platformId,
-      displayName,
-      handle: draft.handle.trim() || displayName,
+      displayName: displayName || getPlatform(platformId).name,
+      handle: draft.handle.trim(),
       status: 'offline'
     }
     ids.push(id)
@@ -157,6 +161,7 @@ export const useBotStore = create<BotHubState>()(
     collapsedGroups: {},
     infoPanelOpen: true,
     addBotOpen: false,
+    addBotKey: 0,
     webSessionOpen: false,
 
     selectBot: (botId) =>
@@ -174,7 +179,8 @@ export const useBotStore = create<BotHubState>()(
 
     toggleInfoPanel: () => set((state) => ({ infoPanelOpen: !state.infoPanelOpen })),
 
-    setAddBotOpen: (open) => set({ addBotOpen: open }),
+    setAddBotOpen: (open) =>
+      set((state) => (open ? { addBotOpen: true, addBotKey: state.addBotKey + 1 } : { addBotOpen: false })),
 
     toggleWebSession: () => set((state) => ({ webSessionOpen: !state.webSessionOpen })),
 
@@ -185,20 +191,26 @@ export const useBotStore = create<BotHubState>()(
 
       let groups = state.groups
       let groupId: string
-      if (input.group.kind === 'existing') {
-        groupId = input.group.groupId
-      } else {
-        const name = input.group.name.trim()
+      const choice = input.group
+      if (choice?.kind === 'existing' && groups.some((g) => g.id === choice.groupId)) {
+        groupId = choice.groupId
+      } else if (choice?.kind === 'new' && choice.name.trim()) {
+        const name = choice.name.trim()
         const match = groups.find((g) => g.name.toLowerCase() === name.toLowerCase())
         groupId = match?.id ?? createId('grp')
         if (!match) groups = [...groups, { id: groupId, name }]
+      } else {
+        const selectedGroup = state.bots.find((b) => b.id === state.selectedBotId)?.groupId
+        groupId = selectedGroup ?? groups[0]?.id ?? createId('grp')
+        if (!groups.some((g) => g.id === groupId)) groups = [...groups, { id: groupId, name: 'Workspace' }]
       }
 
       const bot: Bot = {
-        id: createId('bot'),
-        name: input.name.trim(),
-        emoji: input.emoji,
-        description: input.description.trim() || `${getPlatform(input.platformId).name} bot`,
+        id: input.id ?? createId('bot'),
+        name: input.name.trim() || getPlatform(input.platformId).name,
+        emoji: input.emoji ?? '🤖',
+        avatar: input.avatar,
+        description: input.description?.trim() ?? '',
         platformId: input.platformId,
         groupId,
         accountIds: ids,
@@ -241,6 +253,13 @@ export const useBotStore = create<BotHubState>()(
       const accounts = get().accounts
       for (const id of newIds) if (accounts[id]?.status === 'offline') void get().connectAccount(id)
     },
+
+    renameBot: (botId, name) => {
+      const trimmed = name.trim()
+      if (trimmed) patchBot(botId, () => ({ name: trimmed }))
+    },
+
+    setBotAvatar: (botId, avatar) => patchBot(botId, () => ({ avatar })),
 
     sendMessage: async (botId, text, attachments) => {
       const bot = get().bots.find((b) => b.id === botId)

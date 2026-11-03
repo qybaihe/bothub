@@ -34,6 +34,8 @@ export interface Bot {
   id: string
   name: string
   emoji: string
+  /** Optional photo (data URL); replaces the platform mark. */
+  avatar?: string
   description: string
   platformId: PlatformId
   groupId: string
@@ -75,10 +77,14 @@ export interface AccountDraft {
 export type GroupChoice = { kind: 'existing'; groupId: string } | { kind: 'new'; name: string }
 
 export interface NewBotInput {
+  /** Pre-assigned id (the login flow needs it before the bot exists). */
+  id?: string
   platformId: PlatformId
   name: string
-  emoji: string
-  description: string
-  group: GroupChoice
+  avatar?: string
+  emoji?: string
+  description?: string
+  /** Defaults to the selected bot's group, then the first group. */
+  group?: GroupChoice
   accounts: AccountDraft[]
 }

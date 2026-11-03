@@ -15,22 +15,26 @@ function tintFor(seed: string): string {
 }
 
 const BOT_SIZES = {
+  xs: 'size-6 rounded-full text-xs',
   sm: 'size-7 rounded-full text-sm',
   md: 'size-9 rounded-full text-lg',
   lg: 'size-16 rounded-full text-[30px]',
-  xl: 'size-12 rounded-[14px] text-[22px]'
+  xl: 'size-[72px] rounded-full text-[34px]'
 } as const
 
 const DOT_SIZES = {
+  xs: 'size-2 ring-[1.5px]',
   sm: 'size-2 ring-[1.5px]',
-  md: 'size-2.5 ring-2',
-  lg: 'size-3.5 ring-[3px]',
-  xl: 'size-3 ring-[2.5px]'
+  md: 'size-2.5 ring-[1.5px]',
+  lg: 'size-3.5 ring-[2.5px]',
+  xl: 'size-4 ring-[3px]'
 } as const
 
 interface BotAvatarProps {
   emoji: string
   seed: string
+  /** User photo; wins over the platform mark and the emoji tile. */
+  avatar?: string
   /** When the platform has an official mark, it replaces the emoji tile. */
   platformId?: PlatformId
   size?: keyof typeof BOT_SIZES
@@ -43,13 +47,14 @@ interface BotAvatarProps {
 export function BotAvatar({
   emoji,
   seed,
+  avatar,
   platformId,
   size = 'md',
   status,
   ringClassName = 'ring-surface',
   className
 }: BotAvatarProps) {
-  const icon = platformIcon(platformId)
+  const icon = avatar ?? platformIcon(platformId)
   return (
     <span className={cn('relative inline-flex shrink-0', className)}>
       {icon ? (

@@ -818,37 +818,43 @@ export class MuseSessionManager {
       if (settling || win.isDestroyed()) return
       const cookies = await ses.cookies.get({ name: 'hatch_sess' })
       if (cookies.length === 0) return
-      // Prefer waiting until the login window left the IdP, but do not block
-      // forever if muse.ai already set hatch_sess on an intermediate host.
-      const url = win.isDestroyed() ? '' : win.webContents.getURL()
-      const onAuthHost = /auth\.meta\.com|facebook\.com\/login|auth\.muse\.ai/i.test(url)
-      if (onAuthHost && !/muse\.ai/i.test(url)) return
 
+      // hatch_sess is the source of truth — do not wait for the IdP URL to change.
+      // Emit signed-in BEFORE reloading the embedded view or closing the window:
+      // loading muse.ai (or Meta clearing an intermediate cookie) must not race
+      // ahead of the add-bot UI advancing to the Name step.
       settling = true
+      const sess = this.sessions.get(accountId)
+      if (sess) {
+        sess.status.signedIn = true
+        sess.status.phase = 'connecting'
+      }
+      this.emit({ type: 'login', accountId, signedIn: true })
+
       try {
-        const session = this.sessions.get(accountId)
-        const view = session && this.views.getView(session.viewId)
-        if (view && !view.webContents.isDestroyed()) {
-          try {
-            await view.webContents.loadURL(MUSE_ORIGIN)
-          } catch (error) {
-            console.error('[muse] reload embedded view after login failed', error)
-          }
-        }
-        let status: MuseSessionStatus | undefined
-        try {
-          status = await this.refreshSession(accountId)
-        } catch (error) {
-          console.error('[muse] refreshSession after login failed', error)
-        }
-        // Cookie is present — always advance add-bot, even if refresh/hook failed.
-        if (status?.signedIn || (await this.hasSessionCookie(accountId))) {
-          const sess = this.sessions.get(accountId)
-          if (sess) sess.status.signedIn = true
-          this.emit({ type: 'login', accountId, signedIn: true })
-        }
-      } finally {
         if (!win.isDestroyed()) win.close()
+      } catch {
+        /* ignore */
+      }
+
+      const session = this.sessions.get(accountId)
+      const view = session && this.views.getView(session.viewId)
+      if (view && !view.webContents.isDestroyed()) {
+        try {
+          await view.webContents.loadURL(MUSE_ORIGIN)
+        } catch (error) {
+          console.error('[muse] reload embedded view after login failed', error)
+        }
+      }
+      try {
+        await this.refreshSession(accountId)
+      } catch (error) {
+        console.error('[muse] refreshSession after login failed', error)
+      }
+      // Keep the optimistic signed-in flag if muse briefly drops the cookie mid-reload.
+      const still = this.sessions.get(accountId)
+      if (still && !(await this.hasSessionCookie(accountId))) {
+        still.status.signedIn = true
       }
     }
 
@@ -874,6 +880,11 @@ export class MuseSessionManager {
       ses.cookies.off('changed', onCookie)
       this.loginWindows.delete(accountId)
       void (async () => {
+        // finishIfSignedIn already advanced the add-bot flow.
+        if (settling || this.sessions.get(accountId)?.status.signedIn) {
+          this.emit({ type: 'login', accountId, signedIn: true })
+          return
+        }
         const status = await this.refreshSession(accountId)
         if (status?.signedIn) {
           this.emit({ type: 'login', accountId, signedIn: true })

@@ -22,15 +22,25 @@ export function AppShell({ sidebar, main, aside, asideOpen }: AppShellProps) {
       <div className="flex min-w-0 flex-1">
         <div className="flex min-w-0 flex-1 overflow-hidden bg-main">
           <main className="flex min-w-0 flex-1 flex-col">{main}</main>
+          {/* Only the panel's edge moves (shape spring); its content keeps
+              the final width so nothing inside reflows mid-animation. */}
           <aside
             aria-label="Bot details"
             aria-hidden={!asideOpen}
+            inert={!asideOpen}
             className={cn(
-              'flex shrink-0 flex-col overflow-hidden border-line bg-main transition-[width] duration-200 ease-out',
+              'flex shrink-0 flex-col overflow-hidden border-line bg-main transition-[width] duration-[420ms] ease-spring-shape motion-reduce:transition-none',
               asideOpen ? 'w-[300px] border-l' : 'w-0'
             )}
           >
-            <div className="flex h-full w-[300px] flex-col">{asideOpen && aside}</div>
+            <div
+              className={cn(
+                'flex h-full w-[300px] flex-col transition-opacity duration-200',
+                asideOpen ? 'opacity-100' : 'opacity-0'
+              )}
+            >
+              {aside}
+            </div>
           </aside>
         </div>
       </div>

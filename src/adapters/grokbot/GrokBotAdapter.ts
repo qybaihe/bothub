@@ -230,7 +230,8 @@ export class GrokBotAdapter implements PlatformAdapter {
     if (!agentId) throw new AdapterError('unknown-account', 'No Grok Bot agents on this account.')
 
     const messageId = createId('tNu')
-    const sessionId = auth.accountSlot ?? message.accountId
+    // Sand 404s (agent-not-found) on a non-empty unknown session_id; empty is accepted.
+    const sessionId = ''
     const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
 
     this.setStatus(message.accountId, 'busy')
@@ -345,7 +346,7 @@ export class GrokBotAdapter implements PlatformAdapter {
         agentId,
         requestId: approvalId,
         decision,
-        sessionId: getGrokAuth(accountId)?.accountSlot ?? accountId
+        sessionId: ''
       })
     )
     this.pendingApprovals.set(

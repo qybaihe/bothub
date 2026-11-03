@@ -100,6 +100,18 @@ function looksLikeImage(part: ChatMediaPart): boolean {
   return /\.(png|jpe?g|gif|webp|svg)$/i.test(part.path || part.name || '')
 }
 
+function looksLikeAudio(part: ChatMediaPart): boolean {
+  const mime = (part.mimeType || '').toLowerCase()
+  if (mime.startsWith('audio/')) return true
+  return /\.(mp3|m4a|aac|wav|ogg|oga|flac)$/i.test(part.path || part.name || '')
+}
+
+function looksLikeVideo(part: ChatMediaPart): boolean {
+  const mime = (part.mimeType || '').toLowerCase()
+  if (mime.startsWith('video/')) return true
+  return /\.(mp4|m4v|webm|mov|mkv)$/i.test(part.path || part.name || '')
+}
+
 function WorkspaceImage({
   part,
   accountId
@@ -162,6 +174,87 @@ function WorkspaceImage({
   )
 }
 
+function WorkspaceAV({
+  part,
+  accountId,
+  kind
+}: {
+  part: ChatMediaPart
+  accountId?: string
+  kind: 'audio' | 'video'
+}) {
+  const [src, setSrc] = useState<string | null>(isHttp(part.path) ? part.path : null)
+  const [failed, setFailed] = useState(false)
+
+  useEffect(() => {
+    if (src || failed || !accountId) return
+    if (!part.path.startsWith('workspace/')) {
+      setFailed(true)
+      return
+    }
+    let cancelled = false
+    let objectUrl: string | null = null
+    void (async () => {
+      try {
+        const muse = getBridge()?.muse
+        if (!muse?.previewWorkspaceFile) {
+          if (!cancelled) setFailed(true)
+          return
+        }
+        const preview = await muse.previewWorkspaceFile(accountId, part.path)
+        if (cancelled) return
+        const mt = (preview.mimeType || part.mimeType || '').toLowerCase()
+        const ok =
+          kind === 'audio'
+            ? mt.startsWith('audio/') || looksLikeAudio(part)
+            : mt.startsWith('video/') || looksLikeVideo(part)
+        if (!preview.dataBase64 || !ok) {
+          setFailed(true)
+          return
+        }
+        const bin = atob(preview.dataBase64)
+        const bytes = new Uint8Array(bin.length)
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i)
+        const blob = new Blob([bytes], { type: preview.mimeType || (kind === 'audio' ? 'audio/*' : 'video/*') })
+        objectUrl = URL.createObjectURL(blob)
+        setSrc(objectUrl)
+      } catch {
+        if (!cancelled) setFailed(true)
+      }
+    })()
+    return () => {
+      cancelled = true
+      if (objectUrl) URL.revokeObjectURL(objectUrl)
+    }
+  }, [accountId, part, src, failed, kind])
+
+  if (src) {
+    return (
+      <div className="px-2.5 py-2">
+        <p className="mb-1 max-w-56 truncate text-[12px] font-medium text-ink">{part.name || part.path}</p>
+        {kind === 'audio' ? (
+          <audio controls preload="metadata" src={src} className="w-full max-w-md" />
+        ) : (
+          <video controls preload="metadata" src={src} className="max-h-64 w-full max-w-md rounded-lg bg-black" />
+        )}
+      </div>
+    )
+  }
+  return (
+    <div className="flex items-center gap-2 px-2.5 py-2 text-[12px]">
+      <span className="grid size-7 place-items-center rounded-lg bg-accent-50 text-accent-600">
+        <FileText className="size-4" aria-hidden />
+      </span>
+      <span className="min-w-0">
+        <span className="block max-w-56 truncate font-medium text-ink">{part.name || part.path}</span>
+        <span className="block truncate text-caption text-ink-muted" title={part.path}>
+          {failed ? t('Preview unavailable') : t('Loading preview…')}
+        </span>
+      </span>
+    </div>
+  )
+}
+
 function MediaParts({ parts, accountId }: { parts: ChatMediaPart[]; accountId?: string }) {
   if (!parts.length) return null
   return (
@@ -173,6 +266,10 @@ function MediaParts({ parts, accountId }: { parts: ChatMediaPart[]; accountId?: 
         >
           {looksLikeImage(part) ? (
             <WorkspaceImage part={part} accountId={accountId} />
+          ) : looksLikeAudio(part) ? (
+            <WorkspaceAV part={part} accountId={accountId} kind="audio" />
+          ) : looksLikeVideo(part) ? (
+            <WorkspaceAV part={part} accountId={accountId} kind="video" />
           ) : (
             <div className="flex items-center gap-2 px-2.5 py-2 text-[12px]">
               <span className="grid size-7 place-items-center rounded-lg bg-accent-50 text-accent-600">
@@ -377,7 +474,7 @@ function RichWidgets({ widgets }: { widgets: ChatRichWidget[] }) {
                 })}
               </ul>
               <p className="mt-1.5 text-[11px] text-ink-muted">
-                {t('Read-only — image selection write not wired in BotHub')}
+                {t('Read-only — image_options persist shape not confirmed in muse.ai JS')}
               </p>
             </li>
           )

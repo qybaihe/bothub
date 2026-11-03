@@ -128,5 +128,12 @@ function guessMime(path: string): string | undefined {
   if (lower.endsWith('.webp')) return 'image/webp'
   if (lower.endsWith('.svg')) return 'image/svg+xml'
   if (lower.endsWith('.pdf')) return 'application/pdf'
+  if (lower.endsWith('.mp3')) return 'audio/mpeg'
+  if (lower.endsWith('.m4a') || lower.endsWith('.aac')) return 'audio/mp4'
+  if (lower.endsWith('.wav')) return 'audio/wav'
+  if (lower.endsWith('.ogg') || lower.endsWith('.oga')) return 'audio/ogg'
+  if (lower.endsWith('.mp4') || lower.endsWith('.m4v')) return 'video/mp4'
+  if (lower.endsWith('.webm')) return 'video/webm'
+  if (lower.endsWith('.mov')) return 'video/quicktime'
   return undefined
 }

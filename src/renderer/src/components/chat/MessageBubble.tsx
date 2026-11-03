@@ -48,7 +48,7 @@ function DeliveryState({ message, onRetry }: Pick<MessageBubbleProps, 'message' 
 
 export const MessageBubble = memo(function MessageBubble({
   message,
-  isFirstInRun,
+  isFirstInRun: _isFirstInRun,
   isLastInRun,
   accountLabel,
   onRetry
@@ -79,11 +79,9 @@ export const MessageBubble = memo(function MessageBubble({
       {message.text && (
         <div
           className={cn(
-            'max-w-[78%] rounded-2xl px-3.5 py-2 text-[13.5px] leading-[1.55] break-words whitespace-pre-wrap',
-            mine ? 'bg-accent-600 text-white' : 'bg-sunken text-ink',
-            mine && isFirstInRun && 'rounded-tr-md',
-            !mine && isFirstInRun && 'rounded-tl-md',
-            message.delivery === 'sending' && 'opacity-70',
+            'max-w-[78%] rounded-[12px] px-3.5 py-2.5 text-[14px] leading-[1.6] break-words whitespace-pre-wrap',
+            mine ? 'bg-bubble-user text-white' : 'bg-bubble text-ink',
+                        message.delivery === 'sending' && 'opacity-70',
             message.delivery === 'failed' && 'bg-status-error/10 text-ink ring-1 ring-status-error/30'
           )}
         >

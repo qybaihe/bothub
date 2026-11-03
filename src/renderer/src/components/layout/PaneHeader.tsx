@@ -14,7 +14,7 @@ export function PaneHeader({ children, className }: PaneHeaderProps) {
   return (
     <header
       className={cn(
-        'drag-region flex h-[52px] shrink-0 items-center gap-3 border-b border-line px-4',
+        'drag-region flex h-[52px] shrink-0 items-center gap-3 px-4',
         className
       )}
     >

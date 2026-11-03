@@ -16,7 +16,7 @@ interface SidebarProps {
 
 function BrandMark() {
   return (
-    <span className="grid size-6 place-items-center rounded-[7px] bg-accent-600 shadow-soft" aria-hidden>
+    <span className="grid size-6 place-items-center rounded-[7px] bg-ink shadow-soft" aria-hidden>
       <svg viewBox="0 0 16 16" className="size-3.5 text-white" fill="none">
         <rect x="2.5" y="4" width="11" height="8.5" rx="3" stroke="currentColor" strokeWidth="1.6" />
         <circle cx="6.2" cy="8.25" r="1" fill="currentColor" />
@@ -61,8 +61,8 @@ export function Sidebar({ onAddBot }: SidebarProps) {
         <BotList />
       </div>
 
-      <footer className="flex flex-col gap-2.5 border-t border-line px-3 pt-3 pb-3">
-        <Button variant="secondary" size="lg" className="w-full" onClick={onAddBot}>
+      <footer className="flex flex-col gap-2.5 px-3 pt-2 pb-3">
+        <Button variant="secondary" size="lg" className="w-full rounded-full" onClick={onAddBot}>
           <Plus className="text-accent-600" aria-hidden />
           Add bot
         </Button>

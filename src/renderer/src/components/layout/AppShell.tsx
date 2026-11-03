@@ -15,22 +15,22 @@ interface AppShellProps {
 export function AppShell({ sidebar, main, aside, asideOpen }: AppShellProps) {
   return (
     <div className="flex h-full w-full overflow-hidden bg-canvas text-ink">
-      <nav aria-label="Bots" className="flex w-[280px] shrink-0 flex-col">
+      <nav aria-label="Bots" className="flex w-[280px] shrink-0 flex-col border-r border-ink/[0.12] bg-canvas">
         {sidebar}
       </nav>
 
-      <div className="flex min-w-0 flex-1 py-2 pr-2">
-        <div className="flex min-w-0 flex-1 overflow-hidden rounded-xl border border-line bg-surface shadow-soft">
+      <div className="flex min-w-0 flex-1">
+        <div className="flex min-w-0 flex-1 overflow-hidden bg-main">
           <main className="flex min-w-0 flex-1 flex-col">{main}</main>
           <aside
             aria-label="Bot details"
             aria-hidden={!asideOpen}
             className={cn(
-              'flex shrink-0 flex-col overflow-hidden border-line bg-surface transition-[width] duration-200 ease-out',
-              asideOpen ? 'w-[312px] border-l' : 'w-0'
+              'flex shrink-0 flex-col overflow-hidden border-line bg-main transition-[width] duration-200 ease-out',
+              asideOpen ? 'w-[300px] border-l' : 'w-0'
             )}
           >
-            <div className="flex h-full w-[312px] flex-col">{asideOpen && aside}</div>
+            <div className="flex h-full w-[300px] flex-col">{asideOpen && aside}</div>
           </aside>
         </div>
       </div>

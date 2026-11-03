@@ -39,8 +39,8 @@ export const BotListItem = memo(function BotListItem({
       onClick={() => onSelect(bot.id)}
       aria-current={selected ? 'page' : undefined}
       className={cn(
-        'group flex w-full items-center gap-3 rounded-lg px-2.5 py-2 text-left transition-colors',
-        selected ? 'bg-surface shadow-card ring-1 ring-line' : 'hover:bg-ink/[0.035]'
+        'group flex min-h-[54px] w-full items-center gap-2.5 rounded-[10px] p-2 text-left transition-colors',
+        selected ? 'bg-active' : 'hover:bg-hover'
       )}
     >
       <BotAvatar
@@ -48,11 +48,11 @@ export const BotListItem = memo(function BotListItem({
         seed={bot.id}
         platformId={bot.platformId}
         status={status}
-        ringClassName={selected ? 'ring-surface' : 'ring-canvas'}
+        ringClassName="ring-canvas"
       />
       <span className="min-w-0 flex-1">
         <span className="flex items-center gap-1.5">
-          <span className="truncate font-medium text-ink">{bot.name}</span>
+          <span className="truncate text-[14px] font-medium text-ink">{bot.name}</span>
           {multiAccount && (
             <span
               className="inline-flex shrink-0 items-center gap-0.5 text-[10px] font-medium text-ink-muted"
@@ -69,7 +69,7 @@ export const BotListItem = memo(function BotListItem({
         <span className="mt-0.5 flex items-center gap-2">
           <span
             className={cn(
-              'truncate text-caption',
+              'truncate text-[13px]',
               typing ? 'text-accent-600' : bot.unread > 0 ? 'text-ink-secondary' : 'text-ink-muted'
             )}
           >

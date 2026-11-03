@@ -58,7 +58,7 @@ export function MessageList({ bot, messages, accounts, typing, onRetry }: Messag
       }}
       className="min-h-0 flex-1 overflow-y-auto"
     >
-      <ol className="mx-auto flex max-w-3xl flex-col px-6 py-6" aria-label={`Conversation with ${bot.name}`}>
+      <ol className="mx-auto flex max-w-[960px] flex-col px-8 py-6" aria-label={`Conversation with ${bot.name}`}>
         {messages.map((message, index) => {
           const prev = messages[index - 1]
           const next = messages[index + 1]
@@ -70,10 +70,8 @@ export function MessageList({ bot, messages, accounts, typing, onRetry }: Messag
           return (
             <Fragment key={message.id}>
               {newDay && (
-                <li className="my-4 flex items-center gap-3 text-caption font-medium text-ink-muted first:mt-0" role="separator">
-                  <span className="h-px flex-1 bg-line" />
+                <li className="my-5 flex items-center justify-center gap-3 text-caption text-ink-muted first:mt-0" role="separator">
                   {formatDayLabel(message.createdAt)}
-                  <span className="h-px flex-1 bg-line" />
                 </li>
               )}
               <li className={isFirstInRun && !newDay ? 'mt-4' : 'mt-1'}>

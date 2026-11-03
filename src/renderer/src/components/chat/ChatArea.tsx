@@ -75,7 +75,7 @@ export function ChatArea() {
   if (!bot) {
     return (
       <div className="flex flex-1 flex-col">
-        <div className="drag-region h-[52px] shrink-0 border-b border-line" />
+        <div className="drag-region h-[52px] shrink-0" />
         <div className="flex flex-1 flex-col items-center justify-center gap-2 text-ink-muted">
           <MessagesSquare className="size-6" aria-hidden />
           <p className="text-ui">Select a bot to start a conversation</p>

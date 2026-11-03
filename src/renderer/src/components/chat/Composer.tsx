@@ -99,7 +99,7 @@ export function Composer({ bot, account, onSend, onConnect }: ComposerProps) {
 
   return (
     <div className="shrink-0 px-6 pt-2 pb-5">
-      <div className="mx-auto max-w-3xl">
+      <div className="mx-auto max-w-[960px] px-2">
         {account && !connected && <ConnectionNotice account={account} onConnect={() => onConnect(account.id)} />}
 
         <div
@@ -112,8 +112,8 @@ export function Composer({ bot, account, onSend, onConnect }: ComposerProps) {
           onDragLeave={() => setDragging(false)}
           onDrop={onDrop}
           className={cn(
-            'rounded-2xl border border-line-strong bg-surface shadow-card transition-[border-color,box-shadow]',
-            'focus-within:border-accent-300 focus-within:ring-4 focus-within:ring-accent-100/70',
+            'rounded-[18px] border border-line-strong bg-surface shadow-card transition-[border-color,box-shadow]',
+            'focus-within:border-ink/25',
             dragging && 'border-accent-400 ring-4 ring-accent-100'
           )}
         >
@@ -189,7 +189,7 @@ export function Composer({ bot, account, onSend, onConnect }: ComposerProps) {
               aria-label="Send message"
               title="Send"
               className={cn(
-                'grid size-8 shrink-0 place-items-center rounded-lg transition-colors',
+                'grid size-8 shrink-0 place-items-center rounded-full transition-colors',
                 canSend
                   ? 'bg-accent-600 text-white shadow-soft hover:bg-accent-700'
                   : 'bg-sunken text-ink-faint'

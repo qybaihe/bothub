@@ -53,6 +53,7 @@ const bridge: BotHubBridge = {
     setAccessToken: (request) => ipcRenderer.invoke(GROK_CHANNELS.setAccessToken, request),
     clearAuth: (accountId) => ipcRenderer.invoke(GROK_CHANNELS.clearAuth, accountId),
     authStatus: (accountId) => ipcRenderer.invoke(GROK_CHANNELS.authStatus, accountId),
+    getSession: (accountId) => ipcRenderer.invoke(GROK_CHANNELS.getSession, accountId),
     onEvent: (listener) => {
       const handler = (_event: unknown, payload: GrokMainEvent) => listener(payload)
       ipcRenderer.on(GROK_CHANNELS.event, handler)

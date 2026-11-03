@@ -55,8 +55,8 @@ export function approximateCursorChecksum(machineId: string): string {
   return machineId
 }
 
-function buildHeaders(opts: GrokConnectClientOptions): Headers {
-  const headers = new Headers({
+function buildHeaders(opts: GrokConnectClientOptions): Record<string, string> {
+  const headers: Record<string, string> = {
     'content-type': 'application/json',
     'connect-protocol-version': '1',
     authorization: `Bearer ${opts.auth.accessToken}`,
@@ -64,10 +64,10 @@ function buildHeaders(opts: GrokConnectClientOptions): Headers {
     'x-cursor-client-version': opts.clientVersion ?? 'sand-desktop',
     'x-cursor-client-os': opts.clientOs ?? processPlatform(),
     'x-ghost-mode': opts.ghostMode === true ? 'true' : 'false'
-  })
-  if (opts.auth.teamId) headers.set('x-cursor-team-id', String(opts.auth.teamId))
-  if (opts.auth.machineId) headers.set('x-cursor-checksum', approximateCursorChecksum(opts.auth.machineId))
-  if (opts.timeZone) headers.set('x-cursor-timezone', opts.timeZone)
+  }
+  if (opts.auth.teamId) headers['x-cursor-team-id'] = String(opts.auth.teamId)
+  if (opts.auth.machineId) headers['x-cursor-checksum'] = approximateCursorChecksum(opts.auth.machineId)
+  if (opts.timeZone) headers['x-cursor-timezone'] = opts.timeZone
   return headers
 }
 
@@ -91,7 +91,12 @@ export class GrokConnectClient {
   constructor(opts: GrokConnectClientOptions) {
     this.opts = opts
     this.baseUrl = (opts.baseUrl ?? GROK_API_BASE).replace(/\/$/, '')
-    this.fetchImpl = opts.fetchImpl ?? fetch
+    this.fetchImpl =
+      opts.fetchImpl ??
+      ((input: RequestInfo | URL, init?: RequestInit) => {
+        const f = globalThis.fetch.bind(globalThis) as typeof fetch
+        return f(input, init)
+      })
   }
 
   async unary<TReq extends object, TRes = unknown>(method: string, body: TReq): Promise<TRes> {

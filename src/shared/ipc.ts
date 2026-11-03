@@ -132,6 +132,7 @@ export const GROK_CHANNELS = {
   setAccessToken: 'bothub:grok:set-access-token',
   clearAuth: 'bothub:grok:clear-auth',
   authStatus: 'bothub:grok:auth-status',
+  getSession: 'bothub:grok:get-session',
   event: 'bothub:grok:event'
 } as const
 
@@ -162,4 +163,14 @@ export interface GrokAuthStatus {
   accountId: string
   signedIn: boolean
   accountSlot?: string
+}
+
+/** In-memory session hydrate for renderer (never written to disk). */
+export interface GrokAuthSessionPayload {
+  accountId: string
+  signedIn: boolean
+  accessToken?: string
+  accountSlot?: string
+  teamId?: string
+  machineId?: string
 }

@@ -76,4 +76,20 @@ export function registerGrokIpc(): void {
     if (typeof accountId !== "string") throw new TypeError("Invalid accountId")
     return statusFor(accountId)
   })
+
+  ipcMain.handle(GROK_CHANNELS.getSession, (_event, accountId: unknown) => {
+    if (typeof accountId !== "string") throw new TypeError("Invalid accountId")
+    const auth = getGrokMainAuth(accountId)
+    if (!auth?.accessToken) {
+      return { accountId, signedIn: false as const }
+    }
+    return {
+      accountId,
+      signedIn: true as const,
+      accessToken: auth.accessToken,
+      accountSlot: auth.accountSlot,
+      teamId: auth.teamId,
+      machineId: auth.machineId
+    }
+  })
 }

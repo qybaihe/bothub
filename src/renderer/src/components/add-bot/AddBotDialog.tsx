@@ -14,12 +14,15 @@ import { usePlatformLogin } from '@/hooks/usePlatformLogin'
 import { avatarFromFile } from '@/lib/avatarImage'
 import { cn } from '@/lib/cn'
 import { useBotStore } from '@/store/botStore'
-import { BLANK_TEMPLATE, BOT_TEMPLATES, type BotTemplate } from '@/data/botTemplates'
+import { BLANK_TEMPLATE, BOT_TEMPLATES, localizeTemplate, type BotTemplate } from '@/data/botTemplates'
+import { useT } from '@/lib/i18n'
+import { usePrefsStore } from '@/store/prefsStore'
+import { t as tStatic } from '@/lib/i18n'
 
 const NAME_MAX = 40
 
 function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : 'Something went wrong.'
+  return error instanceof Error ? error.message : tStatic('Something went wrong.')
 }
 
 /** "Meta Muse", then "Meta Muse 2", … — never clashes with an existing bot. */
@@ -54,8 +57,10 @@ function AddBotFlow({ open, onClose }: { open: boolean; onClose: () => void }) {
   const listRef = useRef<HTMLUListElement>(null)
   const morph = useMorphHeight<HTMLDivElement>()
   const created = useRef(false)
-  const [template, setTemplate] = useState<BotTemplate | null>(null)
+  const [template, setTemplate] = useState<BotTemplate>(BLANK_TEMPLATE)
   const { phase } = login
+  const t = useT()
+  const locale = usePrefsStore((s) => s.locale)
 
   const close = () => {
     // Leaving before "Done" (Esc, scrim, close button) drops the session.
@@ -66,7 +71,7 @@ function AddBotFlow({ open, onClose }: { open: boolean; onClose: () => void }) {
   const finish = (platformId: PlatformId, name: string, avatar: string | undefined) => {
     login.keep()
     created.current = true
-    const picked = template ?? BLANK_TEMPLATE
+    const picked = localizeTemplate(template, locale)
     addBot({
       id: botId,
       platformId,
@@ -74,7 +79,7 @@ function AddBotFlow({ open, onClose }: { open: boolean; onClose: () => void }) {
       avatar,
       emoji: picked.emoji,
       description: picked.id === 'blank' ? undefined : picked.description,
-      notes: picked.starter ? `Starter brief (from template "${picked.name}"):\n${picked.starter}` : undefined,
+      notes: picked.starter ? `${t('Starter brief')}（${picked.name}）:\n${picked.starter}` : undefined,
       accounts: [{ key: login.accountId, accountId: login.accountId, displayName: name, handle: '' }]
     })
   }
@@ -82,12 +87,10 @@ function AddBotFlow({ open, onClose }: { open: boolean; onClose: () => void }) {
   const platform = phase.kind === 'idle' ? undefined : getPlatform(phase.platformId)
   const title =
     phase.kind === 'idle'
-      ? template
-        ? 'Choose a platform'
-        : 'New bot'
+      ? t('New bot')
       : phase.kind === 'waiting'
-        ? `Sign in to ${platform!.name}`
-        : 'Name your bot'
+        ? t('Sign in to {name}', { name: platform!.name })
+        : t('Set up your bot')
 
   return (
     <Dialog
@@ -97,11 +100,7 @@ function AddBotFlow({ open, onClose }: { open: boolean; onClose: () => void }) {
       className="w-[min(92vw,420px)]"
       headerStart={
         phase.kind === 'waiting' ? (
-          <IconButton label="Back" size="sm" onClick={login.discard} className="-ml-1">
-            <ChevronLeft />
-          </IconButton>
-        ) : phase.kind === 'idle' && template ? (
-          <IconButton label="Back to templates" size="sm" onClick={() => setTemplate(null)} className="-ml-1">
+          <IconButton label={t('Back')} size="sm" onClick={login.discard} className="-ml-1">
             <ChevronLeft />
           </IconButton>
         ) : null
@@ -122,10 +121,7 @@ function AddBotFlow({ open, onClose }: { open: boolean; onClose: () => void }) {
         style={{ height: morph.height }}
       >
         <div ref={morph.ref}>
-          {phase.kind === 'idle' && !template && (
-            <TemplateStep key="templates" onPick={setTemplate} />
-          )}
-          {phase.kind === 'idle' && template && (
+          {phase.kind === 'idle' && (
             <PlatformStep key="platform" listRef={listRef} error={phase.error} onPick={login.start} />
           )}
           {phase.kind === 'waiting' && (
@@ -140,9 +136,12 @@ function AddBotFlow({ open, onClose }: { open: boolean; onClose: () => void }) {
             <NameStep
               key="name"
               platformId={phase.platformId}
-              emoji={template?.emoji ?? '🤖'}
-              starter={template?.starter ?? ''}
-              defaultName={freshName(template?.name || getPlatform(phase.platformId).name, bots.map((b) => b.name))}
+              template={template}
+              onTemplate={setTemplate}
+              defaultName={freshName(
+                localizeTemplate(template, locale).name || getPlatform(phase.platformId).name,
+                bots.map((b) => b.name)
+              )}
               onDone={(name, avatar) => finish(phase.platformId, name, avatar)}
             />
           )}
@@ -173,9 +172,14 @@ function PlatformStep({
   onPick: (platformId: PlatformId) => void
 }) {
   const platforms = adapterRegistry.listPlatforms()
+  const t = useT()
   return (
     <div className="animate-veil-in">
-      <ul ref={listRef} className="flex flex-col gap-0.5" onKeyDown={moveFocus} aria-label="Platforms">
+      <p className="mb-3 rounded-lg bg-hover px-3 py-2 text-[12px] leading-[17px] text-ink-secondary">
+        {t('In BotHub, one bot = one signed-in account. Pick a platform and sign in — that account becomes this bot. Add another bot to use another account.')}
+      </p>
+      <p className="mb-1 px-2 text-[12px] font-medium text-ink-muted">{t('Choose a platform to sign in')}</p>
+      <ul ref={listRef} className="flex flex-col gap-0.5" onKeyDown={moveFocus} aria-label={t('Platforms')}>
         {platforms.map((p) => (
           <li key={p.id}>
             <button
@@ -197,7 +201,7 @@ function PlatformStep({
                   aria-hidden
                 />
               ) : (
-                <span className="rounded-[4px] bg-sunken px-1.5 text-[11px] leading-4 text-ink-muted">Soon</span>
+                <span className="rounded-[4px] bg-sunken px-1.5 text-[11px] leading-4 text-ink-muted">{t('Soon')}</span>
               )}
             </button>
           </li>
@@ -224,6 +228,7 @@ export function LoginWaiting({
 }) {
   const platform = getPlatform(platformId)
   const actionRef = useRef<HTMLButtonElement>(null)
+  const t = useT()
   useEffect(() => actionRef.current?.focus(), [])
   return (
     <div className="flex animate-step-in flex-col items-center gap-4 pt-4 pb-2 text-center" role="status">
@@ -232,10 +237,10 @@ export function LoginWaiting({
         key={windowClosed ? 'closed' : 'waiting'}
         className={cn('animate-veil-in text-[14px] leading-5', windowClosed ? 'text-ink' : 'shimmer-text')}
       >
-        {windowClosed ? 'The sign-in window was closed' : 'Waiting for you to sign in…'}
+        {windowClosed ? t('The sign-in window was closed') : t('Waiting for you to sign in…')}
       </p>
       <Button ref={actionRef} variant={windowClosed ? 'primary' : 'secondary'} onClick={onReopen}>
-        {windowClosed ? 'Open again' : 'Show window'}
+        {windowClosed ? t('Open again') : t('Show window')}
       </Button>
     </div>
   )
@@ -243,14 +248,14 @@ export function LoginWaiting({
 
 function NameStep({
   platformId,
-  emoji,
-  starter,
+  template,
+  onTemplate,
   defaultName,
   onDone
 }: {
   platformId: PlatformId
-  emoji: string
-  starter: string
+  template: BotTemplate
+  onTemplate: (template: BotTemplate) => void
   defaultName: string
   onDone: (name: string, avatar: string | undefined) => void
 }) {
@@ -260,6 +265,10 @@ function NameStep({
   const fileRef = useRef<HTMLInputElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const finalName = name.trim() || defaultName
+  const t = useT()
+  const locale = usePrefsStore((s) => s.locale)
+  const emoji = template.emoji
+  const starter = localizeTemplate(template, locale).starter
 
   useEffect(() => inputRef.current?.focus(), [])
 
@@ -285,8 +294,8 @@ function NameStep({
         <button
           type="button"
           onClick={() => fileRef.current?.click()}
-          aria-label={avatar ? 'Change photo' : 'Add a photo'}
-          title={avatar ? 'Change photo' : 'Add a photo'}
+          aria-label={avatar ? t('Change photo') : t('Add a photo')}
+          title={avatar ? t('Change photo') : t('Add a photo')}
           className="group press-icon relative block rounded-full"
         >
           <span key={avatar ?? 'mark'} className="inline-flex animate-mark-pop">
@@ -316,15 +325,16 @@ function NameStep({
           maxLength={NAME_MAX}
           onChange={(event) => setName(event.target.value)}
           placeholder={defaultName}
-          aria-label="Bot name"
+          aria-label={t('Bot name')}
           className="h-10 w-full rounded-lg border border-line-strong bg-surface px-3 text-center text-[14px] text-ink outline-none transition-[border-color,box-shadow] duration-100 placeholder:text-ink-muted focus:border-accent-600 focus:ring-3 focus:ring-accent-100"
         />
         {starter && (
           <p className="rounded-lg bg-hover px-3 py-2 text-left text-[12px] leading-[17px] text-ink-secondary">
-            <span className="font-medium text-ink">Starter brief</span> — saved to Notes. Send it as your first message
-            to set the bot up; Muse has no separate persona setting.
+            <span className="font-medium text-ink">{t('Starter brief')}</span>
+            {t(' — saved to Notes. Send it as your first message to set the bot up; Muse has no separate persona setting.')}
           </p>
         )}
+        <TemplateStep selected={template.id} onPick={onTemplate} />
         {error && (
           <p className="text-center text-[12px] text-status-error" role="alert">
             {error}
@@ -335,11 +345,11 @@ function NameStep({
       <div className="flex w-full items-center justify-end gap-2">
         {avatar && (
           <Button variant="ghost" className="mr-auto -ml-2" onClick={() => setAvatar(undefined)}>
-            Remove photo
+            {t('Remove photo')}
           </Button>
         )}
         <Button variant="primary" type="submit">
-          Done
+          {t('Done')}
         </Button>
       </div>
     </form>
@@ -347,34 +357,43 @@ function NameStep({
 }
 
 
-/** Grok-style template gallery: local starter presets plus Blank. */
-function TemplateStep({ onPick }: { onPick: (template: BotTemplate) => void }) {
-  const firstRef = useRef<HTMLButtonElement>(null)
-  useEffect(() => firstRef.current?.focus(), [])
+/** Optional starting style (local presets). Picked after sign-in; Blank = none. */
+function TemplateStep({ selected, onPick }: { selected: string; onPick: (template: BotTemplate) => void }) {
+  const t = useT()
+  const locale = usePrefsStore((s) => s.locale)
   return (
-    <div className="flex animate-step-in flex-col gap-2 pb-1">
-      <p className="px-0.5 text-[12px] font-medium text-ink-muted">Bot templates</p>
-      <ul className="grid grid-cols-2 gap-2">
-        {BOT_TEMPLATES.map((t, i) => (
-          <li key={t.id}>
-            <button
-              ref={i === 0 ? firstRef : undefined}
-              type="button"
-              onClick={() => onPick(t)}
-              className={cn(
-                'press flex h-full w-full flex-col items-start gap-1.5 rounded-xl border border-line bg-surface p-3 text-left',
-                'transition-colors hover:border-line-strong hover:bg-hover focus-visible:outline-offset-[-2px]',
-                t.id === 'blank' && 'border-dashed border-line-strong bg-transparent'
-              )}
-            >
-              <span className="text-[22px] leading-none" aria-hidden>
-                {t.id === 'blank' ? '＋' : t.emoji}
-              </span>
-              <span className="text-[13px] font-medium text-ink">{t.id === 'blank' ? 'Blank bot' : t.name}</span>
-              <span className="line-clamp-2 text-[12px] leading-[16px] text-ink-secondary">{t.description}</span>
-            </button>
-          </li>
-        ))}
+    <div className="mt-1 flex flex-col gap-1.5" role="radiogroup" aria-label={t('Starting style (optional)')}>
+      <p className="px-0.5 text-left text-[12px] font-medium text-ink-muted">{t('Starting style (optional)')}</p>
+      <ul className="grid grid-cols-2 gap-1.5">
+        {BOT_TEMPLATES.map((raw) => {
+          const tpl = localizeTemplate(raw, locale)
+          const on = selected === raw.id
+          return (
+            <li key={raw.id}>
+              <button
+                type="button"
+                role="radio"
+                aria-checked={on}
+                onClick={() => onPick(raw)}
+                title={tpl.description}
+                className={cn(
+                  'press flex h-full w-full items-center gap-2 rounded-lg border px-2.5 py-2 text-left transition-colors',
+                  on ? 'border-accent-600 bg-accent-50' : 'border-line bg-surface hover:border-line-strong hover:bg-hover'
+                )}
+              >
+                <span className="text-[16px] leading-none" aria-hidden>
+                  {raw.id === 'blank' ? '＋' : tpl.emoji}
+                </span>
+                <span className="min-w-0">
+                  <span className="block truncate text-[12.5px] font-medium text-ink">
+                    {raw.id === 'blank' ? t('None') : tpl.name}
+                  </span>
+                  <span className="block truncate text-[11px] text-ink-muted">{tpl.description}</span>
+                </span>
+              </button>
+            </li>
+          )
+        })}
       </ul>
     </div>
   )

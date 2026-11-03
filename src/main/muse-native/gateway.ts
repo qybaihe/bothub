@@ -125,10 +125,21 @@ function toQuery(params: Record<string, unknown>): string {
   return s ? `?${s}` : ''
 }
 
+/** Noise handshake class. Personal VM = hatch_vm; Shared Agent remote = shared_agent. */
+export type MuseNoiseConnectionClass = 'hatch_vm' | 'shared_agent'
+
 export interface MuseNativeGatewayOptions {
   fetch: FetchFn
   /** Keep the socket up (heartbeat + auto reconnect) even without in-flight calls. */
   keepAlive?: boolean
+  /**
+   * Noise connection class (protocol.md §3.3).
+   * `shared_agent` requires `sharedAgentTicket` for Msg3 — ticket bootstrap is
+   * not fully captured yet; UI must stay honest-unavailable until then.
+   */
+  connectionClass?: MuseNoiseConnectionClass
+  /** Fresh ticket bytes for Shared Agent Msg3 (required when connectionClass=shared_agent). */
+  sharedAgentTicket?: Uint8Array
   /** Optional per-account egress proxy agent for Noise WSS (Node `ws`). */
   agent?: import('node:https').Agent
   /** Refresh agent before each connect (e.g. after proxy settings change). */
@@ -291,7 +302,20 @@ export class MuseNativeGateway extends EventEmitter {
           }
           // Standard personal VM: payload2 is an attestation bundle (accepted as
           // NON_TEE / auth_token-bound, like the web client's default policy).
-          const msg3 = hs.writeMessage3(new Uint8Array(0))
+          // Shared Agent: Msg3 = fresh ticket bytes (protocol.md §3.3).
+          const klass = this.opts.connectionClass ?? 'hatch_vm'
+          let payload3 = new Uint8Array(0)
+          if (klass === 'shared_agent') {
+            const ticket = this.opts.sharedAgentTicket
+            if (!ticket || ticket.byteLength === 0) {
+              throw new MuseGatewayError(
+                'Shared Agent Noise class requires a fresh ticket for Msg3 — ticket bootstrap not wired (needs live capture).',
+                'handshake_failed'
+              )
+            }
+            payload3 = Uint8Array.from(ticket)
+          }
+          const msg3 = hs.writeMessage3(payload3)
           ws.send(msg3)
           const [send, recv] = hs.split()
           cleanup()
@@ -303,8 +327,13 @@ export class MuseNativeGateway extends EventEmitter {
       ws.on('message', onMsg)
       ws.once('close', onClose)
       try {
-        const nonce = new Uint8Array(randomBytes(32))
-        const payload1 = new PbWriter().bytes(1, nonce).finish()
+        const klass = this.opts.connectionClass ?? 'hatch_vm'
+        // hatch_vm: field1 = 32B freshness nonce.
+        // shared_agent: field2 = 1 (Writer.uint32(16).int32(1)), no nonce — protocol.md §3.3.
+        const payload1 =
+          klass === 'shared_agent'
+            ? new PbWriter().uint(2, 1).finish()
+            : new PbWriter().bytes(1, new Uint8Array(randomBytes(32))).finish()
         ws.send(hs.writeMessage1(payload1))
       } catch (e) {
         fail(e instanceof Error ? e : new Error(String(e)))

@@ -10,6 +10,7 @@ import { ConnectorsSection } from '@/components/muse/ConnectorsSection'
 import { FilesSection } from '@/components/muse/FilesSection'
 import { InviteSection } from '@/components/muse/InviteSection'
 import { PeersSection } from '@/components/muse/PeersSection'
+import { SharedAgentsSection } from '@/components/muse/SharedAgentsSection'
 import { ProxySection } from '@/components/muse/ProxySection'
 import { QuotaSection } from '@/components/muse/QuotaSection'
 import { SchedulesSection } from '@/components/muse/SchedulesSection'
@@ -215,6 +216,7 @@ export function InfoPanel() {
                 {bot.platformId === 'meta-muse' && bot.activeAccountId ? (
                   <>
                     <PeersSection accountId={bot.activeAccountId} />
+                    <SharedAgentsSection accountId={bot.activeAccountId} />
                     <InviteSection accountId={bot.activeAccountId} />
                   </>
                 ) : (

@@ -1,6 +1,6 @@
 # Muse / Hatch — full protocol map (BotHub)
 
-> Generated 2026-11-04 (Asia/Shanghai). Sources: official muse.ai JS (`docs` companions under `/workspace/muse/museai/js*`),
+> Generated 2026-11-04 (Asia/Shanghai); slice 80 matrix recount. Sources: official muse.ai JS (`docs` companions under `/workspace/muse/museai/js*`),
 > `samples/gateway_methods.json` (387 Noise RPCs), archived redacted captures, BotHub `src/main/muse-native/*` + adapter.
 > **No secrets / cookies / tokens.** Status: `done` | `partial` | `missing` relative to BotHub native path.
 
@@ -53,10 +53,10 @@ Transport details: `protocol.md` + `NATIVE_CLIENT.md`. Protos: `samples/proto/`.
 | `delta.message_start` | **done** | Create streaming stub |
 | `delta.text_append` | **done** | Append payload.text (needs delta_stream cap) |
 | `delta.message_done` | **done** | Finalize; may carry transcript |
-| `delta.presentation` | **partial** | Option + media + rich widgets (shopping/maps/html/slides RO); commerce write still N/A |
+| `delta.presentation` | **partial** | Option + media + rich widgets (shopping/maps/html/slides/image_options RO); commerce write still N/A |
 | `delta.placeholder` | **missing** | Ignored |
-| `delta.tool_start / delta.tool_done` | **missing** | No tool chip UI |
-| `tool_call.started / tool_call.completed` | **missing** | Seen in JS; not wired |
+| `delta.tool_start / delta.tool_done` | **done** | Tool chips under assistant bubbles |
+| `tool_call.started / tool_call.completed` | **done** | Same chip path as delta.tool_* |
 | `agent.status` | **done** | Busy/idle/needs_approval → activity + status |
 
 Other subscriptions in registry: `chat.stream_events`, `activity.subscribe`, `artifacts.subscribe`,
@@ -70,11 +70,11 @@ Other subscriptions in registry: `chat.stream_events`, `activity.subscribe`, `ar
 | `option` | **done** | Chip UI + widgets.state.set + resend label |
 | `image / images` | **done** | http(s) inline; workspace paths via `fs.raw` preview (≤8MiB Range); honest chip if preview fails |
 | `file / file_ref` | **done** | Inbound path chips; outbound image ≤12MiB / file ≤40MiB base64; ≥10MiB non-image → file_ref via `fs.write` |
-| `image_options` | **missing** |  |
+| `image_options` | **partial** | RO grid + selection state; write/`widgets.state.set` for picks not wired |
 | `shopping_cart / shopping_results(_v2)` | **partial** | Read-only product/cart UI; no checkout / shopping.* write |
 | `local_map / marketplace_map` | **partial** | Read-only places/listings + sandboxed map html when present |
 | `slides / html` | **partial** | Sandboxed html iframe; slides = label/slug/path chip |
-| `audio / video` | **missing** |  |
+| `audio / video` | **partial** | Parsed as file media chips (`audio/*` / `video/*`); no dedicated player |
 
 
 ### 2.4 Tool chips & media (BotHub)
@@ -136,7 +136,7 @@ Total methods: **387**.
 
 | Prefix | # | done | partial | missing | Highest-value notes |
 |---|---:|---:|---:|---:|---|
-| `peers` | 26 | 0 | 0 | 26 | Trusted Network (cross-account) |
+| `peers` | 26 | 0 | 13 | 13 | Trusted Network UI (Members); Shared Agents Noise class still deferred |
 | `spaces` | 24 | 0 | 0 | 24 | Spaces / canvases |
 | `egress` | 21 | 3 | 11 | 7 | HITL approvals + network permissions |
 | `email` | 19 | 0 | 0 | 19 | Agent mailbox |
@@ -467,27 +467,27 @@ Total methods: **387**.
 | `peers.activity.list` | GET | `/peers/activity` | daemon |  | **missing** |
 | `peers.avatar` | GET | `/peers/{muse_id}/avatar/{sha256}` | daemon |  | **missing** |
 | `peers.connections.get` | GET | `/peers/connections/{connection_id}` | daemon |  | **missing** |
-| `peers.disconnect` | DELETE | `/peers/{muse_id}?relationship_generation_id={relationship_generation_id}&relationship_revision={relationship_revision}&relationship_started_at_ms={relationship_started_at_ms}&request_expires_at_ms={request_expires_at_ms}` | daemon |  | **missing** |
+| `peers.disconnect` | DELETE | `/peers/{muse_id}?relationship_generation_id={relationship_generation_id}&relationship_revision={relationship_revision}&relationship_started_at_ms={relationship_started_at_ms}&request_expires_at_ms={request_expires_at_ms}` | daemon |  | **partial** |
 | `peers.discretion.write` | POST | `/fs/write` | — |  | **missing** |
-| `peers.inbox.decline` | POST | `/peers/inbox/decline` | daemon |  | **missing** |
+| `peers.inbox.decline` | POST | `/peers/inbox/decline` | daemon |  | **partial** |
 | `peers.inbox.deliver` | POST | `/peers/inbox/deliver` | daemon |  | **missing** |
-| `peers.inbox.list` | GET | `/peers/inbox` | daemon |  | **missing** |
-| `peers.invites.accept` | POST | `/peers/invites/accept` | daemon |  | **missing** |
-| `peers.invites.create` | POST | `/peers/invites` | daemon |  | **missing** |
+| `peers.inbox.list` | GET | `/peers/inbox` | daemon |  | **partial** |
+| `peers.invites.accept` | POST | `/peers/invites/accept` | daemon |  | **partial** |
+| `peers.invites.create` | POST | `/peers/invites` | daemon |  | **partial** |
 | `peers.invites.delivery` | POST | `/peers/invites/{invite_id}/delivery` | daemon |  | **missing** |
-| `peers.invites.list` | GET | `/peers/invites` | daemon |  | **missing** |
-| `peers.invites.open` | POST | `/peers/invites/open` | daemon |  | **missing** |
-| `peers.invites.revoke` | DELETE | `/peers/invites/{invite_id}` | daemon |  | **missing** |
-| `peers.list` | GET | `/peers` | daemon |  | **missing** |
+| `peers.invites.list` | GET | `/peers/invites` | daemon |  | **partial** |
+| `peers.invites.open` | POST | `/peers/invites/open` | daemon |  | **partial** |
+| `peers.invites.revoke` | DELETE | `/peers/invites/{invite_id}` | daemon |  | **partial** |
+| `peers.list` | GET | `/peers` | daemon |  | **partial** |
 | `peers.photo` | GET | `/peers/{muse_id}/photo/{sha256}` | daemon |  | **missing** |
-| `peers.requests.list` | GET | `/peers/requests` | daemon |  | **missing** |
-| `peers.requests.sas` | GET | `/peers/requests/{relationship_generation_id}/sas` | daemon |  | **missing** |
-| `peers.requests.sas.confirm` | POST | `/peers/requests/{relationship_generation_id}/sas/confirm` | daemon |  | **missing** |
+| `peers.requests.list` | GET | `/peers/requests` | daemon |  | **partial** |
+| `peers.requests.sas` | GET | `/peers/requests/{relationship_generation_id}/sas` | daemon |  | **partial** |
+| `peers.requests.sas.confirm` | POST | `/peers/requests/{relationship_generation_id}/sas/confirm` | daemon |  | **partial** |
 | `peers.reset_conversation` | POST | `/peers/{muse_id}/reset_conversation` | daemon |  | **missing** |
 | `peers.rules.delete` | DELETE | `/peers/{muse_id}/rules/{rule_id}` | daemon |  | **missing** |
 | `peers.rules.list` | GET | `/peers/{muse_id}/rules` | daemon |  | **missing** |
 | `peers.rules.set` | POST | `/peers/{muse_id}/rules` | daemon |  | **missing** |
-| `peers.status` | GET | `/peers/status` | daemon |  | **missing** |
+| `peers.status` | GET | `/peers/status` | daemon |  | **partial** |
 | `peers.update` | PATCH | `/peers/{muse_id}` | daemon |  | **missing** |
 | `permissions.inventory` | GET | `/permissions/inventory` | daemon |  | **partial** |
 | `permissions.settings` | GET | `/permissions/settings` | sentinel |  | **partial** |
@@ -637,8 +637,8 @@ From official `HatchAttachments` (JS):
 | Themes | `chat.themes*` / `theme.subscribe` | **missing** |
 | Memory pane | `memory.*` | **partial** — Muse MemorySection (`memory.search`/`get`/`consolidate`); local BotHub notes kept separate |
 | Skills pane | `skills.*` | **partial** — SkillsSection list + set_disabled; honest empty when RPC bare |
-| Trusted Network | `peers.*` | **missing** (see GAPS.md) |
-| Per-account proxy | BotHub-local | **missing** (not a Muse RPC) |
+| Trusted Network | `peers.*` | **partial** — Members tab `PeersSection`: status/list/invites/inbox/requests + create/revoke/open/accept/decline/SAS/disconnect; honest empty if RPC class missing; **never auto-accept**; Shared Agents remote Noise class deferred |
+| Per-account proxy | BotHub-local | **done** — Overview `ProxySection`; `safeStorage` (`muse-account-proxy.json`); Electron `session.setProxy` on account partition + Node `ws` agent (`https-proxy-agent` / `socks-proxy-agent`); not a Muse RPC |
 
 ## 8. BotHub implementation map
 
@@ -661,9 +661,11 @@ From official `HatchAttachments` (JS):
 5. ~~`permissions.settings` read + Save PATCH defaults~~ **partial** — defaults write UI present; full `protocols[]` mode editor + live confirmation against real VM still needed.
 6. ~~Muse `memory.*` + `skills.*` panels~~ (**partial**).
 7. ~~Desktop Notification when blurred~~ **done**.
-8. Trusted Network `peers.*` / Shared Agents (see GAPS.md).
-9. Per-account client proxy.
+8. ~~Trusted Network `peers.*` Members UI~~ **partial** — core invite/list/accept/SAS/disconnect; never auto-accept; Shared Agents / peerSpaces / peers.rules* still missing.
+9. ~~Per-account client proxy~~ **done** (BotHub-local partition + WSS agent; reconnect advised after save).
 10. Live redacted capture of `permissions.settings.update` body + shopping widget payload samples (UI parses known shapes from muse.ai JS; wire samples still thin).
+11. Shared Agents (`shared_agents.*`) needs alternate Noise connectionClass — deferred (no fake host API).
+12. Spaces / feed / voice / email / browser_task — large remaining surfaces.
 
 
 ## 10. Slice 70 (near-native media / widgets / permissions write / file_ref)
@@ -675,6 +677,18 @@ From official `HatchAttachments` (JS):
 | `permissions.settings.update` Save UI | **partial** | Explicit click; body `network_default`/`connector_default`; protocols[] still RO |
 | Outbound `file_ref` | **done** | Official JS path: chunked `fs.write` (+ staging rename); no secrets guessed |
 | Shots | 70-prefixed | ui-parity/shots |
+
+
+## 11. Slice 80 (Trusted Network / proxy / image_options)
+
+| Item | Status | Notes |
+|---|---|---|
+| Trusted Network Members UI | **partial** | `PeersSection` wires peers.status/list/invites.*/inbox.list/decline/requests.*/disconnect; honest empty; never auto-accept |
+| Shared Agents remote | **missing** | Needs Noise connectionClass extension; not faked |
+| Per-account proxy | **done** | `accountProxy.ts` + Overview UI; partition `setProxy` + WSS agent; password via safeStorage |
+| `image_options` | **partial** | Parse + RO grid; selection write not wired |
+| audio/video inbound | **partial** | File chips with audio/* / video/* mime |
+| Shots | 80-prefixed | ui-parity/shots |
 
 ---
 

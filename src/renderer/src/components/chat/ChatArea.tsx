@@ -12,6 +12,7 @@ import { Composer } from './Composer'
 import { MessageList } from './MessageList'
 import { WebSessionPane } from './WebSessionPane'
 import { t } from '@/lib/i18n'
+import { ChatApprovals } from './ApprovalCard'
 
 const NO_MESSAGES: ChatMessage[] = []
 
@@ -111,12 +112,8 @@ export function ChatArea() {
     )
   }
 
-  const needsMuseLogin =
-    bot.platformId === 'meta-muse' &&
-    !!activeAccount &&
-    activeAccount.status !== 'online' &&
-    activeAccount.status !== 'busy' &&
-    activeAccount.status !== 'attention'
+  // Only a signed-out account needs login; errors and approvals are surfaced as themselves.
+  const needsMuseLogin = bot.platformId === 'meta-muse' && !!activeAccount && activeAccount.status === 'offline'
 
   const canSend =
     activeAccount?.status === 'online' ||
@@ -141,6 +138,7 @@ export function ChatArea() {
           ) : (
             <MessageList bot={bot} messages={messages} accounts={accounts} typing={typing} onRetry={onRetry} />
           )}
+          {bot.platformId === 'meta-muse' && activeAccount && <ChatApprovals accountId={activeAccount.id} />}
           <Composer
             key={bot.id}
             bot={bot}

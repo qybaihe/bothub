@@ -152,5 +152,16 @@ export const ZH: Record<string, string> = {
   "Version {v} ready — restart to update": "版本 {v} 已就绪，重启即可更新",
   "Bot templates": "Bot 模板",
   "Add": "添加",
-  "Copy": "复制"
+  "Copy": "复制",
+  'Allow Muse to share information with {host}?': '允许 Muse 与 {host} 分享信息？',
+  Destination: '目标',
+  Method: '方法',
+  Service: '服务',
+  Reason: '原因',
+  'Allow once': '允许一次',
+  'Allow for this task': '本任务内允许',
+  'Always allow this site': '总是允许此站点',
+  'Always allow': '总是允许',
+  'Always deny': '总是拒绝',
+  '“Always allow” covers {domain} and its subdomains': '「总是允许」覆盖 {domain} 及子域'
 }

@@ -67,7 +67,7 @@ function ConnectionNotice({
               ? '登录 Grok Bot 后即可发消息'
               : '账号未连接'}
       </span>
-      {isMuse && onMuseLogin ? (
+      {isMuse && onMuseLogin && !isError ? (
         <>
           <Button size="sm" variant="primary" onClick={onMuseLogin} disabled={account.pending}>
             {account.pending && <Loader2 className="animate-spin" aria-hidden />}

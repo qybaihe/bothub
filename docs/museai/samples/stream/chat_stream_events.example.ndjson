@@ -1,0 +1,6 @@
+{"type":"event","event_name":"message.user","message_id":"<id>","seq":1,"occurred_at_ms":1730000000000,"display_text":"hello","payload":{"content":"hello"},"resources":[]}
+{"type":"event","event_name":"delta.message_start","message_id":"<assistant_id>","seq":2,"occurred_at_ms":1730000000100,"payload":{"metadata":{"started_at_ms":1730000000100,"source":"runtime","streaming":true}}}
+{"type":"event","event_name":"delta.text_append","message_id":"<assistant_id>","seq":3,"occurred_at_ms":1730000000200,"payload":{"text":"Hi"}}
+{"type":"event","event_name":"delta.text_append","message_id":"<assistant_id>","seq":4,"occurred_at_ms":1730000000300,"payload":{"text":" there"}}
+{"type":"event","event_name":"delta.message_done","message_id":"<assistant_id>","seq":5,"occurred_at_ms":1730000000500,"display_text":"Hi there","payload":{"content":"Hi there","status":"complete","metadata":{"streaming":false}}}
+{"type":"event","event_name":"message.assistant","message_id":"<assistant_id>","seq":6,"occurred_at_ms":1730000000510,"display_text":"Hi there","payload":{"content":"Hi there","status":"complete","metadata":{"streaming":false}},"resources":[]}

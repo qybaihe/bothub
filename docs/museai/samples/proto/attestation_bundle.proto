@@ -1,0 +1,48 @@
+syntax = "proto3";
+package thatch.attestation.v1;
+// Source: muse.ai JS. Used inside Noise XX message-2 payload for standard
+// attestation (when Owner RV challenge is absent). CVM/confidential VMs use
+// a different OwnerRvChallenge wrapper (not fully reconstructed here).
+
+message AmdSevSnpCertChain {
+  bytes vcek_pem = 1;
+  bytes ask_pem = 2;
+  bytes crl = 3;
+}
+
+message SnpEvidence {
+  bytes report = 1;
+  AmdSevSnpCertChain certs = 2;
+}
+
+message ReportDataInput {
+  bytes x25519_public_key = 1;
+  bytes client_nonce = 2;
+}
+
+message TransparencyProof {
+  bytes sigstore = 1;
+  bytes cloudflare = 2;
+  bytes proof = 3;
+}
+
+message RevocationEvidence {
+  bytes serialized_rl = 1;
+  TransparencyProof transparency_proof = 2;
+}
+
+enum Platform {
+  NON_TEE = 0;
+  AMD_SEV_SNP = 1;
+}
+
+message AttestationBundle {
+  Platform platform = 1;
+  ReportDataInput report_data_input = 2;
+  oneof evidence {
+    SnpEvidence snp = 3;
+  }
+  bytes image_manifest = 4;
+  TransparencyProof transparency_proof = 5;
+  RevocationEvidence revocation_evidence = 6;
+}

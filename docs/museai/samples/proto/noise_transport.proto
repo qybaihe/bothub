@@ -1,0 +1,10 @@
+syntax = "proto3";
+package ingress_rev_proxy;
+// Source: muse.ai JS bundle (FileDescriptor embedded as base64).
+
+message NoiseTransportFrame {
+  optional int64 chunk_id = 1;
+  optional uint32 chunk_index = 2;
+  optional uint32 total_chunks = 3;
+  optional bytes payload = 4;
+}

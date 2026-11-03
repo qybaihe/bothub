@@ -1,0 +1,6 @@
+{
+  "message_id": "<uuid of accepted user turn>",
+  "session_id": "<thread session id; omit/null on brand-new draft until assigned>",
+  "reply_to_message_id": "<optional>",
+  "_note": "Returned as the first non-type:event JSON object on the chat.stream subscription body. Subsequent NDJSON lines are type:event envelopes."
+}

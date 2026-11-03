@@ -29,9 +29,14 @@ export default function App() {
   }, [])
   useGlobalShortcuts()
 
-  // Dev-only test harness for CDP/E2E scripts.
+  // Test harness for CDP/E2E scripts (dev, or ?e2e=1 / localStorage BOTHUB_E2E).
   useEffect(() => {
-    if (!import.meta.env.DEV) return
+    const e2e =
+      import.meta.env.DEV ||
+      (typeof window !== 'undefined' &&
+        (new URLSearchParams(window.location.search).get('e2e') === '1' ||
+          window.localStorage.getItem('BOTHUB_E2E') === '1'))
+    if (!e2e) return
     void import("@adapters/registry").then(({ adapterRegistry }) => {
       ;(window as unknown as { __bothub?: unknown }).__bothub = {
         store: useBotStore,

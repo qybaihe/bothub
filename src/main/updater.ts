@@ -3,10 +3,30 @@ import { autoUpdater, type UpdateInfo } from 'electron-updater'
 import { UPDATE_CHANNELS, type UpdateStatusEvent } from '@shared/ipc'
 
 const CHECK_INTERVAL_MS = 4 * 60 * 60 * 1000
+const RELEASES_LATEST = 'https://github.com/qybaihe/bothub/releases/latest'
 
 let started = false
 let lastInfo: UpdateInfo | null = null
 let downloaded = false
+
+/**
+ * ShipIt (Squirrel.Mac) rejects unsigned / ad-hoc electron-builder artifacts
+ * with "Code signature … did not pass validation". Until we ship Developer ID
+ * signed + notarized builds, never auto-download or quitAndInstall on darwin —
+ * only notify and open the GitHub release page for a manual install.
+ *
+ * Re-enable autoDownload / autoInstallOnAppQuit / quitAndInstall once signed.
+ */
+function canAutoInstall(): boolean {
+  if (process.platform === 'darwin') return false
+  return true
+}
+
+function releaseUrl(version?: string): string {
+  return version
+    ? `https://github.com/qybaihe/bothub/releases/tag/v${version}`
+    : RELEASES_LATEST
+}
 
 function broadcast(event: UpdateStatusEvent): void {
   for (const win of BrowserWindow.getAllWindows()) {
@@ -14,10 +34,14 @@ function broadcast(event: UpdateStatusEvent): void {
   }
 }
 
+function openReleasePage(version?: string): void {
+  void shell.openExternal(releaseUrl(version ?? lastInfo?.version))
+}
+
 function configure(): void {
-  autoUpdater.autoDownload = true
-  autoUpdater.autoInstallOnAppQuit = true
-  // Unsigned mac builds cannot apply Squirrel.Mac updates; still check + notify.
+  const auto = canAutoInstall()
+  autoUpdater.autoDownload = auto
+  autoUpdater.autoInstallOnAppQuit = auto
   autoUpdater.allowPrerelease = false
   autoUpdater.logger = console
 
@@ -31,7 +55,8 @@ function configure(): void {
     broadcast({
       type: 'available',
       version: info.version,
-      releaseNotes: typeof info.releaseNotes === 'string' ? info.releaseNotes : undefined
+      releaseNotes: typeof info.releaseNotes === 'string' ? info.releaseNotes : undefined,
+      manualInstall: !auto
     })
   })
 
@@ -60,7 +85,17 @@ function configure(): void {
   })
 
   autoUpdater.on('error', (error) => {
-    broadcast({ type: 'error', message: error?.message || String(error) })
+    const raw = error?.message || String(error)
+    // ShipIt / codesign failures on unsigned builds — surface a clear manual path.
+    if (/ShipIt|code signature|代码不含资源|did not pass validation/i.test(raw)) {
+      broadcast({
+        type: 'available',
+        version: lastInfo?.version ?? app.getVersion(),
+        manualInstall: true
+      })
+      return
+    }
+    broadcast({ type: 'error', message: raw })
   })
 }
 
@@ -76,37 +111,24 @@ async function check(manual = false): Promise<void> {
     await autoUpdater.checkForUpdates()
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
+    if (/ShipIt|code signature|代码不含资源|did not pass validation/i.test(message)) {
+      broadcast({
+        type: 'available',
+        version: lastInfo?.version ?? app.getVersion(),
+        manualInstall: true
+      })
+      return
+    }
     broadcast({ type: 'error', message })
   }
 }
 
 function installOrOpenRelease(): void {
-  if (downloaded && process.platform !== 'darwin') {
+  if (canAutoInstall() && downloaded) {
     autoUpdater.quitAndInstall(false, true)
     return
   }
-
-  // macOS unsigned: quitAndInstall needs a signed+notarized build. Fall back
-  // to opening the GitHub release page so the user can install manually.
-  if (process.platform === 'darwin') {
-    try {
-      autoUpdater.quitAndInstall(false, true)
-      return
-    } catch {
-      // fall through
-    }
-  }
-
-  const version = lastInfo?.version
-  const url = version
-    ? `https://github.com/qybaihe/bothub/releases/tag/v${version}`
-    : 'https://github.com/qybaihe/bothub/releases/latest'
-  void shell.openExternal(url)
-  broadcast({
-    type: 'error',
-    message:
-      'This build is not code-signed, so macOS cannot auto-install. Opened the release page instead.'
-  })
+  openReleasePage(lastInfo?.version)
 }
 
 export function registerUpdaterIpc(): void {

@@ -102,7 +102,7 @@ export const UPDATE_CHANNELS = {
 
 export type UpdateStatusEvent =
   | { type: 'checking' }
-  | { type: 'available'; version: string; releaseNotes?: string }
+  | { type: 'available'; version: string; releaseNotes?: string; manualInstall?: boolean }
   | { type: 'not-available'; version: string }
   | {
       type: 'downloading'

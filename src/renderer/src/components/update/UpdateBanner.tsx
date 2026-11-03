@@ -7,7 +7,7 @@ import { cn } from '@/lib/cn'
 
 type BannerState =
   | { kind: 'hidden' }
-  | { kind: 'available'; version: string }
+  | { kind: 'available'; version: string; manualInstall?: boolean }
   | { kind: 'downloading'; version?: string; percent: number }
   | { kind: 'ready'; version: string }
   | { kind: 'message'; text: string }
@@ -27,7 +27,11 @@ export function UpdateBanner() {
           break
         case 'available':
           setChecking(false)
-          setState({ kind: 'available', version: event.version })
+          setState({
+            kind: 'available',
+            version: event.version,
+            manualInstall: event.manualInstall
+          })
           break
         case 'downloading':
           setChecking(false)
@@ -66,7 +70,31 @@ export function UpdateBanner() {
       )}
       role="status"
     >
-      {state.kind === 'available' && (
+      {state.kind === 'available' && state.manualInstall && (
+        <>
+          <Download className="size-4 text-accent-600" aria-hidden />
+          <span className="text-ui text-ink">
+            新版本 {state.version} 已发布，请手动下载安装
+          </span>
+          <Button
+            size="sm"
+            variant="primary"
+            className="rounded-full"
+            onClick={() => void getBridge()?.updates.install()}
+          >
+            下载
+          </Button>
+          <button
+            type="button"
+            className="rounded-full p-1 text-ink-muted hover:bg-surface-hover hover:text-ink"
+            aria-label="Dismiss"
+            onClick={() => setState({ kind: 'hidden' })}
+          >
+            <X className="size-3.5" />
+          </button>
+        </>
+      )}
+      {state.kind === 'available' && !state.manualInstall && (
         <>
           <Download className="size-4 text-accent-600" aria-hidden />
           <span className="text-ui text-ink">Update {state.version} available — downloading…</span>

@@ -1,0 +1,27 @@
+{
+  "GET /api/auth/get-session (unauth)": null,
+  "GET /api/auth/ok": {
+    "ok": true
+  },
+  "POST /api/auth/sign-in/social {}": {
+    "message": "[body.provider] Invalid input",
+    "code": "VALIDATION_ERROR"
+  },
+  "POST /api/auth/sign-in/magic-link (no captcha)": {
+    "code": "CAPTCHA_REQUIRED",
+    "message": "Complete the verification and try again."
+  },
+  "POST /api/auth/sign-in/email-otp bad otp": {
+    "message": "Invalid OTP",
+    "code": "INVALID_OTP"
+  },
+  "GET /api/auth/multi-session/list-device-sessions (unauth)": [],
+  "POST /api/auth/multi-session/set-active (unauth)": {
+    "code": "ACCOUNT_SWITCH_EMPLOYEES_ONLY",
+    "message": "Account switching is not available"
+  },
+  "GET /api/profile (unauth)": {
+    "error": "unauthorized"
+  },
+  "POST /api/messages/send (unauth/wrong)": "401 unauthorized or 405"
+}

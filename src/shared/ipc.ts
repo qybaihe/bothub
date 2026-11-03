@@ -63,6 +63,8 @@ export interface MuseRpcRequest {
   accountId: string
   method: string
   params?: unknown
+  /** BotHub conversation/bot id — used to emit progressive stream events for chat.stream. */
+  conversationId?: string
 }
 
 export interface MuseSessionStatus {

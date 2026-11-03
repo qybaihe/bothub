@@ -288,24 +288,44 @@ export class MuseSessionManager {
     return this.sessions.get(accountId)?.status
   }
 
-  async rpc(accountId: string, method: string, params?: unknown): Promise<unknown> {
+  async rpc(
+    accountId: string,
+    method: string,
+    params?: unknown,
+    conversationId?: string
+  ): Promise<unknown> {
     await this.ensure('muse', accountId)
     if (method === 'chat.stream') {
-      return this.chatStreamAndCollect(accountId, params)
+      return this.chatStreamAndCollect(accountId, params, conversationId)
     }
     return this.rpcRaw(accountId, method, params)
   }
 
   /**
    * chat.stream is streamMode=subscription: the RPC ack is only
-   * {message_id,session_id}. Poll chat.history for the assistant reply.
+   * {message_id,session_id}. Poll chat.history for the assistant reply until
+   * display_text_ready (or the text stops growing).
    */
-  private async chatStreamAndCollect(accountId: string, params: unknown): Promise<unknown> {
+  private async chatStreamAndCollect(
+    accountId: string,
+    params: unknown,
+    conversationId?: string
+  ): Promise<unknown> {
     const ack = (await this.rpcRaw(accountId, 'chat.stream', params)) as Record<string, unknown>
 
     // DOM fallback path already scraped page text.
     if (ack && ack['ok'] === true && ack['mode'] === 'dom') {
       const reply = typeof ack['reply'] === 'string' ? (ack['reply'] as string) : ''
+      if (conversationId) {
+        this.emit({
+          type: 'stream',
+          accountId,
+          conversationId,
+          messageId: `muse_dom_${Date.now().toString(36)}`,
+          text: reply,
+          done: true
+        })
+      }
       return { ...ack, text: reply, display_text: reply, reply }
     }
 
@@ -315,27 +335,68 @@ export class MuseSessionManager {
       return ack
     }
 
-    const reply = await this.waitForAssistantReply(accountId, sessionId, messageId)
+    // Keep a stable BotHub-side id for progressive UI updates (do not switch to
+    // muse message ids mid-stream — that would create duplicate bubbles).
+    const streamMessageId = `muse_stream_${Date.now().toString(36)}`
+    if (conversationId) {
+      this.emit({
+        type: 'stream',
+        accountId,
+        conversationId,
+        messageId: streamMessageId,
+        text: '',
+        done: false
+      })
+    }
+
+    const reply = await this.waitForAssistantReply(accountId, sessionId, messageId, 180_000, (info) => {
+      if (!conversationId || !info.text) return
+      this.emit({
+        type: 'stream',
+        accountId,
+        conversationId,
+        messageId: streamMessageId,
+        text: info.text,
+        done: false
+      })
+    })
+
+    if (conversationId) {
+      this.emit({
+        type: 'stream',
+        accountId,
+        conversationId,
+        messageId: streamMessageId,
+        text: reply,
+        done: true
+      })
+    }
+
     if (!reply) return ack
-    return { ...ack, text: reply, display_text: reply, reply }
+    return { ...ack, text: reply, display_text: reply, reply, assistant_message_id: streamMessageId }
   }
 
   private async waitForAssistantReply(
     accountId: string,
     sessionId: string,
     userMessageId: string,
-    timeoutMs = 90_000
+    timeoutMs = 180_000,
+    onProgress?: (info: { messageId: string; text: string }) => void
   ): Promise<string> {
     const started = Date.now()
     let userAt = 0
     let best = ''
+    let bestId = ''
+    let stableMs = 0
+    let lastChangeAt = Date.now()
+    const pollMs = 600
 
     while (Date.now() - started < timeoutMs) {
       let hist: unknown
       try {
-        hist = await this.rpcRaw(accountId, 'chat.history', { session_id: sessionId, limit: 30 })
+        hist = await this.rpcRaw(accountId, 'chat.history', { session_id: sessionId, limit: 40 })
       } catch {
-        await sleep(800)
+        await sleep(pollMs)
         continue
       }
       const events = extractChatEvents(hist)
@@ -347,38 +408,29 @@ export class MuseSessionManager {
         (e) =>
           e.eventName === 'message.assistant' &&
           e.text.trim() &&
-          (userAt ? e.occurredAt > userAt : e.messageId !== userMessageId)
+          (userAt ? e.occurredAt >= userAt : e.messageId !== userMessageId)
       )
       // Newest assistant after the user turn.
       assistants.sort((a, b) => b.occurredAt - a.occurredAt)
       const top = assistants[0]
       if (top) {
-        best = top.text
-        // Prefer a settled reply (ready flag) or stop once we have text and
-        // nothing changed for a couple polls — history is eventual.
-        if (top.ready || best.length > 0) {
-          // Give streaming a moment to finish if not marked ready.
-          if (top.ready) return best
-          await sleep(1200)
-          // one more read
-          try {
-            hist = await this.rpcRaw(accountId, 'chat.history', { session_id: sessionId, limit: 30 })
-            const again = extractChatEvents(hist)
-              .filter(
-                (e) =>
-                  e.eventName === 'message.assistant' &&
-                  e.text.trim() &&
-                  (userAt ? e.occurredAt > userAt : true)
-              )
-              .sort((a, b) => b.occurredAt - a.occurredAt)[0]
-            if (again?.text) return again.text
-          } catch {
-            /* ignore */
-          }
-          return best
+        if (top.text !== best) {
+          best = top.text
+          bestId = top.messageId
+          lastChangeAt = Date.now()
+          stableMs = 0
+          onProgress?.({ messageId: bestId, text: best })
+        } else {
+          stableMs = Date.now() - lastChangeAt
         }
+        // display_text_ready flips true on the FIRST paintable chunk — it does
+        // NOT mean streaming finished. Wait for payload.status === completed.
+        if (top.completed) return best
+        // Safety net: text unchanged for a long time after we have content and
+        // updatedAt also stopped moving (history often jumps once at the end).
+        if (best.length > 0 && stableMs >= 45_000) return best
       }
-      await sleep(800)
+      await sleep(pollMs)
     }
     return best
   }
@@ -403,28 +455,38 @@ export class MuseSessionManager {
   }
 
   async sendChat(accountId: string, conversationId: string, text: string): Promise<{ messageId: string }> {
-    const messageId = `muse_${Date.now().toString(36)}`
-    this.emit({
-      type: 'stream',
-      accountId,
-      conversationId,
-      messageId,
-      text: '',
-      done: false
-    })
-
     try {
-      const result = await this.rpc(accountId, 'chat.stream', {
-        items: [{ type: 'text', text }],
-        node_id: accountId,
-        capabilities: {}
-      })
-      const reply = extractReplyText(result) || '(Muse accepted the message; open the web session if the reply is only visible there.)'
-      this.emit({ type: 'stream', accountId, conversationId, messageId, text: reply, done: true })
+      const result = await this.rpc(
+        accountId,
+        'chat.stream',
+        {
+          items: [{ type: 'text', text }],
+          node_id: accountId,
+          capabilities: {}
+        },
+        conversationId
+      )
+      const reply = extractReplyText(result)
+      const resultObj = result && typeof result === 'object' ? (result as Record<string, unknown>) : null
+      const fromResult =
+        resultObj && typeof resultObj['assistant_message_id'] === 'string'
+          ? (resultObj['assistant_message_id'] as string)
+          : ''
+      const messageId = fromResult || `muse_${Date.now().toString(36)}`
+      if (!reply) {
+        this.emit({
+          type: 'stream',
+          accountId,
+          conversationId,
+          messageId,
+          text: '(Muse accepted the message; open the web session if the reply is only visible there.)',
+          done: true
+        })
+      }
       return { messageId }
     } catch (error) {
-      // DOM fallback already attempted inside rpc for chat.stream when hook=dom
       const msg = error instanceof Error ? error.message : String(error)
+      const messageId = `muse_${Date.now().toString(36)}`
       this.emit({
         type: 'stream',
         accountId,
@@ -596,7 +658,9 @@ interface ChatEventLite {
   eventName: string
   text: string
   occurredAt: number
-  ready: boolean
+  /** True once muse marks the assistant turn finished (payload.status). */
+  completed: boolean
+  updatedAt: number
 }
 
 function extractChatEvents(raw: unknown): ChatEventLite[] {
@@ -609,12 +673,15 @@ function extractChatEvents(raw: unknown): ChatEventLite[] {
   if (!Array.isArray(list)) return []
   return list.map((item) => {
     const e = (item ?? {}) as Record<string, unknown>
+    const payload = (e['payload'] as Record<string, unknown> | undefined) ?? undefined
+    const status = String(payload?.['status'] ?? e['status'] ?? '').toLowerCase()
     return {
       messageId: String(e['message_id'] ?? e['id'] ?? ''),
       eventName: String(e['event_name'] ?? e['type'] ?? ''),
       text: String(e['display_text'] ?? e['text'] ?? e['content'] ?? ''),
       occurredAt: Number(e['occurred_at_ms'] ?? e['created_at_ms'] ?? 0) || 0,
-      ready: e['display_text_ready'] === true || e['ready'] === true
+      completed: status === 'completed' || status === 'done' || status === 'finished',
+      updatedAt: Number(e['display_text_updated_at_ms'] ?? e['updated_at_ms'] ?? 0) || 0
     }
   })
 }

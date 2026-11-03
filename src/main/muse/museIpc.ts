@@ -50,7 +50,7 @@ export function registerMuseIpc(): void {
     if (typeof request !== 'object' || request === null) throw new TypeError('Invalid muse rpc request')
     const v = request as MuseRpcRequest
     if (typeof v.accountId !== 'string' || typeof v.method !== 'string') throw new TypeError('Invalid muse rpc request')
-    return managerFor(event).rpc(v.accountId, v.method, v.params)
+    return managerFor(event).rpc(v.accountId, v.method, v.params, v.conversationId)
   })
 
   ipcMain.handle(MUSE_CHANNELS.status, (event, accountId: unknown) => {

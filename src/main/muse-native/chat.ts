@@ -76,6 +76,49 @@ export interface MuseMediaPart {
   mimeType?: string
 }
 
+
+/** Read-only rich widgets (no commerce actions). */
+export type MuseRichWidget =
+  | {
+      kind: 'shopping_results' | 'shopping_results_v2'
+      widgetId: string
+      products: Array<{
+        name: string
+        url?: string
+        imageUrl?: string
+        price?: string
+        retailer?: string
+      }>
+    }
+  | {
+      kind: 'shopping_cart'
+      widgetId: string
+      retailerName?: string
+      subtotal?: string
+      items: Array<{ id: string; name: string; quantity: number; imageUrl?: string; linePrice?: string }>
+    }
+  | {
+      kind: 'local_map'
+      widgetId: string
+      html?: string
+      places: Array<{ id: string; name: string; latitude: number; longitude: number; category?: string }>
+    }
+  | {
+      kind: 'marketplace_map'
+      widgetId: string
+      listings: Array<{
+        id: string
+        name: string
+        url?: string
+        price?: string
+        imageUrl?: string
+        latitude?: number
+        longitude?: number
+      }>
+    }
+  | { kind: 'html'; widgetId: string; html: string; downloadable?: boolean }
+  | { kind: 'slides'; widgetId: string; label: string; path?: string; slug: string }
+
 export interface MuseOptionWidget {
   kind: 'option'
   widgetId: string
@@ -163,6 +206,185 @@ export function parseOptionWidgets(payload: Record<string, unknown>): MuseOption
   }
   return out
 }
+
+
+function asObj(v: unknown): Record<string, unknown> | null {
+  return v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : null
+}
+
+function coord(v: unknown): { latitude: number; longitude: number } | null {
+  const o = asObj(v)
+  if (!o) return null
+  const latitude = o['latitude']
+  const longitude = o['longitude']
+  if (typeof latitude !== 'number' || typeof longitude !== 'number') return null
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null
+  return { latitude, longitude }
+}
+
+/** Parse shopping / maps / html / slides widgets for read-only display. */
+export function parseRichWidgets(payload: Record<string, unknown>): MuseRichWidget[] {
+  const bags: unknown[] = []
+  for (const key of ['widgets', 'presentations', 'presentation']) {
+    const v = payload[key]
+    if (Array.isArray(v)) bags.push(...v)
+    else if (v && typeof v === 'object') bags.push(v)
+  }
+  const nested = asObj(payload['data'])
+  if (nested) {
+    for (const key of ['widgets', 'presentations']) {
+      const v = nested[key]
+      if (Array.isArray(v)) bags.push(...v)
+    }
+  }
+  const out: MuseRichWidget[] = []
+  for (const raw of bags) {
+    const w = asObj(raw)
+    if (!w) continue
+    const kind = str(w['kind'] || w['widget_kind'] || w['widgetKind'])
+    const widgetId = str(w['widget_id'] || w['widgetId'] || w['presentation_id'] || w['id'] || `${kind}-${out.length}`)
+    const data = asObj(w['data']) || w
+    if (kind === 'shopping_results' || kind === 'shopping_results_v2') {
+      const productsRaw = data['products']
+      const products: Array<{
+        name: string
+        url?: string
+        imageUrl?: string
+        price?: string
+        retailer?: string
+      }> = []
+      if (Array.isArray(productsRaw)) {
+        for (const row of productsRaw) {
+          const o = asObj(row)
+          if (!o) continue
+          const name = str(o['product_name'] || o['productName'] || o['name'])
+          if (!name) continue
+          products.push({
+            name,
+            url: str(o['url']) || undefined,
+            imageUrl: str(o['image_url'] || o['imageUrl']) || undefined,
+            price: str(o['price'] || o['line_price'] || o['linePrice']) || undefined,
+            retailer: str(o['retailer_name'] || o['retailerName'] || o['provider']) || undefined
+          })
+        }
+      }
+      if (products.length) out.push({ kind, widgetId, products: products.slice(0, 24) })
+      continue
+    }
+    if (kind === 'shopping_cart') {
+      const itemsRaw = data['items']
+      const items: Array<{ id: string; name: string; quantity: number; imageUrl?: string; linePrice?: string }> = []
+      if (Array.isArray(itemsRaw)) {
+        for (const row of itemsRaw) {
+          const o = asObj(row)
+          if (!o) continue
+          const id = str(o['id'])
+          const name = str(o['name'])
+          const quantity = o['quantity']
+          if (!id || !name || typeof quantity !== 'number' || !(quantity > 0)) continue
+          items.push({
+            id,
+            name,
+            quantity,
+            imageUrl: str(o['image_url'] || o['imageUrl']) || undefined,
+            linePrice: str(o['line_price'] || o['linePrice']) || undefined
+          })
+        }
+      }
+      if (items.length) {
+        out.push({
+          kind: 'shopping_cart',
+          widgetId,
+          items: items.slice(0, 40),
+          retailerName: str(data['retailer_name'] || data['retailerName']) || undefined,
+          subtotal: str(data['subtotal']) || undefined
+        })
+      }
+      continue
+    }
+    if (kind === 'local_map') {
+      const html = str(data['html']) || undefined
+      const places: Array<{ id: string; name: string; latitude: number; longitude: number; category?: string }> = []
+      const typed = asObj(data['typed_data'] || data['typedData'] || data['scene'])
+      const elements = typed && Array.isArray(typed['elements']) ? typed['elements'] : data['elements']
+      if (Array.isArray(elements)) {
+        for (const row of elements) {
+          const o = asObj(row)
+          if (!o) continue
+          const c = coord(o['coordinate'])
+          const name = str(o['name'])
+          const id = str(o['id'] || o['place_id'] || o['placeId'] || name)
+          if (!c || !name) continue
+          places.push({
+            id,
+            name,
+            latitude: c.latitude,
+            longitude: c.longitude,
+            category: str(o['category']) || undefined
+          })
+        }
+      }
+      if (html || places.length) out.push({ kind: 'local_map', widgetId, html, places: places.slice(0, 40) })
+      continue
+    }
+    if (kind === 'marketplace_map') {
+      const listings: Array<{
+        id: string
+        name: string
+        url?: string
+        price?: string
+        imageUrl?: string
+        latitude?: number
+        longitude?: number
+      }> = []
+      const typed = asObj(data['typed_data'] || data['typedData'])
+      const elements = typed && Array.isArray(typed['elements']) ? typed['elements'] : data['elements']
+      if (Array.isArray(elements)) {
+        for (const row of elements.slice(0, 24)) {
+          const o = asObj(row)
+          if (!o) continue
+          const id = str(o['id'] || o['listing_id'] || o['listingId'])
+          const name = str(o['name'])
+          if (!id || !name) continue
+          const c = o['coordinate'] != null ? coord(o['coordinate']) : null
+          listings.push({
+            id,
+            name,
+            url: str(o['url']) || undefined,
+            price: str(o['price'] || o['sale_price'] || o['salePrice']) || undefined,
+            imageUrl: str(o['image_url'] || o['imageUrl']) || undefined,
+            latitude: c?.latitude,
+            longitude: c?.longitude
+          })
+        }
+      }
+      if (listings.length) out.push({ kind: 'marketplace_map', widgetId, listings })
+      continue
+    }
+    if (kind === 'html') {
+      const html = str(data['html'])
+      if (html.trim()) {
+        out.push({
+          kind: 'html',
+          widgetId,
+          html: html.slice(0, 200_000),
+          downloadable: data['downloadable'] === true
+        })
+      }
+      continue
+    }
+    if (kind === 'slides') {
+      const deck = asObj(data['deck']) || data
+      const label = str(deck['label'] || data['label'] || data['display_text'] || 'Slides')
+      const slug = str(data['slug'])
+      const path = str(deck['path'] || data['path']) || undefined
+      if (slug) out.push({ kind: 'slides', widgetId, label, slug, path })
+      continue
+    }
+  }
+  return out
+}
+
 
 export function parseToolCall(
   eventName: string,
@@ -350,6 +572,7 @@ export interface ChatStreamUpdate {
   done: boolean
   /** Option chips (Kai/Juno) when present on the message. */
   widgets?: MuseOptionWidget[]
+  richWidgets?: MuseRichWidget[]
   tools?: MuseToolCall[]
   media?: MuseMediaPart[]
 }
@@ -361,6 +584,7 @@ export interface ChatStreamResult {
   text: string
   eventCounts: Record<string, number>
   widgetsByMessageId: Record<string, MuseOptionWidget[]>
+  richWidgetsByMessageId: Record<string, MuseRichWidget[]>
 }
 
 export interface MuseChatItem {
@@ -419,6 +643,7 @@ export async function streamChat(
   const counts: Record<string, number> = {}
   const texts = new Map<string, string>()
   const widgets = new Map<string, MuseOptionWidget[]>()
+  const richWidgets = new Map<string, MuseRichWidget[]>()
   const tools = new Map<string, MuseToolCall[]>()
   const media = new Map<string, MuseMediaPart[]>()
   const order: string[] = []
@@ -467,6 +692,7 @@ export async function streamChat(
       text: texts.get(id) ?? '',
       done,
       widgets: widgets.get(id),
+      richWidgets: richWidgets.get(id),
       tools: tools.get(id),
       media: media.get(id)
     })
@@ -507,11 +733,13 @@ export async function streamChat(
 
   const applyWidgets = (id: string, p: Record<string, unknown>): void => {
     const parsed = parseOptionWidgets(p)
-    if (!parsed.length) return
+    const rich = parseRichWidgets(p)
+    if (!parsed.length && !rich.length) return
     ensureBubble(id || order[order.length - 1] || '')
     const target = id || order[order.length - 1]
     if (!target) return
-    widgets.set(target, parsed)
+    if (parsed.length) widgets.set(target, parsed)
+    if (rich.length) richWidgets.set(target, rich)
     pushUpdate(target, doneIds.has(target))
   }
 
@@ -749,13 +977,16 @@ export async function streamChat(
   for (const id of order) if (!doneIds.has(id)) pushUpdate(id, true)
   const widgetsByMessageId: Record<string, MuseOptionWidget[]> = {}
   for (const [id, list] of widgets) widgetsByMessageId[id] = list
+  const richWidgetsByMessageId: Record<string, MuseRichWidget[]> = {}
+  for (const [id, list] of richWidgets) richWidgetsByMessageId[id] = list
   return {
     ack,
     sessionId: sessionId || undefined,
     assistantMessageIds: order,
     text: order.map((id) => texts.get(id) ?? '').filter(Boolean).join('\n\n'),
     eventCounts: counts,
-    widgetsByMessageId
+    widgetsByMessageId,
+    richWidgetsByMessageId
   }
 }
 
@@ -826,6 +1057,7 @@ interface HistoryRow {
   text: string
   completed: boolean
   widgets?: MuseOptionWidget[]
+  richWidgets?: MuseRichWidget[]
 }
 
 /** Assistant rows from chat.history (`{ok,result:{events|chat_events|messages}}`), oldest first. */
@@ -853,11 +1085,12 @@ export function historyAssistants(raw: unknown): HistoryRow[] {
       str(e['content'])
     const status = (str(p['status']) || str(e['status'])).toLowerCase()
     const w = parseOptionWidgets(mergedPayload)
+    const rw = parseRichWidgets(mergedPayload)
     rows.push({
       id: str(e['message_id']) || str(p['message_id']) || str(e['id']),
       text,
       completed: status === 'completed' || status === 'complete' || status === 'done' || status === 'finished' || (!status && Boolean(text || w.length)),
-      widgets: w.length ? w : undefined,
+      widgets: w.length ? w : undefined, richWidgets: rw.length ? rw : undefined,
       at: Number(e['occurred_at_ms'] ?? e['created_at_ms'] ?? e['ts_ms'] ?? 0) || 0
     })
   }

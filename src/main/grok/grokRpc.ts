@@ -69,7 +69,9 @@ export async function runGrokRpc(request: GrokRpcRequest): Promise<GrokRpcRespon
   try {
     const client = await clientFor(request.accountId, request.timeZone)
     const auth = await resolveClientAuth(request.accountId)
-    const defaultSession = auth.accountSlot ?? request.accountId
+    // Sand treats a non-empty unknown session_id as agent-not-found (404).
+    // Empty string is accepted for Send/Transcript/approvals; callers may override.
+    const defaultSession = ""
 
     switch (request.op) {
       case 'listAgents': {

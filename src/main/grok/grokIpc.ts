@@ -53,7 +53,7 @@ export function registerGrokIpc(): void {
   onGrokAuthCaptured((auth) => {
     // Broadcast to all BotHub windows so renderer can setAuth + connect.
     for (const win of BrowserWindow.getAllWindows()) {
-      if (win.isDestroyed()) continue
+      if (win.isDestroyed() || win.webContents.isDestroyed()) continue
       win.webContents.send(GROK_CHANNELS.event, {
         type: 'auth',
         accountId: auth.accountId,

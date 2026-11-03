@@ -30,6 +30,7 @@ function releaseUrl(version?: string): string {
 
 function broadcast(event: UpdateStatusEvent): void {
   for (const win of BrowserWindow.getAllWindows()) {
+    if (win.isDestroyed() || win.webContents.isDestroyed()) continue
     win.webContents.send(UPDATE_CHANNELS.event, event)
   }
 }

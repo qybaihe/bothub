@@ -7,12 +7,17 @@ const managers = new Map<number, MuseSessionManager>()
 
 export function attachMuseSessionManager(window: BrowserWindow, views: WebContentsViewManager): MuseSessionManager {
   const manager = new MuseSessionManager(window, views)
-  managers.set(window.webContents.id, manager)
-  window.on('closed', () => managers.delete(window.webContents.id))
+  // Capture id before close: accessing window.webContents after 'closed' throws
+  // TypeError: Object has been destroyed (seen on app quit).
+  const senderId = window.webContents.id
+  managers.set(senderId, manager)
+  window.on('closed', () => managers.delete(senderId))
 
   // Forward muse events to the renderer that owns this window.
   manager.onEvent((event) => {
-    if (!window.isDestroyed()) window.webContents.send(MUSE_CHANNELS.event, event)
+    if (!window.isDestroyed() && !window.webContents.isDestroyed()) {
+      window.webContents.send(MUSE_CHANNELS.event, event)
+    }
   })
   return manager
 }

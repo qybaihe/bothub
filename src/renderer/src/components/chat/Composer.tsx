@@ -1,7 +1,7 @@
 import { useRef, useState, type DragEvent, type KeyboardEvent } from 'react'
 import type { AttachmentMeta } from '@adapters/types'
 import { createId } from '@shared/id'
-import { ArrowUp, FileText, Loader2, Paperclip, PlugZap, X } from 'lucide-react'
+import { ArrowUp, FileText, Loader2, LogIn, Paperclip, PlugZap, X } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { IconButton } from '@/components/ui/IconButton'
 import { cn } from '@/lib/cn'
@@ -13,6 +13,7 @@ interface ComposerProps {
   account: BotAccount | undefined
   onSend: (text: string, attachments: AttachmentMeta[]) => void
   onConnect: (accountId: string) => void
+  onMuseLogin?: (accountId: string) => void
 }
 
 const MAX_HEIGHT_PX = 200
@@ -26,33 +27,60 @@ function toAttachments(files: FileList | File[]): AttachmentMeta[] {
   }))
 }
 
-function ConnectionNotice({ account, onConnect }: { account: BotAccount; onConnect: () => void }) {
+function ConnectionNotice({
+  account,
+  onConnect,
+  onMuseLogin
+}: {
+  account: BotAccount
+  onConnect: () => void
+  onMuseLogin?: () => void
+}) {
   const isError = account.status === 'error'
+  const isMuse = account.platformId === 'meta-muse'
   return (
     <div
       className={cn(
-        'mb-2 flex items-center gap-3 rounded-xl border px-3 py-2 text-ui',
+        'mb-2 flex flex-wrap items-center gap-2 rounded-xl border px-3 py-2.5',
         isError
           ? 'border-status-error/25 bg-status-error/5 text-status-error-ink'
-          : 'border-line bg-canvas text-ink-secondary'
+          : 'border-line bg-canvas text-ink'
       )}
       role="status"
     >
-      <PlugZap className="size-4 shrink-0" aria-hidden />
-      <span className="min-w-0 flex-1 truncate">
+      {isMuse ? (
+        <LogIn className="size-4 shrink-0 text-accent-600" aria-hidden />
+      ) : (
+        <PlugZap className="size-4 shrink-0 text-ink-muted" aria-hidden />
+      )}
+      <span className="min-w-0 flex-1 text-[13px] font-medium">
         {isError
-          ? (account.statusDetail ?? `${account.displayName} hit a connection error.`)
-          : `${account.displayName} is offline. Connect to send messages.`}
+          ? (account.statusDetail ?? '连接出错')
+          : isMuse
+            ? '登录 Muse 后即可发消息'
+            : '账号未连接'}
       </span>
-      <Button size="sm" variant="secondary" onClick={onConnect} disabled={account.pending}>
-        {account.pending && <Loader2 className="animate-spin" aria-hidden />}
-        {account.pending ? 'Connecting' : isError ? 'Reconnect' : 'Connect'}
-      </Button>
+      {isMuse && onMuseLogin ? (
+        <>
+          <Button size="sm" variant="primary" onClick={onMuseLogin} disabled={account.pending}>
+            {account.pending && <Loader2 className="animate-spin" aria-hidden />}
+            {account.pending ? '登录中…' : '使用 Muse 登录'}
+          </Button>
+          <Button size="sm" variant="ghost" onClick={onConnect} disabled={account.pending}>
+            已完成登录
+          </Button>
+        </>
+      ) : (
+        <Button size="sm" variant="secondary" onClick={onConnect} disabled={account.pending}>
+          {account.pending && <Loader2 className="animate-spin" aria-hidden />}
+          {account.pending ? '连接中' : isError ? '重试' : '连接'}
+        </Button>
+      )}
     </div>
   )
 }
 
-export function Composer({ bot, account, onSend, onConnect }: ComposerProps) {
+export function Composer({ bot, account, onSend, onConnect, onMuseLogin }: ComposerProps) {
   const [text, setText] = useState('')
   const [attachments, setAttachments] = useState<AttachmentMeta[]>([])
   const [dragging, setDragging] = useState(false)
@@ -100,7 +128,13 @@ export function Composer({ bot, account, onSend, onConnect }: ComposerProps) {
   return (
     <div className="shrink-0 px-6 pt-2 pb-5">
       <div className="mx-auto max-w-[960px] px-2">
-        {account && !connected && <ConnectionNotice account={account} onConnect={() => onConnect(account.id)} />}
+        {account && !connected && (
+          <ConnectionNotice
+            account={account}
+            onConnect={() => onConnect(account.id)}
+            onMuseLogin={onMuseLogin ? () => onMuseLogin(account.id) : undefined}
+          />
+        )}
 
         <div
           onDragOver={(event) => {

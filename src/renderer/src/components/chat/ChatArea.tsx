@@ -18,28 +18,52 @@ const STARTERS = [
   'Brainstorm five names for a side project'
 ]
 
-function ConversationIntro({ bot, canSend, onPick }: { bot: Bot; canSend: boolean; onPick: (text: string) => void }) {
+function ConversationIntro({
+  bot,
+  canSend,
+  needsMuseLogin,
+  onPick,
+  onMuseLogin
+}: {
+  bot: Bot
+  canSend: boolean
+  needsMuseLogin: boolean
+  onPick: (text: string) => void
+  onMuseLogin?: () => void
+}) {
   return (
     <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 px-8 text-center">
       <BotAvatar emoji={bot.emoji} seed={bot.id} platformId={bot.platformId} size="lg" />
       <div>
         <h2 className="text-base font-semibold tracking-tight">{bot.name}</h2>
-        <p className="mt-1 max-w-sm text-ui text-ink-muted">{bot.description}</p>
+        {bot.description ? (
+          <p className="mt-1 max-w-sm text-[13px] text-ink-muted">{bot.description}</p>
+        ) : null}
       </div>
-      <div className="flex flex-wrap justify-center gap-2">
-        {STARTERS.map((starter) => (
-          <button
-            key={starter}
-            type="button"
-            disabled={!canSend}
-            onClick={() => onPick(starter)}
-            className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface px-3 py-1.5 text-ui text-ink-secondary shadow-soft transition-colors hover:border-accent-200 hover:bg-accent-50 hover:text-accent-700 disabled:opacity-50"
-          >
-            <Sparkles className="size-3.5 text-accent-500" aria-hidden />
-            {starter}
-          </button>
-        ))}
-      </div>
+      {needsMuseLogin && onMuseLogin ? (
+        <button
+          type="button"
+          onClick={onMuseLogin}
+          className="inline-flex h-10 items-center gap-2 rounded-full bg-accent-600 px-5 text-[13px] font-semibold text-white shadow-soft transition-transform hover:bg-accent-700 active:scale-[0.98]"
+        >
+          使用 Muse 登录
+        </button>
+      ) : (
+        <div className="flex flex-wrap justify-center gap-2">
+          {STARTERS.map((starter) => (
+            <button
+              key={starter}
+              type="button"
+              disabled={!canSend}
+              onClick={() => onPick(starter)}
+              className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface px-3 py-1.5 text-[13px] text-ink-secondary shadow-soft transition-colors hover:border-accent-200 hover:bg-accent-50 hover:text-accent-700 disabled:opacity-50"
+            >
+              <Sparkles className="size-3.5 text-accent-500" aria-hidden />
+              {starter}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -52,6 +76,7 @@ export function ChatArea() {
   const sendMessage = useBotStore((s) => s.sendMessage)
   const retryMessage = useBotStore((s) => s.retryMessage)
   const connectAccount = useBotStore((s) => s.connectAccount)
+  const openMuseLogin = useBotStore((s) => s.openMuseLogin)
   const webSessionOpen = useBotStore((s) => s.webSessionOpen)
 
   const accounts = useMemo(() => (bot ? getBotAccounts(bot, accountMap) : []), [bot, accountMap])
@@ -71,6 +96,7 @@ export function ChatArea() {
     [botId, retryMessage]
   )
   const onConnect = useCallback((accountId: string) => void connectAccount(accountId), [connectAccount])
+  const onMuseLogin = useCallback((accountId: string) => void openMuseLogin(accountId), [openMuseLogin])
 
   if (!bot) {
     return (
@@ -97,11 +123,23 @@ export function ChatArea() {
       ) : (
         <>
           {messages.length === 0 && !typing ? (
-            <ConversationIntro bot={bot} canSend={canSend} onPick={(text) => onSend(text)} />
+            <ConversationIntro
+              bot={bot}
+              canSend={canSend}
+              needsMuseLogin={
+                bot.platformId === 'meta-muse' &&
+                !!activeAccount &&
+                activeAccount.status !== 'online' &&
+                activeAccount.status !== 'busy' &&
+                activeAccount.status !== 'attention'
+              }
+              onPick={(text) => onSend(text)}
+              onMuseLogin={activeAccount ? () => onMuseLogin(activeAccount.id) : undefined}
+            />
           ) : (
             <MessageList bot={bot} messages={messages} accounts={accounts} typing={typing} onRetry={onRetry} />
           )}
-          <Composer key={bot.id} bot={bot} account={activeAccount} onSend={onSend} onConnect={onConnect} />
+          <Composer key={bot.id} bot={bot} account={activeAccount} onSend={onSend} onConnect={onConnect} onMuseLogin={onMuseLogin} />
         </>
       )}
     </div>

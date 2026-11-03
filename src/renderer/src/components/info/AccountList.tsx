@@ -2,6 +2,7 @@ import { useState } from 'react'
 import {
   Check,
   Loader2,
+  LogIn,
   MoreHorizontal,
   Pencil,
   Plug,
@@ -10,6 +11,7 @@ import {
   UserMinus,
   UserRoundCheck
 } from 'lucide-react'
+import { Button } from '@/components/ui/Button'
 import { AccountAvatar } from '@/components/ui/Avatar'
 import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from '@/components/ui/Menu'
 import { StatusBadge } from '@/components/ui/Status'
@@ -29,6 +31,7 @@ export function AccountList({ bot, accounts }: AccountListProps) {
   const renameAccount = useBotStore((s) => s.renameAccount)
   const signOutAccount = useBotStore((s) => s.signOutAccount)
   const removeAndClearAccount = useBotStore((s) => s.removeAndClearAccount)
+  const openMuseLogin = useBotStore((s) => s.openMuseLogin)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [draftName, setDraftName] = useState('')
 
@@ -107,22 +110,39 @@ export function AccountList({ bot, accounts }: AccountListProps) {
                       </span>
                     )}
                   </p>
-                  <p className="truncate text-caption text-ink-muted" title={account.statusDetail}>
-                    {(account.status === 'error' || account.status === 'busy') && account.statusDetail
+                  <p className="truncate text-[12px] text-ink-muted" title={account.statusDetail}>
+                    {account.status === 'error' && account.statusDetail
                       ? account.statusDetail
                       : account.statusDetail === 'Signed out'
-                        ? 'Signed out · partition cleared'
+                        ? '已退出'
                         : account.handle}
                   </p>
                 </button>
               )}
             </div>
 
-            {account.pending ? (
-              <Loader2 className="size-4 animate-spin text-ink-muted" aria-label="Updating" />
-            ) : (
-              <StatusBadge status={account.status} />
+            {!connected && account.platformId === 'meta-muse' && (
+              <Button
+                size="sm"
+                variant="primary"
+                className="shrink-0"
+                disabled={account.pending}
+                onClick={() => void openMuseLogin(account.id)}
+              >
+                {account.pending ? (
+                  <Loader2 className="size-3.5 animate-spin" aria-hidden />
+                ) : (
+                  <LogIn className="size-3.5" aria-hidden />
+                )}
+                {account.pending ? '登录中…' : '使用 Muse 登录'}
+              </Button>
             )}
+
+            {account.pending && account.platformId !== 'meta-muse' ? (
+              <Loader2 className="size-4 animate-spin text-ink-muted" aria-label="Updating" />
+            ) : connected || account.platformId !== 'meta-muse' ? (
+              <StatusBadge status={account.status} />
+            ) : null}
 
             <Menu>
               <MenuTrigger
@@ -142,23 +162,27 @@ export function AccountList({ bot, accounts }: AccountListProps) {
                   ) : (
                     <UserRoundCheck className="size-4 text-ink-muted" />
                   )}
-                  {active ? 'Sending from this account' : 'Send from this account'}
+                  {active ? '当前发送账号' : '用此账号发送'}
                 </MenuItem>
                 <MenuItem onSelect={() => startRename(account)}>
-                  <Pencil className="size-4 text-ink-muted" /> Rename / label
+                  <Pencil className="size-4 text-ink-muted" /> 重命名
                 </MenuItem>
                 {connected ? (
                   <MenuItem onSelect={() => void disconnectAccount(account.id)}>
-                    <Unplug className="size-4 text-ink-muted" /> Disconnect
+                    <Unplug className="size-4 text-ink-muted" /> 断开
+                  </MenuItem>
+                ) : account.platformId === 'meta-muse' ? (
+                  <MenuItem onSelect={() => void openMuseLogin(account.id)}>
+                    <LogIn className="size-4 text-ink-muted" /> 使用 Muse 登录
                   </MenuItem>
                 ) : (
                   <MenuItem onSelect={() => void connectAccount(account.id)}>
                     <Plug className="size-4 text-ink-muted" />{' '}
-                    {account.status === 'error' ? 'Reconnect' : 'Connect / sign in'}
+                    {account.status === 'error' ? '重试连接' : '连接'}
                   </MenuItem>
                 )}
                 <MenuItem onSelect={() => void signOutAccount(account.id)}>
-                  <LogOut className="size-4 text-ink-muted" /> Sign out (clear session)
+                  <LogOut className="size-4 text-ink-muted" /> 退出登录
                 </MenuItem>
                 <MenuSeparator />
                 <MenuItem
@@ -166,7 +190,7 @@ export function AccountList({ bot, accounts }: AccountListProps) {
                   onSelect={() => void removeAndClearAccount(bot.id, account.id)}
                   className="text-status-error-ink"
                 >
-                  <UserMinus className="size-4" /> Remove & clear partition
+                  <UserMinus className="size-4" /> 移除并清除会话
                 </MenuItem>
               </MenuContent>
             </Menu>

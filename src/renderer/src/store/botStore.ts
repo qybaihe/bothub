@@ -62,6 +62,8 @@ export interface BotHubState {
   removeAndClearAccount: (botId: string, accountId: string) => Promise<void>
   setAccountStatus: (accountId: string, status: ConnectionStatus, detail?: string) => void
   connectAccount: (accountId: string) => Promise<void>
+  /** Muse: open same-partition login BrowserWindow. */
+  openMuseLogin: (accountId: string) => Promise<void>
   disconnectAccount: (accountId: string) => Promise<void>
 }
 
@@ -393,6 +395,29 @@ export const useBotStore = create<BotHubState>()(
       try {
         const status = await adapter.connect(accountId)
         patchAccount(accountId, { status, statusDetail: undefined })
+      } catch (error) {
+        patchAccount(accountId, { status: 'error', statusDetail: errorMessage(error) })
+      } finally {
+        patchAccount(accountId, { pending: false })
+      }
+    },
+
+    openMuseLogin: async (accountId) => {
+      const account = get().accounts[accountId]
+      const adapter = account && adapterRegistry.get(account.platformId)
+      if (!account || !adapter || account.pending) return
+      if (account.platformId !== 'meta-muse' || !adapter.openLogin) {
+        await get().connectAccount(accountId)
+        return
+      }
+      const bot = get().bots.find((b) => b.accountIds.includes(accountId))
+      patchAccount(accountId, { pending: true, statusDetail: '等待在登录窗口完成…' })
+      try {
+        const status = await adapter.openLogin(accountId, bot?.id)
+        patchAccount(accountId, {
+          status,
+          statusDetail: status === 'offline' ? '在弹出的窗口里完成 Muse 登录' : undefined
+        })
       } catch (error) {
         patchAccount(accountId, { status: 'error', statusDetail: errorMessage(error) })
       } finally {

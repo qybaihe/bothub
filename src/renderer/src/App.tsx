@@ -11,7 +11,8 @@ import { startAdapterBridge } from '@/services/adapterBridge'
 import { useBotStore } from '@/store/botStore'
 
 export default function App() {
-  const infoOpen = useBotStore((s) => s.infoPanelOpen)
+  // Details only make sense next to a selected bot.
+  const infoOpen = useBotStore((s) => s.infoPanelOpen && s.bots.some((b) => b.id === s.selectedBotId))
   const setAddBotOpen = useBotStore((s) => s.setAddBotOpen)
 
   useEffect(() => startAdapterBridge(), [])

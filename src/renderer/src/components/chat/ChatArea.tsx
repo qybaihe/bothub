@@ -1,8 +1,10 @@
 import { useCallback, useMemo } from 'react'
 import type { AttachmentMeta } from '@adapters/types'
-import { MessagesSquare, Sparkles } from 'lucide-react'
+import { Plus, Sparkles } from 'lucide-react'
 import { BotAvatar } from '@/components/ui/Avatar'
+import { Button } from '@/components/ui/Button'
 import { getBotAccounts } from '@/lib/selectors'
+import { shortcutLabel } from '@/lib/shortcuts'
 import { useBotStore } from '@/store/botStore'
 import type { Bot, ChatMessage } from '@/types'
 import { ChatHeader } from './ChatHeader'
@@ -78,6 +80,8 @@ export function ChatArea() {
   const connectAccount = useBotStore((s) => s.connectAccount)
   const openMuseLogin = useBotStore((s) => s.openMuseLogin)
   const webSessionOpen = useBotStore((s) => s.webSessionOpen)
+  const hasBots = useBotStore((s) => s.bots.length > 0)
+  const setAddBotOpen = useBotStore((s) => s.setAddBotOpen)
 
   const accounts = useMemo(() => (bot ? getBotAccounts(bot, accountMap) : []), [bot, accountMap])
   const activeAccount = bot ? accountMap[bot.activeAccountId] : undefined
@@ -102,9 +106,17 @@ export function ChatArea() {
     return (
       <div className="flex flex-1 flex-col">
         <div className="drag-region h-[52px] shrink-0" />
-        <div className="flex flex-1 flex-col items-center justify-center gap-2 text-ink-muted">
-          <MessagesSquare className="size-6" aria-hidden />
-          <p className="text-ui">Select a bot to start a conversation</p>
+        <div className="flex flex-1 animate-veil-in flex-col items-center justify-center gap-4 pb-[52px]">
+          {hasBots ? (
+            <p className="text-[13px] text-ink-muted">Select a bot</p>
+          ) : (
+            <>
+              <p className="text-[15px] font-semibold tracking-tight text-ink">Add your first bot</p>
+              <Button variant="primary" size="lg" onClick={() => setAddBotOpen(true)} title={`New bot (${shortcutLabel('N')})`}>
+                <Plus aria-hidden /> New bot
+              </Button>
+            </>
+          )}
         </div>
       </div>
     )

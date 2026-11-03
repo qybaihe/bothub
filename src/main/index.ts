@@ -3,6 +3,7 @@ import { app, BrowserWindow, shell } from 'electron'
 import { attachWebViewManager, registerWebViewIpc } from './webViewIpc'
 import { attachMuseSessionManager, registerMuseIpc } from './muse/museIpc'
 import { registerUpdaterIpc, startAutoUpdater } from './updater'
+import { registerGrokIpc } from './grok/grokIpc'
 
 const isMac = process.platform === 'darwin'
 
@@ -55,6 +56,7 @@ app.whenReady().then(() => {
   registerWebViewIpc()
   registerMuseIpc()
   registerUpdaterIpc()
+  registerGrokIpc()
   createMainWindow()
   startAutoUpdater()
 

@@ -81,6 +81,10 @@ export interface BotHubState {
   connectAccount: (accountId: string) => Promise<void>
   /** Muse: open same-partition login BrowserWindow. */
   openMuseLogin: (accountId: string) => Promise<void>
+  /** Grok: open Cursor authenticator window (2FA); token still manual. */
+  openGrokLogin: (accountId: string) => Promise<void>
+  /** Inject Grok accessToken into adapter after login (not persisted). */
+  setGrokAccessToken: (accountId: string, accessToken: string, accountSlot?: string) => Promise<void>
   disconnectAccount: (accountId: string) => Promise<void>
 }
 
@@ -540,6 +544,52 @@ export const useBotStore = create<BotHubState>()(
       }
     },
 
+
+    openGrokLogin: async (accountId) => {
+      const account = get().accounts[accountId]
+      const adapter = account && adapterRegistry.get(account.platformId)
+      if (!account || !adapter || account.pending) return
+      if (account.platformId !== 'grok') {
+        await get().connectAccount(accountId)
+        return
+      }
+      const bot = get().bots.find((b) => b.accountIds.includes(accountId))
+      patchAccount(accountId, { pending: true, statusDetail: '在登录窗口完成 Cursor / Grok 登录…' })
+      try {
+        const bridge = electronBridge()
+        if (bridge?.grok?.openLogin) await bridge.grok.openLogin({ accountId })
+        else if (adapter.openLogin) await adapter.openLogin(accountId, bot?.id)
+        patchAccount(accountId, {
+          status: 'offline',
+          statusDetail: '登录后把 accessToken 交给 BotHub（尚未自动抓取）'
+        })
+      } catch (error) {
+        patchAccount(accountId, { status: 'error', statusDetail: errorMessage(error) })
+      } finally {
+        patchAccount(accountId, { pending: false })
+      }
+    },
+
+    setGrokAccessToken: async (accountId, accessToken, accountSlot) => {
+      const account = get().accounts[accountId]
+      const adapter = account && adapterRegistry.get(account.platformId)
+      if (!account || account.platformId !== 'grok') return
+      patchAccount(accountId, { pending: true })
+      try {
+        const bridge = electronBridge()
+        if (bridge?.grok?.setAccessToken) {
+          await bridge.grok.setAccessToken({ accountId, accessToken, accountSlot })
+        }
+        const grok = adapter as { setAuth?: (s: { accountId: string; accessToken: string; accountSlot?: string }) => void }
+        grok.setAuth?.({ accountId, accessToken, accountSlot })
+        const status = await adapter?.connect(accountId)
+        patchAccount(accountId, { status: status ?? 'online', statusDetail: undefined })
+      } catch (error) {
+        patchAccount(accountId, { status: 'error', statusDetail: errorMessage(error) })
+      } finally {
+        patchAccount(accountId, { pending: false })
+      }
+    },
     disconnectAccount: async (accountId) => {
       const account = get().accounts[accountId]
       const adapter = account && adapterRegistry.get(account.platformId)

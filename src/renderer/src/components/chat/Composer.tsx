@@ -14,6 +14,7 @@ interface ComposerProps {
   onSend: (text: string, attachments: AttachmentMeta[]) => void
   onConnect: (accountId: string) => void
   onMuseLogin?: (accountId: string) => void
+  onGrokLogin?: (accountId: string) => void
   /** The empty conversation already shows its own sign-in action. */
   hideNotice?: boolean
 }
@@ -32,14 +33,17 @@ function toAttachments(files: FileList | File[]): AttachmentMeta[] {
 function ConnectionNotice({
   account,
   onConnect,
-  onMuseLogin
+  onMuseLogin,
+  onGrokLogin
 }: {
   account: BotAccount
   onConnect: () => void
   onMuseLogin?: () => void
+  onGrokLogin?: () => void
 }) {
   const isError = account.status === 'error'
   const isMuse = account.platformId === 'meta-muse'
+  const isGrok = account.platformId === 'grok'
   return (
     <div
       className={cn(
@@ -58,7 +62,9 @@ function ConnectionNotice({
           ? (account.statusDetail ?? '连接出错')
           : isMuse
             ? '登录 Muse 后即可发消息'
-            : '账号未连接'}
+            : isGrok
+              ? '登录 Grok Bot 后即可发消息'
+              : '账号未连接'}
       </span>
       {isMuse && onMuseLogin ? (
         <>
@@ -68,6 +74,16 @@ function ConnectionNotice({
           </Button>
           <Button size="sm" variant="ghost" onClick={onConnect} disabled={account.pending}>
             已完成登录
+          </Button>
+        </>
+      ) : isGrok && onGrokLogin ? (
+        <>
+          <Button size="sm" variant="primary" onClick={onGrokLogin} disabled={account.pending}>
+            {account.pending && <Loader2 className="animate-spin" aria-hidden />}
+            {account.pending ? '登录中…' : '使用 Grok Bot 登录'}
+          </Button>
+          <Button size="sm" variant="ghost" onClick={onConnect} disabled={account.pending}>
+            刷新连接
           </Button>
         </>
       ) : (
@@ -80,7 +96,7 @@ function ConnectionNotice({
   )
 }
 
-export function Composer({ bot, account, onSend, onConnect, onMuseLogin, hideNotice = false }: ComposerProps) {
+export function Composer({ bot, account, onSend, onConnect, onMuseLogin, onGrokLogin, hideNotice = false }: ComposerProps) {
   const [text, setText] = useState('')
   const [attachments, setAttachments] = useState<AttachmentMeta[]>([])
   const [dragging, setDragging] = useState(false)
@@ -143,6 +159,7 @@ export function Composer({ bot, account, onSend, onConnect, onMuseLogin, hideNot
             account={account}
             onConnect={() => onConnect(account.id)}
             onMuseLogin={onMuseLogin ? () => onMuseLogin(account.id) : undefined}
+            onGrokLogin={onGrokLogin ? () => onGrokLogin(account.id) : undefined}
           />
         )}
 

@@ -65,6 +65,7 @@ export function ChatArea() {
   const retryMessage = useBotStore((s) => s.retryMessage)
   const connectAccount = useBotStore((s) => s.connectAccount)
   const openMuseLogin = useBotStore((s) => s.openMuseLogin)
+  const openGrokLogin = useBotStore((s) => s.openGrokLogin)
   const webSessionOpen = useBotStore((s) => s.webSessionOpen)
   const hasBots = useBotStore((s) => s.bots.length > 0)
   const setAddBotOpen = useBotStore((s) => s.setAddBotOpen)
@@ -87,6 +88,7 @@ export function ChatArea() {
   )
   const onConnect = useCallback((accountId: string) => void connectAccount(accountId), [connectAccount])
   const onMuseLogin = useCallback((accountId: string) => void openMuseLogin(accountId), [openMuseLogin])
+  const onGrokLogin = useCallback((accountId: string) => void openGrokLogin(accountId), [openGrokLogin])
 
   if (!bot) {
     return (
@@ -145,6 +147,7 @@ export function ChatArea() {
             onSend={onSend}
             onConnect={onConnect}
             onMuseLogin={onMuseLogin}
+            onGrokLogin={onGrokLogin}
             hideNotice={needsMuseLogin && messages.length === 0 && !typing}
           />
         </>

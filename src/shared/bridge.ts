@@ -6,7 +6,10 @@ import type {
   MuseSessionStatus,
   UpdateStatusEvent,
   WebViewBounds,
-  WebViewInfo
+  WebViewInfo,
+  GrokOpenLoginRequest,
+  GrokSetAccessTokenRequest,
+  GrokAuthStatus
 } from './ipc'
 
 /** Controls embedded platform web sessions (Electron WebContentsView). */
@@ -54,6 +57,15 @@ export interface UpdateBridge {
   onEvent(listener: (event: UpdateStatusEvent) => void): () => void
 }
 
+export interface GrokBridge {
+  /** Open authenticator.cursor.sh in a partition BrowserWindow (stops at 2FA/login). */
+  openLogin(request: GrokOpenLoginRequest): Promise<{ ok: true }>
+  /** Store a bearer token for ConnectRPC (never persisted to disk by BotHub yet). */
+  setAccessToken(request: GrokSetAccessTokenRequest): Promise<GrokAuthStatus>
+  clearAuth(accountId: string): Promise<GrokAuthStatus>
+  authStatus(accountId: string): Promise<GrokAuthStatus>
+}
+
 export interface BotHubBridge {
   /** Node-style platform string, e.g. "darwin", "win32", "linux". */
   readonly platform: string
@@ -65,4 +77,5 @@ export interface BotHubBridge {
   readonly webViews: WebViewBridge
   readonly muse: MuseBridge
   readonly updates: UpdateBridge
+  readonly grok: GrokBridge
 }

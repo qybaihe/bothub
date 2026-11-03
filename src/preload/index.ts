@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import type { BotHubBridge } from '@shared/bridge'
 import {
+  GROK_CHANNELS,
   MUSE_CHANNELS,
   UPDATE_CHANNELS,
   WEB_VIEW_CHANNELS,
@@ -45,6 +46,12 @@ const bridge: BotHubBridge = {
       ipcRenderer.on(UPDATE_CHANNELS.event, handler)
       return () => ipcRenderer.removeListener(UPDATE_CHANNELS.event, handler)
     }
+  },
+  grok: {
+    openLogin: (request) => ipcRenderer.invoke(GROK_CHANNELS.openLogin, request),
+    setAccessToken: (request) => ipcRenderer.invoke(GROK_CHANNELS.setAccessToken, request),
+    clearAuth: (accountId) => ipcRenderer.invoke(GROK_CHANNELS.clearAuth, accountId),
+    authStatus: (accountId) => ipcRenderer.invoke(GROK_CHANNELS.authStatus, accountId)
   }
 }
 

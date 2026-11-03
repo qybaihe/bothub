@@ -125,3 +125,29 @@ export type UpdateStatusEvent =
     }
   | { type: 'downloaded'; version: string; releaseNotes?: string }
   | { type: 'error'; message: string }
+
+
+export const GROK_CHANNELS = {
+  openLogin: 'bothub:grok:open-login',
+  setAccessToken: 'bothub:grok:set-access-token',
+  clearAuth: 'bothub:grok:clear-auth',
+  authStatus: 'bothub:grok:auth-status'
+} as const
+
+export interface GrokOpenLoginRequest {
+  accountId: string
+}
+
+export interface GrokSetAccessTokenRequest {
+  accountId: string
+  accessToken: string
+  accountSlot?: string
+  teamId?: string
+  machineId?: string
+}
+
+export interface GrokAuthStatus {
+  accountId: string
+  signedIn: boolean
+  accountSlot?: string
+}

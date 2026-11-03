@@ -88,6 +88,26 @@ function mapConnector(raw: unknown, index: number): MuseConnector {
   }
 }
 
+/** Map BotHub attachments → Muse chat.stream items (official HatchAttachments shapes). */
+function museChatItemsFromAttachments(
+  attachments: OutgoingMessage['attachments']
+): Array<Record<string, unknown>> {
+  if (!attachments?.length) return []
+  const items: Array<Record<string, unknown>> = []
+  for (const a of attachments) {
+    if (!a.dataBase64) continue
+    const mime = a.mimeType || 'application/octet-stream'
+    const filename = a.name || 'file'
+    if (mime.startsWith('image/')) {
+      items.push({ type: 'image', mime_type: mime, data_base64: a.dataBase64, filename })
+    } else {
+      // Large file_ref upload needs binary media write (not archived); send as inline file.
+      items.push({ type: 'file', mime_type: mime, data_base64: a.dataBase64, filename })
+    }
+  }
+  return items
+}
+
 export class MuseAdapter implements PlatformAdapter {
   readonly id = 'meta-muse' as const
   readonly name = 'Meta Muse'
@@ -209,6 +229,9 @@ export class MuseAdapter implements PlatformAdapter {
           ctaLabel: event.ctaLabel
         }
         this.emit({ type: 'activity', accountId: event.accountId, activity })
+        if (activity.code === 'needs_approval') {
+          void this.listApprovals(event.accountId).catch(() => {})
+        }
         if (event.busy) this.setStatus(event.accountId, 'busy')
         else {
           const pending = this.pendingApprovals.get(event.accountId) ?? []
@@ -306,7 +329,10 @@ export class MuseAdapter implements PlatformAdapter {
         conversationId: message.conversationId,
         params: {
           // Main fills node_id (stable device id) + capabilities per transport.
-          items: [{ type: 'text', text: message.text }]
+          items: [
+            ...(message.text.trim() ? [{ type: 'text', text: message.text }] : []),
+            ...museChatItemsFromAttachments(message.attachments)
+          ]
         }
       })) as unknown
 

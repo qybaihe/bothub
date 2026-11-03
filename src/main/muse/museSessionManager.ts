@@ -378,6 +378,29 @@ export class MuseSessionManager {
     this.emitStatus(accountId)
   }
 
+  /** Pull Sentinel approvals and emit (official: query on needs_approval / 5s stale). */
+  async refreshApprovals(accountId: string): Promise<void> {
+    const session = this.sessions.get(accountId)
+    if (!session) return
+    try {
+      let pending: ReturnType<typeof normalizeApprovals> = []
+      if (this.nativeReady(accountId)) {
+        pending = normalizeApprovals(
+          unwrapMuseResult(await this.native.get(accountId).gateway.request('egress.approvals', {}))
+        )
+      } else if (session.status.hook === 'sendRequest') {
+        pending = normalizeApprovals(await this.rpcRaw(accountId, 'egress.approvals', {}))
+      } else {
+        return
+      }
+      session.status.pendingApprovals = pending.length
+      this.emit({ type: 'approvals', accountId, pending })
+      this.emitStatus(accountId)
+    } catch (error) {
+      console.warn('[muse] refreshApprovals', error instanceof Error ? error.message : error)
+    }
+  }
+
   /** Keep chat.subscribe open for agent.status + spontaneous onboarding bubbles. */
   private ensureChatWatch(accountId: string): void {
     if (this.chatWatchBound.has(accountId)) return
@@ -409,6 +432,10 @@ export class MuseSessionManager {
         busy: act.busy,
         ctaLabel: act.cta?.label
       })
+      // Official client has no approvals.subscribe — needs_approval triggers refetch.
+      if (act.code === 'needs_approval') {
+        void this.refreshApprovals(accountId)
+      }
       return
     }
     // Spontaneous assistant / presentation (e.g. onboarding) when not driven by streamChat UI:
@@ -522,7 +549,7 @@ export class MuseSessionManager {
     const result = await streamChat(
       client.gateway,
       client.chat,
-      { text, nodeId: client.nodeId, sessionId, messageOrigin },
+      { text, nodeId: client.nodeId, sessionId, messageOrigin, items: extractChatItems(params) },
       (u) => {
         let id = ids.get(u.messageId)
         if (!id) {
@@ -1306,8 +1333,28 @@ export class MuseSessionManager {
 
 function extractChatText(params: unknown): string {
   if (!params || typeof params !== 'object') return ''
-  const items = (params as { items?: Array<{ text?: string }> }).items
-  return items?.[0]?.text ?? ''
+  const items = (params as { items?: Array<{ type?: string; text?: string }> }).items
+  if (!Array.isArray(items)) return ''
+  const texts = items
+    .filter((it) => it && (it.type === 'text' || typeof it.text === 'string'))
+    .map((it) => it.text ?? '')
+    .filter((t) => t.length > 0)
+  return texts.join('\n') || ''
+}
+
+function extractChatItems(params: unknown): import('../muse-native/chat').MuseChatItem[] {
+  if (!params || typeof params !== 'object') return []
+  const items = (params as { items?: Array<Record<string, unknown>> }).items
+  if (!Array.isArray(items)) return []
+  const out: import('../muse-native/chat').MuseChatItem[] = []
+  for (const it of items) {
+    if (!it || typeof it !== 'object') continue
+    const typ = it['type']
+    if (typ === 'image' || typ === 'file' || typ === 'file_ref') {
+      out.push(it as unknown as import('../muse-native/chat').MuseChatItem)
+    }
+  }
+  return out
 }
 
 function extractReplyText(result: unknown): string {

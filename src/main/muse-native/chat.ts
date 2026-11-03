@@ -183,7 +183,7 @@ export async function streamChat(
           order.push(id)
         }
         if (idleTimer) clearTimeout(idleTimer)
-        onUpdate({ messageId: id, text: '', done: false })
+        onUpdate({ messageId: id, text: texts.get(id) ?? '', done: false })
         break
       case 'delta.text_append': {
         if (!started || !id) break
@@ -208,7 +208,7 @@ export async function streamChat(
           }
           break
         }
-        const final = transcriptText(p) || str(p['content']) || texts.get(id) || ''
+        const final = mergeMonotonic(texts.get(id) ?? '', transcriptText(p) || str(p['content']) || '')
         texts.set(id, final)
         doneIds.add(id)
         onUpdate({ messageId: id, text: final, done: true })
@@ -253,13 +253,14 @@ export async function streamChat(
           if (doneIds.has(id)) continue
           const row = rows.find((r) => r.id === id) ?? (order.length === 1 ? rows[rows.length - 1] : undefined)
           if (!row || !row.text) continue
-          if (row.text !== texts.get(id)) {
-            texts.set(id, row.text)
-            onUpdate({ messageId: id, text: row.text, done: false })
+          const merged = mergeMonotonic(texts.get(id) ?? '', row.text)
+          if (merged !== texts.get(id)) {
+            texts.set(id, merged)
+            onUpdate({ messageId: id, text: merged, done: false })
           }
           if (row.completed) {
             doneIds.add(id)
-            onUpdate({ messageId: id, text: row.text, done: true })
+            onUpdate({ messageId: id, text: merged, done: true })
           }
         }
         if (order.length && order.every((id) => doneIds.has(id))) settle()
@@ -317,6 +318,20 @@ export async function streamChat(
     text: order.map((id) => texts.get(id) ?? '').filter(Boolean).join('\n\n'),
     eventCounts: counts
   }
+}
+
+/**
+ * Never shrink a streaming bubble: keep `prev` unless `next` is a longer
+ * version of it (superset/continuation). Used for reconnect + backfill.
+ */
+export function mergeMonotonic(prev: string, next: string): string {
+  if (!next) return prev
+  if (!prev) return next
+  if (next.length <= prev.length) return prev
+  if (next.startsWith(prev)) return next
+  // Longer but diverging (e.g. whitespace/markdown normalisation) — still a
+  // fuller copy of the reply, so take it; shorter copies are never taken.
+  return next
 }
 
 interface HistoryRow {

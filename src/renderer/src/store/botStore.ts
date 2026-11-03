@@ -357,12 +357,26 @@ export const useBotStore = create<BotHubState>()(
         if (!state.bots.some((b) => b.id === botId)) return state
         const list = state.messages[botId] ?? []
         const existingIdx = list.findIndex((m) => m.id === incoming.id)
+        const prevText = existingIdx >= 0 ? list[existingIdx]!.text : ''
+        const incomingText = incoming.text
+        const mergedText =
+          existingIdx < 0
+            ? incomingText
+            : !incomingText
+              ? prevText
+              : incomingText.length < prevText.length
+                ? prevText
+                : incomingText.startsWith(prevText) || prevText.length === 0
+                  ? incomingText
+                  : incomingText.length > prevText.length
+                    ? incomingText
+                    : prevText
         const message: ChatMessage = {
           id: incoming.id,
           botId,
           accountId: incoming.accountId,
           role: 'bot',
-          text: incoming.text,
+          text: mergedText,
           createdAt: existingIdx >= 0 ? list[existingIdx]!.createdAt : incoming.createdAt
         }
         const selected = state.selectedBotId === botId
@@ -399,11 +413,23 @@ export const useBotStore = create<BotHubState>()(
         const list = state.messages[botId] ?? []
         const existingIdx = list.findIndex((m) => m.id === messageId)
         if (existingIdx >= 0) {
-          if (list[existingIdx]!.text === text) return state
+          const prev = list[existingIdx]!.text
+          // Reconnect/backfill can briefly send a shorter snapshot — never shrink.
+          const next =
+            !text
+              ? prev
+              : text.length < prev.length
+                ? prev
+                : text.startsWith(prev) || prev.length === 0
+                  ? text
+                  : text.length > prev.length
+                    ? text
+                    : prev
+          if (next === prev) return state
           return {
             messages: {
               ...state.messages,
-              [botId]: list.map((m, i) => (i === existingIdx ? { ...m, text } : m))
+              [botId]: list.map((m, i) => (i === existingIdx ? { ...m, text: next } : m))
             }
           }
         }

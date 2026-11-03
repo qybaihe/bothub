@@ -601,7 +601,11 @@ export class MuseSessionManager {
     win.on('closed', () => {
       ses.cookies.off('changed', onCookie)
       this.loginWindows.delete(accountId)
-      void this.refreshSession(accountId)
+      void this.refreshSession(accountId).then((status) => {
+        // Tell the renderer the window went away without a session, so a
+        // waiting add-bot flow can offer to reopen it.
+        if (!status?.signedIn) this.emit({ type: 'login', accountId, signedIn: false, windowClosed: true })
+      })
     })
 
     try {
@@ -610,6 +614,18 @@ export class MuseSessionManager {
       console.error('[muse] openLogin load failed', error)
     }
     return this.sessions.get(accountId)!.status
+  }
+
+  /**
+   * Abandon an unfinished login: close its window (if open), tear down the
+   * view and wipe the partition so no orphaned session stays on disk.
+   */
+  async cancelLogin(accountId: string): Promise<void> {
+    const win = this.loginWindows.get(accountId)
+    this.loginWindows.delete(accountId)
+    if (win && !win.isDestroyed()) win.destroy()
+    this.destroyAccount(accountId)
+    await this.views.clearPartition(accountId)
   }
 
   /** Tear down the view and wipe the persist partition (full sign-out). */

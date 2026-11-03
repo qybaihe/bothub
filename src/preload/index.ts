@@ -33,7 +33,8 @@ const bridge: BotHubBridge = {
       return () => ipcRenderer.removeListener(MUSE_CHANNELS.event, handler)
     },
     signOut: (accountId) => ipcRenderer.invoke(MUSE_CHANNELS.signOut, accountId),
-    openLogin: (request) => ipcRenderer.invoke(MUSE_CHANNELS.openLogin, request)
+    openLogin: (request) => ipcRenderer.invoke(MUSE_CHANNELS.openLogin, request),
+    cancelLogin: (accountId) => ipcRenderer.invoke(MUSE_CHANNELS.cancelLogin, accountId)
   },
   updates: {
     check: () => ipcRenderer.invoke(UPDATE_CHANNELS.check),

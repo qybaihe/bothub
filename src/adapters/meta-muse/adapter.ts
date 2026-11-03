@@ -129,7 +129,8 @@ export class MuseAdapter implements PlatformAdapter {
           accountId: event.accountId,
           signedIn: event.signedIn,
           handle: event.handle,
-          displayName: event.displayName
+          displayName: event.displayName,
+          windowClosed: event.windowClosed
         })
         this.setStatus(event.accountId, event.signedIn ? 'online' : 'offline')
         break
@@ -235,6 +236,13 @@ export class MuseAdapter implements PlatformAdapter {
       status.signedIn ? undefined : '在弹出的窗口里完成 Muse 登录'
     )
     return this.getStatus(accountId)
+  }
+
+  async cancelLogin(accountId: string): Promise<void> {
+    await this.bridge().cancelLogin(accountId)
+    this.accounts.delete(accountId)
+    this.statuses.delete(accountId)
+    this.pendingApprovals.delete(accountId)
   }
 
   async disconnect(accountId: string): Promise<void> {

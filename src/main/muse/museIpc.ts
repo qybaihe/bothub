@@ -67,4 +67,9 @@ export function registerMuseIpc(): void {
     const req = parseEnsure(request)
     return managerFor(event).openLogin(req.botId, req.accountId)
   })
+
+  ipcMain.handle(MUSE_CHANNELS.cancelLogin, async (event, accountId: unknown) => {
+    if (typeof accountId !== 'string') throw new TypeError('Invalid accountId')
+    await managerFor(event).cancelLogin(accountId)
+  })
 }

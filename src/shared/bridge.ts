@@ -43,6 +43,8 @@ export interface MuseBridge {
    * muse.ai. Cookies land automatically; the window closes when hatch_sess appears.
    */
   openLogin(request: MuseEnsureRequest): Promise<MuseSessionStatus>
+  /** Close an unfinished login window and wipe the account partition. */
+  cancelLogin(accountId: string): Promise<void>
 }
 
 export interface UpdateBridge {

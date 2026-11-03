@@ -48,7 +48,9 @@ export const MUSE_CHANNELS = {
   event: 'bothub:muse:event',
   signOut: 'bothub:muse:sign-out',
   /** Open a same-partition BrowserWindow for interactive muse.ai login. */
-  openLogin: 'bothub:muse:open-login'
+  openLogin: 'bothub:muse:open-login',
+  /** Close an unfinished login window and wipe its partition. */
+  cancelLogin: 'bothub:muse:cancel-login'
 } as const
 
 export interface MuseEnsureRequest {
@@ -93,7 +95,15 @@ export type MuseMainEvent =
       text: string
       done: boolean
     }
-  | { type: 'login'; accountId: string; signedIn: boolean; handle?: string; displayName?: string }
+  | {
+      type: 'login'
+      accountId: string
+      signedIn: boolean
+      handle?: string
+      displayName?: string
+      /** Set when the login window was closed before a session appeared. */
+      windowClosed?: boolean
+    }
 
 export const UPDATE_CHANNELS = {
   check: 'bothub:update:check',

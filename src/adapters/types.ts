@@ -102,7 +102,15 @@ export type AdapterEvent =
   | { type: 'typing'; conversationId: string; accountId: string; isTyping: boolean }
   | { type: 'status'; accountId: string; status: ConnectionStatus; detail?: string }
   | { type: 'approvals'; accountId: string; pending: MuseApproval[] }
-  | { type: 'login'; accountId: string; signedIn: boolean; handle?: string; displayName?: string }
+  | {
+      type: 'login'
+      accountId: string
+      signedIn: boolean
+      handle?: string
+      displayName?: string
+      /** The interactive login window closed before a session appeared. */
+      windowClosed?: boolean
+    }
 
 export type AdapterListener = (event: AdapterEvent) => void
 export type Unsubscribe = () => void
@@ -139,6 +147,8 @@ export interface PlatformAdapter {
   ensureSession?(accountId: string, botId?: string): Promise<void>
   /** Muse: open interactive login window sharing the account partition. */
   openLogin?(accountId: string, botId?: string): Promise<ConnectionStatus>
+  /** Abandon an unfinished login and discard its session data. */
+  cancelLogin?(accountId: string): Promise<void>
 }
 
 export type AdapterErrorCode = 'not-connected' | 'unknown-account' | 'unsupported' | 'network' | 'timeout'

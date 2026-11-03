@@ -835,10 +835,16 @@ export class MuseSessionManager {
             console.error('[muse] reload embedded view after login failed', error)
           }
         }
-        const status = await this.refreshSession(accountId)
-        // Belt-and-suspenders: cookie exists so the add-bot flow must advance,
-        // even if status was already marked signed-in from a prior poll.
-        if (status?.signedIn) {
+        let status: MuseSessionStatus | undefined
+        try {
+          status = await this.refreshSession(accountId)
+        } catch (error) {
+          console.error('[muse] refreshSession after login failed', error)
+        }
+        // Cookie is present — always advance add-bot, even if refresh/hook failed.
+        if (status?.signedIn || (await this.hasSessionCookie(accountId))) {
+          const sess = this.sessions.get(accountId)
+          if (sess) sess.status.signedIn = true
           this.emit({ type: 'login', accountId, signedIn: true })
         }
       } finally {

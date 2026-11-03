@@ -1,4 +1,15 @@
-import { Check, Loader2, MoreHorizontal, Plug, Unplug, UserMinus, UserRoundCheck } from 'lucide-react'
+import { useState } from 'react'
+import {
+  Check,
+  Loader2,
+  MoreHorizontal,
+  Pencil,
+  Plug,
+  LogOut,
+  Unplug,
+  UserMinus,
+  UserRoundCheck
+} from 'lucide-react'
 import { AccountAvatar } from '@/components/ui/Avatar'
 import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from '@/components/ui/Menu'
 import { StatusBadge } from '@/components/ui/Status'
@@ -15,38 +26,96 @@ export function AccountList({ bot, accounts }: AccountListProps) {
   const setActiveAccount = useBotStore((s) => s.setActiveAccount)
   const connectAccount = useBotStore((s) => s.connectAccount)
   const disconnectAccount = useBotStore((s) => s.disconnectAccount)
-  const removeAccountFromBot = useBotStore((s) => s.removeAccountFromBot)
+  const renameAccount = useBotStore((s) => s.renameAccount)
+  const signOutAccount = useBotStore((s) => s.signOutAccount)
+  const removeAndClearAccount = useBotStore((s) => s.removeAndClearAccount)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [draftName, setDraftName] = useState('')
+
+  const startRename = (account: BotAccount) => {
+    setEditingId(account.id)
+    setDraftName(account.label || account.displayName)
+  }
+
+  const commitRename = (accountId: string) => {
+    renameAccount(accountId, draftName)
+    setEditingId(null)
+  }
 
   return (
     <ul className="-mx-2 flex flex-col gap-0.5">
       {accounts.map((account) => {
         const active = account.id === bot.activeAccountId
-        const connected = account.status === 'online' || account.status === 'busy'
+        const connected =
+          account.status === 'online' || account.status === 'busy' || account.status === 'attention'
+        const unread = account.unread ?? 0
         return (
           <li
             key={account.id}
             className={cn(
-              'group flex items-center gap-2.5 rounded-lg px-2 py-1.5',
-              active ? 'bg-accent-50/60' : 'hover:bg-surface-hover'
+              'group flex items-center gap-2.5 rounded-xl px-2 py-1.5 transition-colors',
+              active ? 'bg-accent-50/70 ring-1 ring-accent-100' : 'hover:bg-surface-hover'
             )}
           >
-            <AccountAvatar
-              name={account.displayName}
-              status={account.status}
-              ringClassName={active ? 'ring-accent-50' : 'ring-surface'}
-            />
+            <button
+              type="button"
+              className="relative shrink-0"
+              onClick={() => setActiveAccount(bot.id, account.id)}
+              aria-label={`Use ${account.displayName}`}
+            >
+              <AccountAvatar
+                name={account.displayName}
+                status={account.status}
+                ringClassName={active ? 'ring-accent-50' : 'ring-surface'}
+              />
+              {unread > 0 && (
+                <span className="absolute -top-1 -right-1 grid h-4 min-w-4 place-items-center rounded-full bg-accent-600 px-1 text-[10px] font-semibold text-white tabular-nums">
+                  {unread > 99 ? '99+' : unread}
+                </span>
+              )}
+            </button>
+
             <div className="min-w-0 flex-1">
-              <p className="flex items-center gap-1.5 truncate text-ui font-medium text-ink">
-                <span className="truncate">{account.displayName}</span>
-                {active && (
-                  <span className="shrink-0 rounded bg-accent-100 px-1 text-[10px] leading-4 font-semibold text-accent-700">
-                    ACTIVE
-                  </span>
-                )}
-              </p>
-              <p className="truncate text-caption text-ink-muted" title={account.statusDetail}>
-                {account.status === 'error' && account.statusDetail ? account.statusDetail : account.handle}
-              </p>
+              {editingId === account.id ? (
+                <form
+                  className="flex items-center gap-1"
+                  onSubmit={(e) => {
+                    e.preventDefault()
+                    commitRename(account.id)
+                  }}
+                >
+                  <input
+                    autoFocus
+                    value={draftName}
+                    onChange={(e) => setDraftName(e.target.value)}
+                    onBlur={() => commitRename(account.id)}
+                    className="h-7 w-full rounded-md border border-line bg-surface px-2 text-ui text-ink outline-none focus:border-accent-400"
+                    aria-label="Account label"
+                  />
+                </form>
+              ) : (
+                <button
+                  type="button"
+                  className="block w-full min-w-0 text-left"
+                  onClick={() => setActiveAccount(bot.id, account.id)}
+                >
+                  <p className="flex items-center gap-1.5 truncate text-ui font-medium text-ink">
+                    <span className="truncate">{account.label || account.displayName}</span>
+                    {active && (
+                      <span className="shrink-0 rounded-md bg-accent-100 px-1 text-[10px] leading-4 font-semibold tracking-wide text-accent-700">
+                        ACTIVE
+                      </span>
+                    )}
+                  </p>
+                  <p className="truncate text-caption text-ink-muted" title={account.statusDetail}>
+                    {account.status === 'error' && account.statusDetail
+                      ? account.statusDetail
+                      : account.statusDetail === 'Signed out'
+                        ? 'Signed out · partition cleared'
+                        : account.handle}
+                  </p>
+                </button>
+              )}
             </div>
 
             {account.pending ? (
@@ -68,8 +137,15 @@ export function AccountList({ bot, accounts }: AccountListProps) {
               </MenuTrigger>
               <MenuContent align="end">
                 <MenuItem disabled={active} onSelect={() => setActiveAccount(bot.id, account.id)}>
-                  {active ? <Check className="size-4 text-accent-600" /> : <UserRoundCheck className="size-4 text-ink-muted" />}
+                  {active ? (
+                    <Check className="size-4 text-accent-600" />
+                  ) : (
+                    <UserRoundCheck className="size-4 text-ink-muted" />
+                  )}
                   {active ? 'Sending from this account' : 'Send from this account'}
+                </MenuItem>
+                <MenuItem onSelect={() => startRename(account)}>
+                  <Pencil className="size-4 text-ink-muted" /> Rename / label
                 </MenuItem>
                 {connected ? (
                   <MenuItem onSelect={() => void disconnectAccount(account.id)}>
@@ -77,16 +153,20 @@ export function AccountList({ bot, accounts }: AccountListProps) {
                   </MenuItem>
                 ) : (
                   <MenuItem onSelect={() => void connectAccount(account.id)}>
-                    <Plug className="size-4 text-ink-muted" /> {account.status === 'error' ? 'Reconnect' : 'Connect'}
+                    <Plug className="size-4 text-ink-muted" />{' '}
+                    {account.status === 'error' ? 'Reconnect' : 'Connect / sign in'}
                   </MenuItem>
                 )}
+                <MenuItem onSelect={() => void signOutAccount(account.id)}>
+                  <LogOut className="size-4 text-ink-muted" /> Sign out (clear session)
+                </MenuItem>
                 <MenuSeparator />
                 <MenuItem
                   disabled={accounts.length <= 1}
-                  onSelect={() => removeAccountFromBot(bot.id, account.id)}
+                  onSelect={() => void removeAndClearAccount(bot.id, account.id)}
                   className="text-status-error-ink"
                 >
-                  <UserMinus className="size-4" /> Remove from bot
+                  <UserMinus className="size-4" /> Remove & clear partition
                 </MenuItem>
               </MenuContent>
             </Menu>

@@ -1,10 +1,16 @@
 import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
 import { getPlatform } from '@adapters/platforms'
 import { adapterRegistry } from '@adapters/registry'
 import type { AttachmentMeta, ConnectionStatus, IncomingMessage, PlatformId } from '@adapters/types'
 import { createId } from '@shared/id'
 import { createSeed } from '@/data/seed'
 import type { AccountDraft, Bot, BotAccount, BotGroup, ChatMessage, NewBotInput } from '@/types'
+
+function electronBridge() {
+  if (typeof window === 'undefined') return undefined
+  return window.electron
+}
 
 export interface BotHubState {
   groups: BotGroup[]
@@ -49,6 +55,11 @@ export interface BotHubState {
   // Accounts
   removeAccountFromBot: (botId: string, accountId: string) => void
   setActiveAccount: (botId: string, accountId: string) => void
+  renameAccount: (accountId: string, displayName: string) => void
+  /** Sign out: clear persist partition + mark offline. */
+  signOutAccount: (accountId: string) => Promise<void>
+  /** Remove from bot and wipe the partition (full delete). */
+  removeAndClearAccount: (botId: string, accountId: string) => Promise<void>
   setAccountStatus: (accountId: string, status: ConnectionStatus, detail?: string) => void
   connectAccount: (accountId: string) => Promise<void>
   disconnectAccount: (accountId: string) => Promise<void>
@@ -88,7 +99,8 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'Something went wrong.'
 }
 
-export const useBotStore = create<BotHubState>()((set, get) => {
+export const useBotStore = create<BotHubState>()(
+  persist((set, get) => {
   const updateMessage = (botId: string, messageId: string, patch: Partial<ChatMessage>) =>
     set((state) => ({
       messages: {
@@ -264,12 +276,23 @@ export const useBotStore = create<BotHubState>()((set, get) => {
           text: incoming.text,
           createdAt: incoming.createdAt
         }
+        const selected = state.selectedBotId === botId
+        const account = state.accounts[incoming.accountId]
+        const accounts = account
+          ? {
+              ...state.accounts,
+              [incoming.accountId]: {
+                ...account,
+                unread: selected ? 0 : (account.unread ?? 0) + 1
+              }
+            }
+          : state.accounts
         return {
           messages: { ...state.messages, [botId]: [...(state.messages[botId] ?? []), message] },
-          bots:
-            state.selectedBotId === botId
-              ? state.bots
-              : state.bots.map((b) => (b.id === botId ? { ...b, unread: b.unread + 1 } : b))
+          accounts,
+          bots: selected
+            ? state.bots
+            : state.bots.map((b) => (b.id === botId ? { ...b, unread: b.unread + 1 } : b))
         }
       }),
 
@@ -307,11 +330,58 @@ export const useBotStore = create<BotHubState>()((set, get) => {
       }),
 
     setActiveAccount: (botId, accountId) =>
-      set((state) => ({
-        bots: state.bots.map((b) =>
-          b.id === botId && b.accountIds.includes(accountId) ? { ...b, activeAccountId: accountId } : b
-        )
-      })),
+      set((state) => {
+        if (!state.bots.some((b) => b.id === botId && b.accountIds.includes(accountId))) return state
+        const account = state.accounts[accountId]
+        return {
+          bots: state.bots.map((b) =>
+            b.id === botId && b.accountIds.includes(accountId) ? { ...b, activeAccountId: accountId } : b
+          ),
+          accounts: account
+            ? { ...state.accounts, [accountId]: { ...account, unread: 0 } }
+            : state.accounts
+        }
+      }),
+
+    renameAccount: (accountId, displayName) => {
+      const trimmed = displayName.trim()
+      if (!trimmed) return
+      patchAccount(accountId, { displayName: trimmed, label: trimmed })
+    },
+
+    signOutAccount: async (accountId) => {
+      const account = get().accounts[accountId]
+      if (!account || account.pending) return
+      patchAccount(accountId, { pending: true })
+      try {
+        const bridge = electronBridge()
+        if (account.platformId === 'meta-muse' && bridge?.muse?.signOut) {
+          await bridge.muse.signOut(accountId)
+        } else if (bridge?.webViews?.clearPartition) {
+          await bridge.webViews.clearPartition(accountId)
+        }
+        const adapter = adapterRegistry.get(account.platformId)
+        try {
+          await adapter?.disconnect(accountId)
+        } catch {
+          /* ignore */
+        }
+        patchAccount(accountId, { status: 'offline', statusDetail: 'Signed out', unread: 0 })
+      } catch (error) {
+        patchAccount(accountId, { statusDetail: errorMessage(error) })
+      } finally {
+        patchAccount(accountId, { pending: false })
+      }
+    },
+
+    removeAndClearAccount: async (botId, accountId) => {
+      await get().signOutAccount(accountId)
+      get().removeAccountFromBot(botId, accountId)
+      set((state) => {
+        const { [accountId]: _removed, ...rest } = state.accounts
+        return { accounts: rest }
+      })
+    },
 
     setAccountStatus: (accountId, status, detail) => patchAccount(accountId, { status, statusDetail: detail }),
 
@@ -345,4 +415,18 @@ export const useBotStore = create<BotHubState>()((set, get) => {
       }
     }
   }
-})
+  },
+  {
+    name: 'bothub-workspace-v1',
+    partialize: (state) => ({
+      groups: state.groups,
+      bots: state.bots,
+      accounts: state.accounts,
+      messages: state.messages,
+      selectedBotId: state.selectedBotId,
+      collapsedGroups: state.collapsedGroups,
+      infoPanelOpen: state.infoPanelOpen
+    })
+  }
+)
+)

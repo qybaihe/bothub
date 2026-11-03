@@ -4,8 +4,11 @@ import { AddAccountsButton } from '@/components/add-bot/AddAccountsDialog'
 import { PaneHeader } from '@/components/layout/PaneHeader'
 import { ApprovalsSection } from '@/components/muse/ApprovalsSection'
 import { ConnectorsSection } from '@/components/muse/ConnectorsSection'
+import { FilesSection } from '@/components/muse/FilesSection'
+import { InviteSection } from '@/components/muse/InviteSection'
 import { QuotaSection } from '@/components/muse/QuotaSection'
 import { SchedulesSection } from '@/components/muse/SchedulesSection'
+import { SessionsSection } from '@/components/muse/SessionsSection'
 import { BotAvatar } from '@/components/ui/Avatar'
 import { IconButton } from '@/components/ui/IconButton'
 import { InlineEdit } from '@/components/ui/InlineEdit'
@@ -180,6 +183,9 @@ export function InfoPanel() {
             ) : bot.platformId === 'meta-muse' && bot.activeAccountId ? (
               <>
                 <QuotaSection accountId={bot.activeAccountId} />
+                <InviteSection accountId={bot.activeAccountId} />
+                <SessionsSection accountId={bot.activeAccountId} />
+                <FilesSection accountId={bot.activeAccountId} />
                 <SchedulesSection accountId={bot.activeAccountId} />
                 <ApprovalsSection accountId={bot.activeAccountId} />
                 <ConnectorsSection accountId={bot.activeAccountId} />

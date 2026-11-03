@@ -90,9 +90,6 @@ export function QuotaSection({ accountId }: { accountId: string }) {
               )}
             </div>
           )}
-          {typeof snap?.inviteUsesRemaining === 'number' && (
-            <p className="text-[12px] text-ink-secondary">Invite uses left: {snap.inviteUsesRemaining}</p>
-          )}
           {snap?.stale && <p className="text-[11px] text-status-attention">Showing last known usage</p>}
           <div>
             <Button

@@ -1,4 +1,4 @@
-import { ChevronRight, Globe, PanelRight } from 'lucide-react'
+import { ChevronRight, Globe, PanelRight, Pin, PinOff } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { PaneHeader } from '@/components/layout/PaneHeader'
 import { BotAvatar } from '@/components/ui/Avatar'
@@ -85,6 +85,7 @@ export function ChatHeader({ bot, accounts }: ChatHeaderProps) {
   const setActiveAccount = useBotStore((s) => s.setActiveAccount)
   const webSessionOpen = useBotStore((s) => s.webSessionOpen)
   const toggleWebSession = useBotStore((s) => s.toggleWebSession)
+  const togglePinBot = useBotStore((s) => s.togglePinBot)
 
   const status = getBotStatus(bot, allAccounts)
   const activity = useBotStore((s) => s.activity[bot.activeAccountId])
@@ -130,7 +131,14 @@ export function ChatHeader({ bot, accounts }: ChatHeaderProps) {
           size="xs"
           ringClassName="ring-main"
         />
-        <h1 className="min-w-0 truncate text-[14px] leading-5 font-medium text-ink">{bot.name}</h1>
+        <span className="flex min-w-0 flex-col items-start">
+          <h1 className="max-w-full min-w-0 truncate text-[14px] leading-[18px] font-medium text-ink">{bot.name}</h1>
+          {status !== 'online' && (
+            <span className="-mt-0.5 max-w-full truncate text-[10.5px] leading-[13px] text-ink-muted" data-capsule-status>
+              {STATUS_LABEL[status]}
+            </span>
+          )}
+        </span>
         <ChevronRight
           aria-hidden
           className={cn(
@@ -153,6 +161,9 @@ export function ChatHeader({ bot, accounts }: ChatHeaderProps) {
             }}
           />
         )}
+        <IconButton label={bot.pinned ? 'Unpin from sidebar' : 'Pin to sidebar'} active={bot.pinned === true} onClick={() => togglePinBot(bot.id)}>
+          {bot.pinned ? <PinOff /> : <Pin />}
+        </IconButton>
         <IconButton
           label={webSessionOpen ? 'Back to conversation' : 'Show web session'}
           active={webSessionOpen}

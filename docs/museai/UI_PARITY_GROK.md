@@ -123,3 +123,12 @@ Never surface Grok-only host RPCs through Muse adapters. Never fabricate Compute
 ## 6. Next slice recommendation
 
 **Members chip (shell)** or **Library body** (richer files list) — then Create Bot template-style gallery.
+
+## 5c. Slice 3 — Create Bot template gallery ✅
+- New bot opens on a **Bot templates** grid (Blank + 6 local presets in `src/renderer/src/data/botTemplates.ts`, written for BotHub).
+- Pick → platform → sign-in → name step prefilled (name, emoji); description + starter brief saved locally (Notes).
+- **Muse RPC limits:** gateway has no persona/instructions/agent-profile write (`identity` is read/subscribe; `memory.*` is search/get/consolidate). Starter brief is therefore local + user-sent as first message; never auto-sent.
+
+## 5d. Slice 4 — Members chip (shell) ✅
+- Fourth tab **Members**: Muse Hatch invite moved here + honest empty state ("Trusted Network not connected").
+- `peers.*` remains unwired (see GAPS.md §1.A).

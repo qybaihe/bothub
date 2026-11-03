@@ -1,4 +1,5 @@
-import { Fragment, useLayoutEffect, useRef } from 'react'
+import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { ArrowDown } from 'lucide-react'
 import { BotAvatar } from '@/components/ui/Avatar'
 import { cn } from '@/lib/cn'
 import { formatDayLabel, isSameDay } from '@/lib/format'
@@ -50,12 +51,37 @@ export function MessageList({ bot, messages, accounts, typing, onRetry }: Messag
     }
   }, [bot.id, messages.length, lastMessage?.role, lastMessage?.text, typing])
 
+  // Scrolled up: offer a way back down, and count replies that arrive meanwhile.
+  const [away, setAway] = useState(false)
+  const [unseen, setUnseen] = useState(0)
+  const seenCount = useRef(messages.length)
+
+  useEffect(() => {
+    setAway(false)
+    setUnseen(0)
+  }, [bot.id])
+
+  useEffect(() => {
+    const added = messages.length - seenCount.current
+    seenCount.current = messages.length
+    if (added > 0 && !stickToBottom.current && lastMessage?.role === 'bot') setUnseen((n) => n + added)
+  }, [messages.length, lastMessage?.role])
+
+  const jumpToLatest = () => {
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })
+    setUnseen(0)
+  }
+
   return (
+    <div className="relative flex min-h-0 flex-1 flex-col">
     <div
       ref={scrollRef}
       onScroll={(event) => {
         const el = event.currentTarget
-        stickToBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < STICKY_THRESHOLD_PX
+        const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < STICKY_THRESHOLD_PX
+        stickToBottom.current = atBottom
+        setAway(!atBottom)
+        if (atBottom) setUnseen(0)
       }}
       className="min-h-0 flex-1 overflow-y-auto"
     >
@@ -102,6 +128,23 @@ export function MessageList({ bot, messages, accounts, typing, onRetry }: Messag
           </li>
         )}
       </ol>
+    </div>
+      {away && (
+        <button
+          type="button"
+          onClick={jumpToLatest}
+          aria-label={unseen > 0 ? `${unseen} new ${unseen === 1 ? 'message' : 'messages'}` : 'Jump to latest'}
+          className={cn(
+            'press absolute bottom-3 left-1/2 flex h-8 -translate-x-1/2 animate-pop-lift items-center gap-1.5 rounded-full shadow-float',
+            unseen > 0
+              ? 'bg-accent-600 px-3 text-[13px] text-white hover:bg-accent-700'
+              : 'w-8 justify-center border-[0.5px] border-line-strong bg-main text-ink-secondary hover:text-ink'
+          )}
+        >
+          <ArrowDown className="size-4" aria-hidden />
+          {unseen > 0 && <span className="tabular-nums">{unseen > 1 ? `${unseen} new messages` : 'New message'}</span>}
+        </button>
+      )}
     </div>
   )
 }

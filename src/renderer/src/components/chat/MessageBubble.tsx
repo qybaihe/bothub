@@ -347,6 +347,41 @@ function RichWidgets({ widgets }: { widgets: ChatRichWidget[] }) {
             </li>
           )
         }
+        if (w.kind === 'image_options') {
+          return (
+            <li key={w.widgetId} className="rounded-xl border border-line bg-surface p-2.5 shadow-soft">
+              <p className="mb-1.5 text-[12px] font-medium text-ink-secondary">
+                {t('Image options')}
+                {w.multiSelect ? ` · ${t('Multi-select')}` : ''}
+              </p>
+              <ul className="grid grid-cols-3 gap-1.5 sm:grid-cols-4">
+                {w.images.slice(0, 12).map((img, i) => {
+                  const picked =
+                    (w.selectedPath && w.selectedPath === img.path) ||
+                    (w.selectedIndices && w.selectedIndices.includes(i))
+                  return (
+                    <li
+                      key={`${img.path}-${i}`}
+                      className={
+                        picked
+                          ? 'overflow-hidden rounded-lg border-2 border-accent-600 bg-accent-50'
+                          : 'overflow-hidden rounded-lg border border-line bg-surface-muted'
+                      }
+                      title={img.path}
+                    >
+                      <div className="flex aspect-square items-center justify-center px-1 text-center text-[10px] text-ink-muted">
+                        {img.path.split('/').pop() || img.path}
+                      </div>
+                    </li>
+                  )
+                })}
+              </ul>
+              <p className="mt-1.5 text-[11px] text-ink-muted">
+                {t('Read-only — image selection write not wired in BotHub')}
+              </p>
+            </li>
+          )
+        }
         return null
       })}
     </ul>

@@ -156,6 +156,15 @@ export type MuseRichWidget =
     }
   | { kind: 'html'; widgetId: string; html: string; downloadable?: boolean }
   | { kind: 'slides'; widgetId: string; label: string; path?: string; slug: string }
+  | {
+      kind: 'image_options'
+      widgetId: string
+      images: Array<{ path: string; imageId?: string }>
+      multiSelect?: boolean
+      selectedPath?: string | null
+      selectedIndices?: number[]
+      baseVersion: number
+    }
 
 export interface MuseOptionWidget {
   kind: 'option'

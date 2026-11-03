@@ -118,6 +118,15 @@ export type MuseRichWidget =
     }
   | { kind: 'html'; widgetId: string; html: string; downloadable?: boolean }
   | { kind: 'slides'; widgetId: string; label: string; path?: string; slug: string }
+  | {
+      kind: 'image_options'
+      widgetId: string
+      images: Array<{ path: string; imageId?: string }>
+      multiSelect?: boolean
+      selectedPath?: string | null
+      selectedIndices?: number[]
+      baseVersion: number
+    }
 
 export interface MuseOptionWidget {
   kind: 'option'
@@ -381,6 +390,40 @@ export function parseRichWidgets(payload: Record<string, unknown>): MuseRichWidg
       if (slug) out.push({ kind: 'slides', widgetId, label, slug, path })
       continue
     }
+    if (kind === 'image_options') {
+      const imagesRaw = data['images']
+      const images: Array<{ path: string; imageId?: string }> = []
+      if (Array.isArray(imagesRaw)) {
+        for (const row of imagesRaw) {
+          const o = asObj(row)
+          if (!o) continue
+          const path = str(o['path']).trim()
+          if (!path) continue
+          const imageId = str(o['image_id'] || o['imageId']) || undefined
+          images.push(imageId ? { path, imageId } : { path })
+        }
+      }
+      if (!images.length) continue
+      const state = asObj(w['state']) || {}
+      const stateData = asObj(state['data']) || {}
+      const selectedPath = str(stateData['selectedPath'] || state['selectedPath']) || null
+      const selectedIndices = Array.isArray(stateData['selectedIndices'])
+        ? (stateData['selectedIndices'] as unknown[]).filter((n): n is number => typeof n === 'number')
+        : Array.isArray(state['selectedIndices'])
+          ? (state['selectedIndices'] as unknown[]).filter((n): n is number => typeof n === 'number')
+          : []
+      out.push({
+        kind: 'image_options',
+        widgetId,
+        images: images.slice(0, 12),
+        multiSelect: data['multi_select'] === true || data['multiSelect'] === true,
+        selectedPath,
+        selectedIndices,
+        baseVersion: Number(state['version'] ?? w['version'] ?? 0) || 0
+      })
+      continue
+    }
+
   }
   return out
 }
@@ -432,9 +475,18 @@ export function parseMediaParts(payload: Record<string, unknown>): MuseMediaPart
           const path = str(i['path']) || str(i['url'])
           if (path) push('image', path, { imageId: str(i['image_id'] || i['imageId']) || undefined })
         }
-      } else if (typ === 'file' || typ === 'file_ref') {
-        const path = str(c['path']) || str(c['filename'])
-        if (path) push('file', path, { name: str(c['filename']) || undefined, mimeType: str(c['mime_type']) || undefined })
+      } else if (typ === 'file' || typ === 'file_ref' || typ === 'audio' || typ === 'video') {
+        const path = str(c['path']) || str(c['filename']) || str(c['url'])
+        if (path) {
+          const mime =
+            str(c['mime_type'] || c['mimeType']) ||
+            (typ === 'audio' ? 'audio/*' : typ === 'video' ? 'video/*' : '') ||
+            undefined
+          push('file', path, {
+            name: str(c['filename'] || c['label']) || undefined,
+            mimeType: mime || undefined
+          })
+        }
       }
     }
   }

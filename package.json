@@ -1,8 +1,8 @@
 {
   "name": "bothub",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": false,
-  "description": "BotHub \u2014 a desktop hub for multi-account bots",
+  "description": "BotHub — a desktop hub for multi-account bots",
   "main": "./out/main/index.js",
   "author": "qybaihe",
   "license": "MIT",
@@ -56,7 +56,7 @@
   "build": {
     "appId": "com.qybaihe.bothub",
     "productName": "BotHub",
-    "copyright": "Copyright \u00a9 2026 BotHub contributors",
+    "copyright": "Copyright © 2026 BotHub contributors",
     "directories": {
       "output": "release",
       "buildResources": "build"

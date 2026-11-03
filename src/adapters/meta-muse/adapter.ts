@@ -58,6 +58,15 @@ function mapApproval(raw: Record<string, unknown>): MuseApproval {
           : typeof raw['host'] === 'string'
             ? String(raw['host'])
             : undefined,
+    host: typeof raw['host'] === 'string' ? raw['host'] : undefined,
+    decisionOptions: Array.isArray(raw['decision_options'])
+      ? (raw['decision_options'] as unknown[]).filter((d): d is ApprovalDecision => typeof d === 'string')
+      : undefined,
+    reason:
+      (typeof raw['rich_explanation'] === 'string' && raw['rich_explanation']) ||
+      (typeof raw['short_explanation'] === 'string' && raw['short_explanation']) ||
+      (typeof raw['reason'] === 'string' && raw['reason']) ||
+      undefined,
     raw
   }
 }
@@ -280,6 +289,9 @@ export class MuseAdapter implements PlatformAdapter {
 
     this.bindBridgeEvents()
     this.setStatus(message.accountId, 'busy')
+    // A turn that needs a Sentinel (egress) approval blocks until the user decides,
+    // so surface pending cards while waiting instead of timing out into "error".
+    const approvalPoll = setInterval(() => void this.listApprovals(message.accountId).catch(() => {}), 3000)
     this.emit({
       type: 'typing',
       conversationId: message.conversationId,
@@ -351,8 +363,18 @@ export class MuseAdapter implements PlatformAdapter {
         accountId: message.accountId,
         isTyping: false
       })
-      this.setStatus(message.accountId, 'error', error instanceof Error ? error.message : String(error))
+      const pending = await this.listApprovals(message.accountId).catch(() => [] as MuseApproval[])
+      if (pending.length) {
+        this.setStatus(message.accountId, 'attention')
+      } else if (error instanceof AdapterError && error.code === 'timeout') {
+        // Still signed in — a slow/blocked turn is not a login problem.
+        this.setStatus(message.accountId, 'online')
+      } else {
+        this.setStatus(message.accountId, 'error', error instanceof Error ? error.message : String(error))
+      }
       throw error
+    } finally {
+      clearInterval(approvalPoll)
     }
   }
 
@@ -423,6 +445,17 @@ export class MuseAdapter implements PlatformAdapter {
       params: {
         approval_id: approvalId,
         decision,
+        // Official client: "Always allow this site" scopes to the destination domain
+        // (incl. subdomains); space-reader cards scope to the entity.
+        ...(decision === 'allow_always'
+          ? (() => {
+              const raw = (this.pendingApprovals.get(accountId) ?? []).find((a) => a.id === approvalId)?.raw as
+                | Record<string, unknown>
+                | undefined
+              const scope = raw?.['space_reader_grant_eligible'] === true ? 'entity' : 'destination_domain'
+              return { always_scope: scope, allow_always_scope: scope }
+            })()
+          : {}),
         reason: null,
         expires_at_ms: null,
         notification_channel: 'ui',

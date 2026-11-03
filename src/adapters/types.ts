@@ -86,6 +86,12 @@ export interface MuseApproval {
   title: string
   detail?: string
   approvalType?: string
+  /** Destination host for network (egress) cards, e.g. agent.qq.com. */
+  host?: string
+  /** Server-offered buttons (decision_options). Empty = allow_once/allow_always/deny. */
+  decisionOptions?: ApprovalDecision[]
+  /** Server reason / explanation text for the expandable detail. */
+  reason?: string
   /** Raw payload for debugging / richer UI. */
   raw?: unknown
 }

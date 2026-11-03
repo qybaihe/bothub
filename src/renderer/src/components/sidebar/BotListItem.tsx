@@ -1,7 +1,11 @@
-import { memo } from 'react'
+import { memo, useEffect, useRef, useState } from 'react'
 import type { ConnectionStatus } from '@adapters/types'
+import { ImageMinus, ImagePlus, MoreHorizontal, Pencil, Trash2 } from 'lucide-react'
 import { BotAvatar } from '@/components/ui/Avatar'
+import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from '@/components/ui/Menu'
+import { avatarFromFile } from '@/lib/avatarImage'
 import { cn } from '@/lib/cn'
+import { useBotStore } from '@/store/botStore'
 import type { Bot, ChatMessage } from '@/types'
 
 interface BotListItemProps {
@@ -13,12 +17,52 @@ interface BotListItemProps {
   onSelect: (botId: string) => void
 }
 
-function previewText(bot: Bot, last: ChatMessage | undefined, typing: boolean): string {
+/** One line under the name: the latest message, or nothing for a new bot. */
+function previewText(last: ChatMessage | undefined, typing: boolean): string {
   if (typing) return 'Typing…'
-  if (!last) return bot.description
+  if (!last) return ''
   const text = last.text.replace(/\s+/g, ' ').trim()
   const body = text || (last.attachments?.length ? last.attachments[0]!.name : '')
   return last.role === 'user' ? `You: ${body}` : body
+}
+
+function RenameField({ bot, onDone }: { bot: Bot; onDone: () => void }) {
+  const renameBot = useBotStore((s) => s.renameBot)
+  const [draft, setDraft] = useState(bot.name)
+  const ref = useRef<HTMLInputElement>(null)
+  const settled = useRef(false)
+
+  useEffect(() => {
+    ref.current?.focus()
+    ref.current?.select()
+  }, [])
+
+  const commit = (save: boolean) => {
+    if (settled.current) return
+    settled.current = true
+    if (save) renameBot(bot.id, draft)
+    onDone()
+  }
+
+  return (
+    <input
+      ref={ref}
+      value={draft}
+      maxLength={40}
+      aria-label="Bot name"
+      onChange={(event) => setDraft(event.target.value)}
+      onBlur={() => commit(true)}
+      onKeyDown={(event) => {
+        if (event.nativeEvent.isComposing) return
+        if (event.key === 'Enter') commit(true)
+        else if (event.key === 'Escape') {
+          event.stopPropagation()
+          commit(false)
+        }
+      }}
+      className="-ml-1 h-7 w-full rounded-md border border-accent-600 bg-surface px-1 text-[14px] text-ink outline-none ring-3 ring-accent-100"
+    />
+  )
 }
 
 export const BotListItem = memo(function BotListItem({
@@ -29,42 +73,150 @@ export const BotListItem = memo(function BotListItem({
   selected,
   onSelect
 }: BotListItemProps) {
-  return (
-    <button
-      type="button"
-      onClick={() => onSelect(bot.id)}
-      aria-current={selected ? 'page' : undefined}
-      className={cn(
-        'group flex min-h-[52px] w-full items-center gap-2.5 rounded-[14px] px-2 py-1.5 text-left',
-        'transition-[background-color,transform] duration-150 active:scale-[0.99]',
-        selected ? 'bg-active' : 'hover:bg-hover'
-      )}
-    >
+  const setBotAvatar = useBotStore((s) => s.setBotAvatar)
+  const removeBot = useBotStore((s) => s.removeBot)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [renaming, setRenaming] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const fileRef = useRef<HTMLInputElement>(null)
+  const rowRef = useRef<HTMLButtonElement>(null)
+  const preview = previewText(last, typing)
+
+  const body = (
+    <>
       <BotAvatar
         emoji={bot.emoji}
         seed={bot.id}
+        avatar={bot.avatar}
         platformId={bot.platformId}
         status={status}
         ringClassName="ring-canvas"
       />
       <span className="min-w-0 flex-1">
-        <span className="flex items-center gap-1.5">
-          <span className="truncate text-[14px] font-medium text-ink">{bot.name}</span>
-          {bot.unread > 0 && (
-            <span className="ml-auto grid h-4 min-w-4 shrink-0 place-items-center rounded-full bg-accent-600 px-1 text-[10px] font-semibold text-white tabular-nums">
-              {bot.unread}
-            </span>
-          )}
-        </span>
+        {renaming ? (
+          <RenameField
+            bot={bot}
+            onDone={() => {
+              setRenaming(false)
+              requestAnimationFrame(() => rowRef.current?.focus())
+            }}
+          />
+        ) : (
+          <span className="block truncate text-[14px] leading-5 text-ink">{bot.name}</span>
+        )}
+        {preview && (
+          <span
+            className={cn(
+              'block truncate text-[13px] leading-[18px]',
+              typing ? 'shimmer-text' : 'text-ink-secondary'
+            )}
+          >
+            {preview}
+          </span>
+        )}
+      </span>
+      {bot.unread > 0 && (
         <span
           className={cn(
-            'mt-0.5 block truncate text-[13px]',
-            typing ? 'text-accent-600' : 'text-ink-muted'
+            'grid h-[18px] min-w-[18px] shrink-0 place-items-center rounded-full bg-accent-600 px-1.5 text-[11px] font-medium text-white tabular-nums transition-opacity duration-100 group-focus-within:opacity-0 group-hover:opacity-0',
+            menuOpen && 'opacity-0'
           )}
         >
-          {previewText(bot, last, typing)}
+          {bot.unread > 99 ? '99+' : bot.unread}
         </span>
-      </span>
-    </button>
+      )}
+    </>
+  )
+
+  const rowClass = cn(
+    'flex min-h-[54px] w-full items-center gap-2.5 rounded-[10px] p-2 pr-3 text-left transition-colors duration-[120ms]',
+    selected ? 'bg-active' : 'hover:bg-hover',
+    menuOpen && !selected && 'bg-hover'
+  )
+
+  return (
+    <div
+      className="group relative"
+      onContextMenu={(event) => {
+        event.preventDefault()
+        setMenuOpen(true)
+      }}
+    >
+      {renaming ? (
+        <div className={rowClass}>{body}</div>
+      ) : (
+        <button
+          ref={rowRef}
+          type="button"
+          data-bot-row
+          onClick={() => onSelect(bot.id)}
+          aria-current={selected ? 'page' : undefined}
+          className={cn(rowClass, 'focus-visible:outline-offset-[-2px]')}
+        >
+          {body}
+        </button>
+      )}
+
+      {!renaming && (
+        <Menu
+          open={menuOpen}
+          onOpenChange={(open) => {
+            setMenuOpen(open)
+            if (!open) setConfirmDelete(false)
+          }}
+        >
+          <MenuTrigger
+            aria-label={`Actions for ${bot.name}`}
+            className={cn(
+              'press-icon absolute top-1/2 right-2 grid size-7 -translate-y-1/2 place-items-center rounded-full text-ink-secondary',
+              'opacity-0 group-hover:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100',
+              'hover:bg-active hover:text-ink data-[state=open]:bg-active'
+            )}
+          >
+            <MoreHorizontal className="size-4" />
+          </MenuTrigger>
+          <MenuContent align="start" side="bottom" className="min-w-48">
+            <MenuItem onSelect={() => setRenaming(true)}>
+              <Pencil aria-hidden /> Rename
+            </MenuItem>
+            <MenuItem onSelect={() => fileRef.current?.click()}>
+              <ImagePlus aria-hidden /> {bot.avatar ? 'Change photo' : 'Add photo'}
+            </MenuItem>
+            {bot.avatar && (
+              <MenuItem onSelect={() => setBotAvatar(bot.id, undefined)}>
+                <ImageMinus aria-hidden /> Remove photo
+              </MenuItem>
+            )}
+            <MenuSeparator />
+            <MenuItem
+              danger
+              className={cn(confirmDelete && 'bg-status-error/10 data-[highlighted]:bg-status-error/15')}
+              onSelect={(event) => {
+                // Deleting is final, so it takes a second click.
+                if (!confirmDelete) {
+                  event.preventDefault()
+                  setConfirmDelete(true)
+                  return
+                }
+                void removeBot(bot.id)
+              }}
+            >
+              <Trash2 aria-hidden /> {confirmDelete ? 'Click again to delete' : 'Delete bot'}
+            </MenuItem>
+          </MenuContent>
+        </Menu>
+      )}
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/png,image/jpeg,image/webp,image/gif"
+        hidden
+        onChange={(event) => {
+          const file = event.target.files?.[0]
+          event.target.value = ''
+          if (file) void avatarFromFile(file).then((avatar) => setBotAvatar(bot.id, avatar), () => {})
+        }}
+      />
+    </div>
   )
 })

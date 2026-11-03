@@ -50,6 +50,8 @@ export interface BotHubState {
   addAccountsToBot: (botId: string, drafts: AccountDraft[]) => void
   renameBot: (botId: string, name: string) => void
   setBotAvatar: (botId: string, avatar: string | undefined) => void
+  /** Delete a bot; accounts no other bot uses are signed out and dropped. */
+  removeBot: (botId: string) => Promise<void>
 
   // Conversation
   sendMessage: (botId: string, text: string, attachments?: AttachmentMeta[]) => Promise<void>
@@ -279,6 +281,33 @@ export const useBotStore = create<BotHubState>()(
     },
 
     setBotAvatar: (botId, avatar) => patchBot(botId, () => ({ avatar })),
+
+    removeBot: async (botId) => {
+      const state = get()
+      const bot = state.bots.find((b) => b.id === botId)
+      if (!bot) return
+      const orphaned = bot.accountIds.filter((id) => !state.bots.some((b) => b.id !== botId && b.accountIds.includes(id)))
+      const ordered = state.groups.flatMap((g) => state.bots.filter((b) => b.groupId === g.id))
+      const index = ordered.findIndex((b) => b.id === botId)
+      const neighbour = ordered[index + 1] ?? ordered[index - 1]
+      set((s) => {
+        const { [botId]: _messages, ...messages } = s.messages
+        const { [botId]: _typing, ...typing } = s.typing
+        return {
+          bots: s.bots.filter((b) => b.id !== botId),
+          messages,
+          typing,
+          selectedBotId: s.selectedBotId === botId ? (neighbour?.id ?? null) : s.selectedBotId
+        }
+      })
+      for (const accountId of orphaned) {
+        await get().signOutAccount(accountId)
+        set((s) => {
+          const { [accountId]: _removed, ...accounts } = s.accounts
+          return { accounts }
+        })
+      }
+    },
 
     sendMessage: async (botId, text, attachments) => {
       const bot = get().bots.find((b) => b.id === botId)

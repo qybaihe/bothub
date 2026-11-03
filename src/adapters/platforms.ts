@@ -26,7 +26,7 @@ export const PLATFORMS: readonly PlatformDescriptor[] = [
   {
     id: 'hark',
     name: 'Hark',
-    description: 'Personal agent on hark.com — Google login, REST chat.',
+    description: 'Personal agent on hark.com — Google login + REST chat (preview; login flow still maturing).',
     availability: 'available',
     monogram: 'H',
     homeUrl: 'https://app.hark.com',

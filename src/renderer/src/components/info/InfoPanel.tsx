@@ -3,6 +3,9 @@ import { X } from 'lucide-react'
 import { AddAccountsButton } from '@/components/add-bot/AddAccountsDialog'
 import { PaneHeader } from '@/components/layout/PaneHeader'
 import { ApprovalsSection } from '@/components/muse/ApprovalsSection'
+import { MemorySection } from '@/components/muse/MemorySection'
+import { PermissionsSection } from '@/components/muse/PermissionsSection'
+import { SkillsSection } from '@/components/muse/SkillsSection'
 import { ConnectorsSection } from '@/components/muse/ConnectorsSection'
 import { FilesSection } from '@/components/muse/FilesSection'
 import { InviteSection } from '@/components/muse/InviteSection'
@@ -170,7 +173,7 @@ export function InfoPanel() {
                 <Section title={t('Accounts')} count={accounts.length > 1 ? accounts.length : undefined} action={<AddAccountsButton bot={bot} />} flush>
                   <AccountList bot={bot} accounts={accounts} />
                 </Section>
-                <Section title={t('Memory')} count={bot.memory.length}>
+                <Section title={t('Local notes (BotHub)')} count={bot.memory.length}>
                   <MemoryEditor bot={bot} />
                 </Section>
                 <Section title={t('Notes')} flush>
@@ -189,6 +192,9 @@ export function InfoPanel() {
                     <SessionsSection accountId={bot.activeAccountId} />
                     <SchedulesSection accountId={bot.activeAccountId} />
                     <ApprovalsSection accountId={bot.activeAccountId} />
+                    <PermissionsSection accountId={bot.activeAccountId} />
+                    <MemorySection accountId={bot.activeAccountId} />
+                    <SkillsSection accountId={bot.activeAccountId} />
                     <ConnectorsSection accountId={bot.activeAccountId} />
                   </>
                 ) : null}

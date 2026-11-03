@@ -37,17 +37,17 @@ function parseCaps(raw: unknown): Caps {
   for (const [k, v] of Object.entries(nested)) {
     if (typeof v === 'boolean' || v === 0 || v === 1 || v === 'true' || v === 'false') pushFlag(k, v)
   }
-  const blob = JSON.stringify(nested).toLowerCase()
-  const retiredHint = /retired|unsupported|disabled/.test(blob)
+  const retiredHint =
+    nested['retired'] === true ||
+    nested['unsupported'] === true ||
+    nested['disabled'] === true ||
+    (typeof nested['status'] === 'string' && /retired|unsupported|disabled/i.test(nested['status']))
   const supported =
     nested['shared_agents'] === true ||
     nested['supported'] === true ||
     flags.includes('shared_agents') ||
     Object.keys(nested).length > 0
-  const remoteGrant =
-    nested['remote_grant_v1'] === true ||
-    flags.includes('remote_grant_v1') ||
-    /remote_grant/.test(blob)
+  const remoteGrant = nested['remote_grant_v1'] === true || flags.includes('remote_grant_v1')
   return { supported, remoteGrant, retiredHint, flags, raw: nested }
 }
 

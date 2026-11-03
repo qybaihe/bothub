@@ -72,6 +72,7 @@ export interface BotHubState {
   // Accounts
   removeAccountFromBot: (botId: string, accountId: string) => void
   setActiveAccount: (botId: string, accountId: string) => void
+  setSelectedAgent: (botId: string, agentId: string) => void
   renameAccount: (accountId: string, displayName: string) => void
   /** Sign out: clear persist partition + mark offline. */
   signOutAccount: (accountId: string) => Promise<void>
@@ -464,6 +465,21 @@ export const useBotStore = create<BotHubState>()(
         }
       }),
 
+    setSelectedAgent: (botId, agentId) => {
+      const trimmed = agentId.trim()
+      if (!trimmed) return
+      patchBot(botId, () => ({ selectedAgentId: trimmed }))
+      try {
+        const bot = get().bots.find((b) => b.id === botId)
+        const account = bot ? get().accounts[bot.activeAccountId] : undefined
+        const adapter = account && adapterRegistry.get(account.platformId)
+        const grok = adapter as { bindConversationAgent?: (c: string, a: string) => void } | undefined
+        grok?.bindConversationAgent?.(botId, trimmed)
+      } catch {
+        /* ignore */
+      }
+    },
+
     renameAccount: (accountId, displayName) => {
       const trimmed = displayName.trim()
       if (!trimmed) return
@@ -478,6 +494,10 @@ export const useBotStore = create<BotHubState>()(
         const bridge = electronBridge()
         if (account.platformId === 'meta-muse' && bridge?.muse?.signOut) {
           await bridge.muse.signOut(accountId)
+        } else if (account.platformId === 'grok' && bridge?.grok?.clearAuth) {
+          await bridge.grok.clearAuth(accountId)
+          const adapter = adapterRegistry.get('grok') as { clearAuth?: (id: string) => void }
+          adapter?.clearAuth?.(accountId)
         } else if (bridge?.webViews?.clearPartition) {
           await bridge.webViews.clearPartition(accountId)
         }

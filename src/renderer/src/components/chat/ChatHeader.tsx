@@ -1,4 +1,5 @@
 import { ChevronRight, Globe, PanelRight } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { PaneHeader } from '@/components/layout/PaneHeader'
 import { BotAvatar } from '@/components/ui/Avatar'
 import { IconButton } from '@/components/ui/IconButton'
@@ -7,12 +8,74 @@ import { cn } from '@/lib/cn'
 import { getBotStatus } from '@/lib/selectors'
 import { shortcutLabel } from '@/lib/shortcuts'
 import { useBotStore } from '@/store/botStore'
+import { adapterRegistry } from '@adapters/registry'
 import type { Bot, BotAccount } from '@/types'
 import { AccountSwitcher } from './AccountSwitcher'
 
 interface ChatHeaderProps {
   bot: Bot
   accounts: BotAccount[]
+}
+
+interface AgentOption {
+  id: string
+  name: string
+}
+
+function AgentPicker({ bot }: { bot: Bot }) {
+  const setSelectedAgent = useBotStore((s) => s.setSelectedAgent)
+  const account = useBotStore((s) => s.accounts[bot.activeAccountId])
+  const [agents, setAgents] = useState<AgentOption[]>([])
+
+  useEffect(() => {
+    if (bot.platformId !== 'grok' || !account) {
+      setAgents([])
+      return
+    }
+    const adapter = adapterRegistry.get('grok') as {
+      listCachedAgents?: (id: string) => AgentOption[]
+      refreshAgents?: (id: string) => Promise<AgentOption[]>
+      bindConversationAgent?: (c: string, a: string) => void
+    }
+    const apply = (list: AgentOption[]) => {
+      setAgents(list)
+      const pick =
+        bot.selectedAgentId && list.some((a) => a.id === bot.selectedAgentId)
+          ? bot.selectedAgentId
+          : list[0]?.id
+      if (!pick) return
+      adapter?.bindConversationAgent?.(bot.id, pick)
+      if (pick !== bot.selectedAgentId) setSelectedAgent(bot.id, pick)
+    }
+    const cached = adapter?.listCachedAgents?.(account.id) ?? []
+    if (cached.length) {
+      apply(cached.map((a) => ({ id: a.id, name: a.name })))
+      return
+    }
+    void adapter
+      ?.refreshAgents?.(account.id)
+      .then((list) => apply((list ?? []).map((a) => ({ id: a.id, name: a.name }))))
+      .catch(() => setAgents([]))
+  }, [bot.id, bot.platformId, bot.selectedAgentId, account?.id, account?.status, setSelectedAgent])
+
+  if (bot.platformId !== 'grok' || agents.length === 0) return null
+  return (
+    <label className="flex min-w-0 items-center gap-1.5 text-[12px] text-ink-muted">
+      <span className="shrink-0">Agent</span>
+      <select
+        className="max-w-[140px] truncate rounded-full border border-line bg-surface px-2 py-0.5 text-[12px] text-ink outline-none focus:border-accent"
+        value={bot.selectedAgentId ?? agents[0]?.id ?? ''}
+        onChange={(e) => setSelectedAgent(bot.id, e.target.value)}
+        aria-label="Select Grok Bot agent"
+      >
+        {agents.map((a) => (
+          <option key={a.id} value={a.id}>
+            {a.name}
+          </option>
+        ))}
+      </select>
+    </label>
+  )
 }
 
 export function ChatHeader({ bot, accounts }: ChatHeaderProps) {
@@ -27,7 +90,9 @@ export function ChatHeader({ bot, accounts }: ChatHeaderProps) {
 
   return (
     <PaneHeader className="gap-3 pr-3">
-      <div className="min-w-0 flex-1" />
+      <div className="flex min-w-0 flex-1 items-center gap-2">
+        <AgentPicker bot={bot} />
+      </div>
 
       {/* The capsule: avatar + name; hovering reveals the way into details. */}
       <button

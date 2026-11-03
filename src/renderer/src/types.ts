@@ -42,6 +42,8 @@ export interface Bot {
   accountIds: string[]
   /** Account used for new messages. Always one of `accountIds`. */
   activeAccountId: string
+  /** Grok Bot agent UUID to talk to (optional; defaults to first agent). */
+  selectedAgentId?: string
   memory: MemoryItem[]
   notes: string
   createdAt: number

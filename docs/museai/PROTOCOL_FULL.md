@@ -1,6 +1,6 @@
 # Muse / Hatch — full protocol map (BotHub)
 
-> Generated 2026-11-04 (Asia/Shanghai); slice 80 matrix recount. Sources: official muse.ai JS (`docs` companions under `/workspace/muse/museai/js*`),
+> Generated 2026-11-04 (Asia/Shanghai); slice 90 matrix recount. Sources: official muse.ai JS (`docs` companions under `/workspace/muse/museai/js*`),
 > `samples/gateway_methods.json` (387 Noise RPCs), archived redacted captures, BotHub `src/main/muse-native/*` + adapter.
 > **No secrets / cookies / tokens.** Status: `done` | `partial` | `missing` relative to BotHub native path.
 
@@ -70,11 +70,11 @@ Other subscriptions in registry: `chat.stream_events`, `activity.subscribe`, `ar
 | `option` | **done** | Chip UI + widgets.state.set + resend label |
 | `image / images` | **done** | http(s) inline; workspace paths via `fs.raw` preview (≤8MiB Range); honest chip if preview fails |
 | `file / file_ref` | **done** | Inbound path chips; outbound image ≤12MiB / file ≤40MiB base64; ≥10MiB non-image → file_ref via `fs.write` |
-| `image_options` | **partial** | RO grid + selection state; write/`widgets.state.set` for picks not wired |
+| `image_options` | **partial** | RO grid + selection state; **write left unwired** — muse.ai JS extracts only prove `option`→`{selectedText}`; image_options persist/`messageOrigin` shape not confirmed |
 | `shopping_cart / shopping_results(_v2)` | **partial** | Read-only product/cart UI; no checkout / shopping.* write |
 | `local_map / marketplace_map` | **partial** | Read-only places/listings + sandboxed map html when present |
 | `slides / html` | **partial** | Sandboxed html iframe; slides = label/slug/path chip |
-| `audio / video` | **partial** | Parsed as file media chips (`audio/*` / `video/*`); no dedicated player |
+| `audio / video` | **partial** | HTML5 `<audio>`/`<video>` for http(s) or workspace `fs.raw` blob (≤8MiB preview); dedicated Muse players/streaming still N/A |
 
 
 ### 2.4 Tool chips & media (BotHub)
@@ -136,14 +136,14 @@ Total methods: **387**.
 
 | Prefix | # | done | partial | missing | Highest-value notes |
 |---|---:|---:|---:|---:|---|
-| `peers` | 26 | 0 | 13 | 13 | Trusted Network UI (Members); Shared Agents Noise class still deferred |
+| `peers` | 26 | 0 | 13 | 13 | Trusted Network UI (Members) |
 | `spaces` | 24 | 0 | 0 | 24 | Spaces / canvases |
 | `egress` | 21 | 3 | 11 | 7 | HITL approvals + network permissions |
 | `email` | 19 | 0 | 0 | 19 | Agent mailbox |
 | `voice` | 19 | 0 | 0 | 19 | Voice calls / dictation |
 | `feed` | 16 | 0 | 0 | 16 | Home feed |
 | `chat` | 15 | 6 | 9 | 0 | Core messaging |
-| `shared_agents` | 15 | 0 | 0 | 15 | Remote shared agent (alt Noise class) |
+| `shared_agents` | 15 | 0 | 2 | 13 | capabilities/list UI; remote needs ticket bootstrap |
 | `browser_task` | 14 | 0 | 0 | 14 | Remote browser takeover |
 | `fs` | 14 | 4 | 10 | 0 | Library + upload path for large attachments |
 | `connectors` | 11 | 6 | 4 | 1 | OAuth connectors list/connect |
@@ -520,14 +520,14 @@ Total methods: **387**.
 | `session.unpin` | POST | `/session/unpin` | — |  | **done** |
 | `sessions.get` | GET | `/api/session/list/{id}` | — |  | **missing** |
 | `sessions.list` | GET | `/api/session/list` | — |  | **done** |
-| `shared_agents.capabilities` | GET | `/shared-agents/capabilities` | — |  | **missing** |
+| `shared_agents.capabilities` | GET | `/shared-agents/capabilities` | — |  | **partial** |
 | `shared_agents.create` | POST | `/shared-agents/create-idempotent` | — |  | **missing** |
 | `shared_agents.definition` | GET | `/shared-agents/{shared_agent_id}/definition` | — |  | **missing** |
 | `shared_agents.definition.update` | PATCH | `/shared-agents/{shared_agent_id}/definition` | — |  | **missing** |
 | `shared_agents.delete` | DELETE | `/shared-agents/{shared_agent_id}` | — |  | **missing** |
 | `shared_agents.detail` | GET | `/shared-agents/{shared_agent_id}` | — |  | **missing** |
 | `shared_agents.identity.update` | PATCH | `/shared-agents/{shared_agent_id}/identity` | — |  | **missing** |
-| `shared_agents.list` | GET | `/shared-agents` | — |  | **missing** |
+| `shared_agents.list` | GET | `/shared-agents` | — |  | **partial** |
 | `shared_agents.remote.open` | POST | `/api/shared-agents/remote/open` | — | yes | **missing** |
 | `shared_agents.remote.send` | POST | `/api/shared-agents/remote/send` | — |  | **missing** |
 | `shared_agents.shares.conversation` | GET | `/shared-agents/{shared_agent_id}/shares/{share_id}/conversation` | — |  | **missing** |
@@ -634,10 +634,11 @@ From official `HatchAttachments` (JS):
 | Desktop OS notifications | client-local | **done** — Electron Notification when blurred (approval / new reply) |
 | Permissions settings pane | `permissions.settings*` / `egress.permissions*` | **partial** — InfoPanel + Save → `permissions.settings.update` (network_default / connector_default = auto_allow\|always_ask); protocols[] modes still RO; honest empty |
 | Config pane | `config.get` / `config.update` | **partial** (get only) |
-| Themes | `chat.themes*` / `theme.subscribe` | **missing** |
+| Themes | `chat.themes*` / `theme.subscribe` | **missing** UI — method registry known; **response/set body shapes not captured**; BotHub already has local light/dark prefs (not Muse themes) |
 | Memory pane | `memory.*` | **partial** — Muse MemorySection (`memory.search`/`get`/`consolidate`); local BotHub notes kept separate |
 | Skills pane | `skills.*` | **partial** — SkillsSection list + set_disabled; honest empty when RPC bare |
-| Trusted Network | `peers.*` | **partial** — Members tab `PeersSection`: status/list/invites/inbox/requests + create/revoke/open/accept/decline/SAS/disconnect; honest empty if RPC class missing; **never auto-accept**; Shared Agents remote Noise class deferred |
+| Trusted Network | `peers.*` | **partial** — Members tab `PeersSection`: status/list/invites/inbox/requests + create/revoke/open/accept/decline/SAS/disconnect; honest empty if RPC class missing; **never auto-accept** |
+| Shared Agents | `shared_agents.*` | **partial** — Members `SharedAgentsSection` probes capabilities/list on personal `hatch_vm`; Noise `connectionClass=shared_agent` Msg1/Msg3 shell in gateway; **remote.open/send withheld** until Msg3 ticket bootstrap captured |
 | Per-account proxy | BotHub-local | **done** — Overview `ProxySection`; `safeStorage` (`muse-account-proxy.json`); Electron `session.setProxy` on account partition + Node `ws` agent (`https-proxy-agent` / `socks-proxy-agent`); not a Muse RPC |
 
 ## 8. BotHub implementation map
@@ -664,8 +665,8 @@ From official `HatchAttachments` (JS):
 8. ~~Trusted Network `peers.*` Members UI~~ **partial** — core invite/list/accept/SAS/disconnect; never auto-accept; Shared Agents / peerSpaces / peers.rules* still missing.
 9. ~~Per-account client proxy~~ **done** (BotHub-local partition + WSS agent; reconnect advised after save).
 10. Live redacted capture of `permissions.settings.update` body + shopping widget payload samples (UI parses known shapes from muse.ai JS; wire samples still thin).
-11. Shared Agents (`shared_agents.*`) needs alternate Noise connectionClass — deferred (no fake host API).
-12. Spaces / feed / voice / email / browser_task — large remaining surfaces.
+11. ~~Shared Agents shell~~ **partial** — capabilities/list UI + Noise class Msg1/Msg3 hooks; **ticket bootstrap / remote.open WSS still needs live capture**.
+12. Spaces / feed / voice / email / browser_task / Muse themes — see §12 blockers (no inventing InfoPanel UI).
 
 
 ## 10. Slice 70 (near-native media / widgets / permissions write / file_ref)
@@ -684,11 +685,37 @@ From official `HatchAttachments` (JS):
 | Item | Status | Notes |
 |---|---|---|
 | Trusted Network Members UI | **partial** | `PeersSection` wires peers.status/list/invites.*/inbox.list/decline/requests.*/disconnect; honest empty; never auto-accept |
-| Shared Agents remote | **missing** | Needs Noise connectionClass extension; not faked |
+| Shared Agents remote | **missing** | Msg1/Msg3 shell present (slice 90); ticket bootstrap still missing |
 | Per-account proxy | **done** | `accountProxy.ts` + Overview UI; partition `setProxy` + WSS agent; password via safeStorage |
 | `image_options` | **partial** | Parse + RO grid; selection write not wired |
 | audio/video inbound | **partial** | File chips with audio/* / video/* mime |
 | Shots | 80-prefixed | ui-parity/shots |
+
+
+## 12. Surface blockers (no new captures — slice 90)
+
+Do **not** invent InfoPanel UI for these until redacted live samples exist:
+
+| Surface | Why blocked | What's known without capture |
+|---|---|---|
+| Muse `chat.themes*` / `theme.subscribe` | List/set **body shapes unknown**; BotHub local theme ≠ Muse chat theme pack | Method paths in registry |
+| `spaces.*` / `peerSpaces.*` | Large canvas/doc model; share flows tied to peers; no list payload samples | 24+8 methods in registry |
+| `feed.*` | Personalized units/media/reactions — product surface, many endpoints | 16 methods |
+| `voice.*` | Calls + media endpoint + avatar video — needs realtime/media stack | 19 methods |
+| `email.*` | Agent mailbox setup/CRUD — needs setup wizard samples | 19 methods |
+| `browser_task.*` / `browser.*` | Remote browser lease/heartbeat/viewer — Computer-tab scale | 14+7 methods |
+| `image_options` **write** | Only `option`→`widgets.state.set` `{selectedText}` + `messageOrigin.kind=options_widget` proven; image pick persist/`messageOrigin` **not** in ONBOARDING/JS notes | RO parse of `selectedPath`/`selectedIndices` is best-effort read |
+| Shared Agent **remote** | Msg1 field2=1 + Msg3 ticket documented; **where ticket bytes come from** (HTTPS grant?) not captured | Personal-session capabilities/list OK |
+
+## 13. Slice 90 (AV players / Shared Agents shell / honest RO)
+
+| Item | Status | Notes |
+|---|---|---|
+| image_options click-to-choose | **missing** (kept RO) | Persist shape unconfirmed |
+| HTML5 audio/video inbound | **partial** | http(s) + `fs.raw` ≤8MiB blob players |
+| Shared Agents Noise class | **partial** | gateway `connectionClass` + Members list UI; remote connect withheld |
+| themes/spaces/feed/voice/email/browser_task UI | **missing** | §12 blockers |
+| Shots | 90-prefixed | ui-parity/shots |
 
 ---
 

@@ -45,6 +45,8 @@
   "dependencies": {
     "@types/ws": "^8.18.2",
     "electron-updater": "^6.8.11",
+    "https-proxy-agent": "^7.0.6",
+    "socks-proxy-agent": "^8.0.5",
     "ws": "^8.22.1"
   },
   "repository": {

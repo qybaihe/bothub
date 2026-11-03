@@ -87,11 +87,26 @@ export function ChatHeader({ bot, accounts }: ChatHeaderProps) {
   const toggleWebSession = useBotStore((s) => s.toggleWebSession)
 
   const status = getBotStatus(bot, allAccounts)
+  const activity = useBotStore((s) => s.activity[bot.activeAccountId])
+  const activityLine = activity
+    ? `${activity.emoji ? activity.emoji + ' ' : ''}${activity.text || (activity.busy ? 'Working…' : '')}${
+        activity.subagents && activity.subagents > 0 ? ` · ${activity.subagents} subagents` : ''
+      }`.trim()
+    : ''
 
   return (
     <PaneHeader className="gap-3 pr-3">
       <div className="flex min-w-0 flex-1 items-center gap-2">
         <AgentPicker bot={bot} />
+        {activityLine ? (
+          <span
+            className="hidden min-w-0 truncate text-[12px] text-ink-muted shimmer-text sm:inline"
+            title={activityLine}
+            data-muse-activity
+          >
+            {activityLine}
+          </span>
+        ) : null}
       </div>
 
       {/* The capsule: avatar + name; hovering reveals the way into details. */}

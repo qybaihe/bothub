@@ -23,6 +23,7 @@ export function BotList() {
   const accounts = useBotStore((s) => s.accounts)
   const messages = useBotStore((s) => s.messages)
   const typing = useBotStore((s) => s.typing)
+  const activity = useBotStore((s) => s.activity)
   const collapsed = useBotStore((s) => s.collapsedGroups)
   const selectedBotId = useBotStore((s) => s.selectedBotId)
   const selectBot = useBotStore((s) => s.selectBot)
@@ -62,6 +63,7 @@ export function BotList() {
                       status={getBotStatus(bot, accounts)}
                       last={lastMessage(messages[bot.id])}
                       typing={typing[bot.id] === true}
+                      activity={activity[bot.activeAccountId]}
                       selected={bot.id === selectedBotId}
                       onSelect={selectBot}
                     />

@@ -7,19 +7,34 @@ import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from '@/compo
 import { avatarFromFile } from '@/lib/avatarImage'
 import { cn } from '@/lib/cn'
 import { useBotStore } from '@/store/botStore'
-import type { Bot, ChatMessage } from '@/types'
+import type { Bot, BotActivity, ChatMessage } from '@/types'
 
 interface BotListItemProps {
   bot: Bot
   status: ConnectionStatus
   last: ChatMessage | undefined
   typing: boolean
+  activity?: BotActivity
   selected: boolean
   onSelect: (botId: string) => void
 }
 
-/** One line under the name: the latest message, or nothing for a new bot. */
-function previewText(last: ChatMessage | undefined, typing: boolean): string {
+function activityPhrase(activity: BotActivity | undefined): string {
+  if (!activity) return ''
+  const emoji = activity.emoji ? `${activity.emoji} ` : ''
+  if (activity.text) return `${emoji}${activity.text}`
+  if (activity.busy) return `${emoji}Working…`
+  return ''
+}
+
+/** One line under the name: live activity, else latest message. */
+function previewText(
+  last: ChatMessage | undefined,
+  typing: boolean,
+  activity: BotActivity | undefined
+): string {
+  const live = activityPhrase(activity)
+  if (live) return live
   if (typing) return 'Typing…'
   if (!last) return ''
   const text = last.text.replace(/\s+/g, ' ').trim()
@@ -32,6 +47,7 @@ export const BotListItem = memo(function BotListItem({
   status,
   last,
   typing,
+  activity,
   selected,
   onSelect
 }: BotListItemProps) {
@@ -43,7 +59,8 @@ export const BotListItem = memo(function BotListItem({
   const [confirmDelete, setConfirmDelete] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
   const rowRef = useRef<HTMLButtonElement>(null)
-  const preview = previewText(last, typing)
+  const preview = previewText(last, typing, activity)
+  const live = Boolean(activityPhrase(activity))
   // Only a bot created a moment ago rises into the list; startup stays still.
   const [fresh] = useState(() => Date.now() - bot.createdAt < 3000)
 
@@ -76,7 +93,7 @@ export const BotListItem = memo(function BotListItem({
           <span
             className={cn(
               'block truncate text-[13px] leading-[18px]',
-              typing ? 'shimmer-text' : 'text-ink-secondary'
+              typing || live ? 'shimmer-text' : 'text-ink-secondary'
             )}
           >
             {preview}

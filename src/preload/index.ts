@@ -60,7 +60,8 @@ const bridge: BotHubBridge = {
     disconnectConnector: (accountId, connectorId) =>
       ipcRenderer.invoke(MUSE_CHANNELS.disconnectConnector, accountId, connectorId),
     openExternal: (url) => ipcRenderer.invoke(MUSE_CHANNELS.openExternal, url),
-    openHttps: (url) => ipcRenderer.invoke(MUSE_CHANNELS.openHttps, url)
+    openHttps: (url) => ipcRenderer.invoke(MUSE_CHANNELS.openHttps, url),
+    selectOption: (request) => ipcRenderer.invoke(MUSE_CHANNELS.selectOption, request)
   },
   updates: {
     check: () => ipcRenderer.invoke(UPDATE_CHANNELS.check),

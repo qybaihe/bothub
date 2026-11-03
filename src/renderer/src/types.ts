@@ -53,6 +53,16 @@ export interface Bot {
 export type MessageRole = 'user' | 'bot'
 export type MessageDelivery = 'sending' | 'sent' | 'failed'
 
+export interface ChatOptionWidget {
+  kind: 'option'
+  widgetId: string
+  options: string[]
+  buttonStyle: 'dotted_lines' | 'center_aligned_filled'
+  customInputPlaceholder?: string
+  selectedText?: string | null
+  baseVersion: number
+}
+
 export interface ChatMessage {
   id: string
   botId: string
@@ -64,6 +74,17 @@ export interface ChatMessage {
   delivery?: MessageDelivery
   error?: string
   attachments?: AttachmentMeta[]
+  /** Muse option chips (onboarding name picker, etc.). */
+  widgets?: ChatOptionWidget[]
+}
+
+export interface BotActivity {
+  code: string
+  text: string | null
+  emoji: string | null
+  busy: boolean
+  subagents?: number
+  ctaLabel?: string
 }
 
 /** An account row in the add-bot / add-account forms. */

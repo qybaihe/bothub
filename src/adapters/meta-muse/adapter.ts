@@ -14,7 +14,9 @@ import {
   type PlatformAccount,
   type PlatformAdapter,
   type SendReceipt,
-  type Unsubscribe
+  type Unsubscribe,
+  type MuseOptionWidget,
+  type AgentActivity
 } from '../types'
 
 /**
@@ -143,6 +145,7 @@ export class MuseAdapter implements PlatformAdapter {
         break
       }
       case 'stream': {
+        const widgets = event.widgets as MuseOptionWidget[] | undefined
         if (!event.done) {
           this.emit({
             type: 'typing',
@@ -150,13 +153,14 @@ export class MuseAdapter implements PlatformAdapter {
             accountId: event.accountId,
             isTyping: true
           })
-          if (event.text) {
+          if (event.text || widgets?.length) {
             this.emit({
               type: 'message_delta',
               messageId: event.messageId,
               conversationId: event.conversationId ?? event.accountId,
               accountId: event.accountId,
-              text: event.text
+              text: event.text || '',
+              widgets
             })
           }
           this.setStatus(event.accountId, 'busy')
@@ -168,17 +172,36 @@ export class MuseAdapter implements PlatformAdapter {
             accountId: event.accountId,
             isTyping: false
           })
-          if (event.text) {
+          if (event.text || widgets?.length) {
             this.streamDelivered.add(`${event.accountId}:${conversationId}`)
-            const message: IncomingMessage = {
+            const message: IncomingMessage & { widgets?: MuseOptionWidget[] } = {
               id: event.messageId,
               conversationId,
               accountId: event.accountId,
-              text: event.text,
-              createdAt: Date.now()
+              text: event.text || '',
+              createdAt: Date.now(),
+              widgets
             }
             this.emit({ type: 'message', message })
           }
+          const pending = this.pendingApprovals.get(event.accountId) ?? []
+          this.setStatus(event.accountId, pending.length ? 'attention' : 'online')
+        }
+        break
+      }
+      case 'activity': {
+        const activity: AgentActivity = {
+          code: event.activityCode,
+          text: event.activityText ?? null,
+          emoji: event.activityEmoji ?? null,
+          agentId: event.agentId ?? null,
+          subagents: event.subagents ?? 0,
+          busy: event.busy,
+          ctaLabel: event.ctaLabel
+        }
+        this.emit({ type: 'activity', accountId: event.accountId, activity })
+        if (event.busy) this.setStatus(event.accountId, 'busy')
+        else {
           const pending = this.pendingApprovals.get(event.accountId) ?? []
           this.setStatus(event.accountId, pending.length ? 'attention' : 'online')
         }
@@ -329,6 +352,47 @@ export class MuseAdapter implements PlatformAdapter {
         isTyping: false
       })
       this.setStatus(message.accountId, 'error', error instanceof Error ? error.message : String(error))
+      throw error
+    }
+  }
+
+
+  async selectOptionWidget(args: {
+    accountId: string
+    conversationId: string
+    hostMessageId: string
+    widget: MuseOptionWidget
+    selectedText: string
+    optionIndex: number
+  }): Promise<void> {
+    this.bindBridgeEvents()
+    this.setStatus(args.accountId, 'busy')
+    this.emit({
+      type: 'typing',
+      conversationId: args.conversationId,
+      accountId: args.accountId,
+      isTyping: true
+    })
+    // Optimistic local user bubble is handled by the store; persist + stream here.
+    try {
+      await this.bridge().selectOption({
+        accountId: args.accountId,
+        conversationId: args.conversationId,
+        hostMessageId: args.hostMessageId,
+        selectedText: args.selectedText,
+        optionIndex: args.optionIndex,
+        widget: args.widget
+      })
+      const pending = this.pendingApprovals.get(args.accountId) ?? []
+      this.setStatus(args.accountId, pending.length ? 'attention' : 'online')
+    } catch (error) {
+      this.emit({
+        type: 'typing',
+        conversationId: args.conversationId,
+        accountId: args.accountId,
+        isTyping: false
+      })
+      this.setStatus(args.accountId, 'error', error instanceof Error ? error.message : String(error))
       throw error
     }
   }

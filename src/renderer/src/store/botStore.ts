@@ -20,6 +20,8 @@ export interface BotHubState {
   messages: Record<string, ChatMessage[]>
   /** Bot ids whose reply is currently being generated. */
   typing: Record<string, boolean>
+  /** Per-account Muse agent.status phrase. */
+  activity: Record<string, import('@/types').BotActivity>
   selectedBotId: string | null
   collapsedGroups: Record<string, boolean>
   infoPanelOpen: boolean
@@ -61,8 +63,11 @@ export interface BotHubState {
   retryMessage: (botId: string, messageId: string) => Promise<void>
   receiveMessage: (message: IncomingMessage) => void
   /** Upsert a streaming assistant bubble (same id updated as deltas arrive). */
-  applyMessageDelta: (messageId: string, conversationId: string, accountId: string, text: string) => void
+  applyMessageDelta: (messageId: string, conversationId: string, accountId: string, text: string, widgets?: import('@/types').ChatOptionWidget[]) => void
   setTyping: (botId: string, isTyping: boolean) => void
+  setActivity: (accountId: string, activity: import('@/types').BotActivity | null) => void
+  setMessageWidgets: (botId: string, messageId: string, widgets: import('@/types').ChatOptionWidget[]) => void
+  selectChatOption: (botId: string, messageId: string, widgetId: string, selectedText: string, optionIndex: number) => Promise<void>
 
   // Bot details
   updateNotes: (botId: string, notes: string) => void
@@ -177,6 +182,7 @@ export const useBotStore = create<BotHubState>()(
   return {
     ...seed,
     typing: {},
+    activity: {},
     selectedBotId: seed.bots[0]?.id ?? null,
     collapsedGroups: {},
     infoPanelOpen: true,
@@ -372,13 +378,16 @@ export const useBotStore = create<BotHubState>()(
                   : incomingText.length > prevText.length
                     ? incomingText
                     : prevText
+        const prevWidgets = existingIdx >= 0 ? list[existingIdx]!.widgets : undefined
+        const incomingWidgets = (incoming as { widgets?: ChatMessage['widgets'] }).widgets
         const message: ChatMessage = {
           id: incoming.id,
           botId,
           accountId: incoming.accountId,
           role: 'bot',
           text: mergedText,
-          createdAt: existingIdx >= 0 ? list[existingIdx]!.createdAt : incoming.createdAt
+          createdAt: existingIdx >= 0 ? list[existingIdx]!.createdAt : incoming.createdAt,
+          widgets: incomingWidgets?.length ? incomingWidgets : prevWidgets
         }
         const selected = state.selectedBotId === botId
         const isNew = existingIdx < 0
@@ -407,7 +416,7 @@ export const useBotStore = create<BotHubState>()(
         }
       }),
 
-    applyMessageDelta: (messageId, conversationId, accountId, text) =>
+    applyMessageDelta: (messageId, conversationId, accountId, text, widgets) =>
       set((state) => {
         const botId = conversationId
         if (!state.bots.some((b) => b.id === botId)) return state
@@ -426,11 +435,15 @@ export const useBotStore = create<BotHubState>()(
                   : text.length > prev.length
                     ? text
                     : prev
-          if (next === prev) return state
+          const prevMsg = list[existingIdx]!
+          const nextWidgets = widgets?.length ? widgets : prevMsg.widgets
+          if (next === prev && nextWidgets === prevMsg.widgets) return state
           return {
             messages: {
               ...state.messages,
-              [botId]: list.map((m, i) => (i === existingIdx ? { ...m, text: next } : m))
+              [botId]: list.map((m, i) =>
+                i === existingIdx ? { ...m, text: next, widgets: nextWidgets } : m
+              )
             }
           }
         }
@@ -440,7 +453,8 @@ export const useBotStore = create<BotHubState>()(
           accountId,
           role: 'bot',
           text,
-          createdAt: Date.now()
+          createdAt: Date.now(),
+          widgets: widgets?.length ? widgets : undefined
         }
         return { messages: { ...state.messages, [botId]: [...list, message] } }
       }),
@@ -453,6 +467,91 @@ export const useBotStore = create<BotHubState>()(
         else delete typing[botId]
         return { typing }
       }),
+
+    setActivity: (accountId, activity) =>
+      set((state) => {
+        if (!activity) {
+          if (!(accountId in state.activity)) return state
+          const { [accountId]: _removed, ...rest } = state.activity
+          return { activity: rest }
+        }
+        const prev = state.activity[accountId]
+        if (
+          prev &&
+          prev.code === activity.code &&
+          prev.text === activity.text &&
+          prev.emoji === activity.emoji &&
+          prev.busy === activity.busy &&
+          prev.subagents === activity.subagents
+        ) {
+          return state
+        }
+        return { activity: { ...state.activity, [accountId]: activity } }
+      }),
+
+    setMessageWidgets: (botId, messageId, widgets) =>
+      set((state) => {
+        const list = state.messages[botId] ?? []
+        const idx = list.findIndex((m) => m.id === messageId)
+        if (idx < 0) return state
+        return {
+          messages: {
+            ...state.messages,
+            [botId]: list.map((m, i) => (i === idx ? { ...m, widgets } : m))
+          }
+        }
+      }),
+
+    selectChatOption: async (botId, messageId, widgetId, selectedText, optionIndex) => {
+      const state = get()
+      const bot = state.bots.find((b) => b.id === botId)
+      if (!bot) return
+      const list = state.messages[botId] ?? []
+      const host = list.find((m) => m.id === messageId)
+      const widget = host?.widgets?.find((w) => w.widgetId === widgetId)
+      if (!host || !widget) return
+      set((s) => {
+        const msgs = s.messages[botId] ?? []
+        const nextMsgs = msgs.map((m) => {
+          if (m.id !== messageId || !m.widgets) return m
+          return {
+            ...m,
+            widgets: m.widgets.map((w) =>
+              w.widgetId === widgetId ? { ...w, selectedText } : w
+            )
+          }
+        })
+        const userMsg: ChatMessage = {
+          id: createId('opt'),
+          botId,
+          accountId: bot.activeAccountId,
+          role: 'user',
+          text: selectedText,
+          createdAt: Date.now(),
+          delivery: 'sent'
+        }
+        return { messages: { ...s.messages, [botId]: [...nextMsgs, userMsg] } }
+      })
+      const adapter = adapterRegistry.get(bot.platformId) as {
+        selectOptionWidget?: (a: {
+          accountId: string
+          conversationId: string
+          hostMessageId: string
+          widget: NonNullable<ChatMessage['widgets']>[number]
+          selectedText: string
+          optionIndex: number
+        }) => Promise<void>
+      }
+      if (!adapter?.selectOptionWidget) return
+      await adapter.selectOptionWidget({
+        accountId: bot.activeAccountId,
+        conversationId: botId,
+        hostMessageId: messageId,
+        widget,
+        selectedText,
+        optionIndex
+      })
+    },
 
     updateNotes: (botId, notes) => patchBot(botId, () => ({ notes })),
 

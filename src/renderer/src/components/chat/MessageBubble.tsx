@@ -1,8 +1,9 @@
-import { memo } from 'react'
+import { memo, useState } from 'react'
 import { AlertCircle, Check, Clock3, FileText, RotateCw } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { formatBytes, formatClock } from '@/lib/format'
-import type { ChatMessage } from '@/types'
+import { useBotStore } from '@/store/botStore'
+import type { ChatMessage, ChatOptionWidget } from '@/types'
 import { MarkdownText } from './MarkdownText'
 
 interface MessageBubbleProps {
@@ -47,6 +48,82 @@ function DeliveryState({ message, onRetry }: Pick<MessageBubbleProps, 'message' 
   }
 }
 
+function OptionChips({ message, widget }: { message: ChatMessage; widget: ChatOptionWidget }) {
+  const selectChatOption = useBotStore((s) => s.selectChatOption)
+  const [customOpen, setCustomOpen] = useState(false)
+  const [customText, setCustomText] = useState('')
+  const selected = widget.selectedText
+  const filled = widget.buttonStyle === 'center_aligned_filled'
+  const disabled = Boolean(selected)
+
+  const pick = (text: string, index: number) => {
+    if (disabled) return
+    void selectChatOption(message.botId, message.id, widget.widgetId, text, index)
+  }
+
+  return (
+    <div className="mt-2 flex max-w-[78%] flex-col gap-2" data-muse-option-widget={widget.widgetId}>
+      <div className="flex flex-wrap gap-1.5">
+        {widget.options.map((opt, index) => {
+          const isSel = selected === opt
+          return (
+            <button
+              key={opt}
+              type="button"
+              disabled={disabled && !isSel}
+              onClick={() => pick(opt, index)}
+              className={cn(
+                'rounded-full px-3 py-1.5 text-[13px] transition-colors',
+                filled
+                  ? 'bg-accent-600 text-white hover:bg-accent-600/90'
+                  : 'border border-dashed border-line-strong bg-surface text-ink hover:bg-hover',
+                isSel && 'ring-2 ring-accent-600',
+                disabled && !isSel && 'opacity-50'
+              )}
+            >
+              {isSel ? `✓ ${opt}` : opt}
+            </button>
+          )
+        })}
+        {widget.customInputPlaceholder && !selected && (
+          <button
+            type="button"
+            onClick={() => setCustomOpen((v) => !v)}
+            className="rounded-full border border-dashed border-line-strong bg-surface px-3 py-1.5 text-[13px] text-ink-secondary hover:bg-hover"
+          >
+            自定义…
+          </button>
+        )}
+      </div>
+      {customOpen && !selected && (
+        <form
+          className="flex gap-1.5"
+          onSubmit={(e) => {
+            e.preventDefault()
+            const text = customText.trim()
+            if (!text) return
+            pick(text, -1)
+          }}
+        >
+          <input
+            value={customText}
+            onChange={(e) => setCustomText(e.target.value)}
+            placeholder={widget.customInputPlaceholder || '输入名字'}
+            className="min-w-0 flex-1 rounded-full border border-line bg-surface px-3 py-1.5 text-[13px] outline-none focus:border-accent"
+            autoFocus
+          />
+          <button
+            type="submit"
+            className="rounded-full bg-accent-600 px-3 py-1.5 text-[13px] text-white"
+          >
+            发送
+          </button>
+        </form>
+      )}
+    </div>
+  )
+}
+
 export const MessageBubble = memo(function MessageBubble({
   message,
   isFirstInRun: _isFirstInRun,
@@ -55,6 +132,7 @@ export const MessageBubble = memo(function MessageBubble({
   onRetry
 }: MessageBubbleProps) {
   const mine = message.role === 'user'
+  const optionWidgets = (!mine && message.widgets?.filter((w) => w.kind === 'option')) || []
 
   return (
     <div className={cn('flex flex-col', mine ? 'items-end' : 'items-start')}>
@@ -89,6 +167,10 @@ export const MessageBubble = memo(function MessageBubble({
           {mine ? message.text : <MarkdownText text={message.text} />}
         </div>
       )}
+
+      {optionWidgets.map((w) => (
+        <OptionChips key={w.widgetId || w.options.join('|')} message={message} widget={w} />
+      ))}
 
       {(isLastInRun || message.delivery === 'failed') && (
         <div

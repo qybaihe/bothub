@@ -7,7 +7,12 @@ import {
   MuseNativeRegistry,
   museTransportMode,
   streamChat,
-  unwrapMuseResult
+  selectOptionWidget,
+  parseAgentStatus,
+  parseOptionWidgets,
+  unwrapMuseResult,
+  type MuseChatEvent,
+  type MuseOptionWidget
 } from '../muse-native'
 import { fetchInviteSummary, fetchSubscription } from '../muse-native/quota'
 import {
@@ -89,6 +94,8 @@ export class MuseSessionManager {
   private readonly native = new MuseNativeRegistry(partitionForAccount, (accountId, phase, error) =>
     this.onNativePhase(accountId, phase, error)
   )
+  /** Accounts with a lifetime chat.subscribe activity/widget watcher. */
+  private readonly chatWatchBound = new Set<string>()
 
   constructor(
     private readonly window: BrowserWindow,
@@ -364,10 +371,101 @@ export class MuseSessionManager {
       session.status.ready = true
       session.status.phase = 'ready'
       session.status.phaseDetail = undefined
+      this.ensureChatWatch(accountId)
     } else if (error && /cvm|owner/i.test(error)) {
       session.status.phaseDetail = 'Muse needs Owner verification (CVM) — finish it in the web session'
     }
     this.emitStatus(accountId)
+  }
+
+  /** Keep chat.subscribe open for agent.status + spontaneous onboarding bubbles. */
+  private ensureChatWatch(accountId: string): void {
+    if (this.chatWatchBound.has(accountId)) return
+    const session = this.sessions.get(accountId)
+    if (!session) return
+    const client = this.native.get(accountId)
+    this.chatWatchBound.add(accountId)
+    void client.chat.ensure().then(() => {
+      client.chat.on('event', (e: MuseChatEvent) => this.onChatWatchEvent(accountId, e))
+    }).catch(() => {
+      this.chatWatchBound.delete(accountId)
+    })
+  }
+
+  private onChatWatchEvent(accountId: string, e: MuseChatEvent): void {
+    const session = this.sessions.get(accountId)
+    if (!session) return
+    const p = e.payload
+    if (e.name === 'agent.status') {
+      const act = parseAgentStatus(p)
+      this.emit({
+        type: 'activity',
+        accountId,
+        activityCode: act.code,
+        activityText: act.text ?? undefined,
+        activityEmoji: act.emoji ?? undefined,
+        agentId: act.agentId ?? undefined,
+        subagents: act.subagents,
+        busy: act.busy,
+        ctaLabel: act.cta?.label
+      })
+      return
+    }
+    // Spontaneous assistant / presentation (e.g. onboarding) when not driven by streamChat UI:
+    // only emit when we have a botId conversation and the event carries a message id.
+    const conversationId = session.botId
+    if (!conversationId) return
+    const id = typeof p['message_id'] === 'string' ? (p['message_id'] as string) : ''
+    if (!id) return
+    const watched =
+      e.name === 'message.assistant' ||
+      e.name === 'delta.message_start' ||
+      e.name === 'delta.text_append' ||
+      e.name === 'delta.message_done' ||
+      e.name === 'delta.presentation'
+    if (!watched) return
+    const widgets = parseOptionWidgets(p)
+    let text = ''
+    if (e.name === 'delta.text_append' && typeof p['text'] === 'string') text = p['text'] as string
+    const display =
+      (typeof p['display_text'] === 'string' && p['display_text']) ||
+      (typeof p['content'] === 'string' && p['content']) ||
+      ''
+    if (e.name === 'delta.message_start') {
+      this.emit({
+        type: 'stream',
+        accountId,
+        conversationId,
+        messageId: `muse_native_${id}`,
+        text: '',
+        done: false,
+        widgets: widgets.length ? widgets : undefined
+      })
+      return
+    }
+    if (e.name === 'delta.text_append' && text) {
+      // Append-only path needs the full text; streamChat owns in-turn appends.
+      // For watch-only, emit delta as fragment via message text replace is wrong —
+      // rely on message.assistant / message_done for spontaneous turns.
+      return
+    }
+    if (e.name === 'delta.presentation' || e.name === 'message.assistant' || e.name === 'delta.message_done') {
+      const body = display || text
+      if (!body && !widgets.length) return
+      this.emit({
+        type: 'stream',
+        accountId,
+        conversationId,
+        messageId: `muse_native_${id}`,
+        text: body,
+        done: e.name === 'message.assistant' || e.name === 'delta.message_done',
+        widgets: widgets.length ? widgets : undefined
+      })
+    }
+  }
+
+  private mapStreamWidgets(list: MuseOptionWidget[] | undefined): MuseOptionWidget[] | undefined {
+    return list && list.length ? list : undefined
   }
 
   private nativeReady(accountId: string): boolean {
@@ -409,17 +507,22 @@ export class MuseSessionManager {
   }
 
   private async nativeChatStream(accountId: string, params: unknown, conversationId?: string): Promise<unknown> {
+    this.ensureChatWatch(accountId)
     const client = this.native.get(accountId)
     const text = extractChatText(params)
     const p = params && typeof params === 'object' ? (params as Record<string, unknown>) : {}
     const sessionId = typeof p['session_id'] === 'string' ? (p['session_id'] as string) : undefined
+    const messageOrigin =
+      p['message_origin'] && typeof p['message_origin'] === 'object'
+        ? (p['message_origin'] as Record<string, unknown>)
+        : undefined
     const ids = new Map<string, string>()
     let last = ''
     let lastId = ''
     const result = await streamChat(
       client.gateway,
       client.chat,
-      { text, nodeId: client.nodeId, sessionId },
+      { text, nodeId: client.nodeId, sessionId, messageOrigin },
       (u) => {
         let id = ids.get(u.messageId)
         if (!id) {
@@ -429,10 +532,70 @@ export class MuseSessionManager {
         last = u.text
         lastId = id
         if (conversationId) {
-          this.emit({ type: 'stream', accountId, conversationId, messageId: id, text: u.text, done: u.done })
+          this.emit({
+            type: 'stream',
+            accountId,
+            conversationId,
+            messageId: id,
+            text: u.text,
+            done: u.done,
+            widgets: this.mapStreamWidgets(u.widgets)
+          })
         }
       },
-      { timeoutMs: 300_000 }
+      { timeoutMs: 600_000, settleMs: 1500 }
+    )
+    const reply = result.text || last
+    return { ...result.ack, text: reply, display_text: reply, reply, assistant_message_id: lastId || undefined }
+  }
+
+  async selectOption(
+    accountId: string,
+    args: {
+      conversationId: string
+      hostMessageId: string
+      widget: MuseOptionWidget
+      selectedText: string
+      optionIndex: number
+      sessionId?: string
+    }
+  ): Promise<unknown> {
+    this.ensureChatWatch(accountId)
+    const client = this.native.get(accountId)
+    const hostId = args.hostMessageId.replace(/^muse_native_/, '')
+    const ids = new Map<string, string>()
+    let last = ''
+    let lastId = ''
+    const result = await selectOptionWidget(
+      client.gateway,
+      client.chat,
+      {
+        nodeId: client.nodeId,
+        sessionId: args.sessionId,
+        hostMessageId: hostId,
+        widget: args.widget,
+        selectedText: args.selectedText,
+        optionIndex: args.optionIndex
+      },
+      (u) => {
+        let id = ids.get(u.messageId)
+        if (!id) {
+          id = `muse_native_${u.messageId}`
+          ids.set(u.messageId, id)
+        }
+        last = u.text
+        lastId = id
+        this.emit({
+          type: 'stream',
+          accountId,
+          conversationId: args.conversationId,
+          messageId: id,
+          text: u.text,
+          done: u.done,
+          widgets: this.mapStreamWidgets(u.widgets)
+        })
+      },
+      { timeoutMs: 600_000, settleMs: 1500 }
     )
     const reply = result.text || last
     return { ...result.ack, text: reply, display_text: reply, reply, assistant_message_id: lastId || undefined }

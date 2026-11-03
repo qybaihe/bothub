@@ -98,11 +98,32 @@ export interface MuseConnector {
   raw?: unknown
 }
 
+export interface MuseOptionWidget {
+  kind: 'option'
+  widgetId: string
+  options: string[]
+  buttonStyle: 'dotted_lines' | 'center_aligned_filled'
+  customInputPlaceholder?: string
+  selectedText?: string | null
+  baseVersion: number
+}
+
+export interface AgentActivity {
+  code: string
+  text: string | null
+  emoji: string | null
+  agentId: string | null
+  subagents: number
+  busy: boolean
+  ctaLabel?: string
+}
+
 export type AdapterEvent =
-  | { type: 'message'; message: IncomingMessage }
-  | { type: 'message_delta'; messageId: string; conversationId: string; accountId: string; text: string }
+  | { type: 'message'; message: IncomingMessage & { widgets?: MuseOptionWidget[] } }
+  | { type: 'message_delta'; messageId: string; conversationId: string; accountId: string; text: string; widgets?: MuseOptionWidget[] }
   | { type: 'typing'; conversationId: string; accountId: string; isTyping: boolean }
   | { type: 'status'; accountId: string; status: ConnectionStatus; detail?: string }
+  | { type: 'activity'; accountId: string; activity: AgentActivity }
   | { type: 'approvals'; accountId: string; pending: MuseApproval[] }
   | {
       type: 'login'
@@ -151,6 +172,15 @@ export interface PlatformAdapter {
   openLogin?(accountId: string, botId?: string): Promise<ConnectionStatus>
   /** Abandon an unfinished login and discard its session data. */
   cancelLogin?(accountId: string): Promise<void>
+  /** Muse: tap an option chip (Kai/Juno) → widgets.state.set + chat.stream. */
+  selectOptionWidget?(args: {
+    accountId: string
+    conversationId: string
+    hostMessageId: string
+    widget: MuseOptionWidget
+    selectedText: string
+    optionIndex: number
+  }): Promise<void>
 }
 
 export type AdapterErrorCode = 'not-connected' | 'unknown-account' | 'unsupported' | 'network' | 'timeout'

@@ -160,6 +160,29 @@ export function registerMuseIpc(): void {
     return managerFor(event).disconnectConnector(accountId, connectorId)
   })
 
+
+  ipcMain.handle(MUSE_CHANNELS.selectOption, async (event, request: unknown) => {
+    if (typeof request !== 'object' || request === null) throw new TypeError('Invalid selectOption request')
+    const v = request as Record<string, unknown>
+    if (typeof v['accountId'] !== 'string' || typeof v['conversationId'] !== 'string') {
+      throw new TypeError('Invalid selectOption request')
+    }
+    if (typeof v['hostMessageId'] !== 'string' || typeof v['selectedText'] !== 'string') {
+      throw new TypeError('Invalid selectOption request')
+    }
+    if (typeof v['optionIndex'] !== 'number' || typeof v['widget'] !== 'object' || v['widget'] === null) {
+      throw new TypeError('Invalid selectOption request')
+    }
+    return managerFor(event).selectOption(v['accountId'] as string, {
+      conversationId: v['conversationId'] as string,
+      hostMessageId: v['hostMessageId'] as string,
+      selectedText: v['selectedText'] as string,
+      optionIndex: v['optionIndex'] as number,
+      widget: v['widget'] as never,
+      sessionId: typeof v['sessionId'] === 'string' ? (v['sessionId'] as string) : undefined
+    })
+  })
+
   ipcMain.handle(MUSE_CHANNELS.openExternal, async (_event, url: unknown) => {
     if (typeof url !== 'string' || !/^https:\/\/(muse\.ai|www\.muse\.ai)(\/|$)/i.test(url)) {
       throw new TypeError('Only https://muse.ai URLs can be opened')

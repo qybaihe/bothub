@@ -22,8 +22,14 @@ function handleEvent(event: AdapterEvent): void {
       break
     case "message_delta":
       store.setTyping(event.conversationId, true)
-      if (event.text) {
-        store.applyMessageDelta(event.messageId, event.conversationId, event.accountId, event.text)
+      if (event.text || event.widgets?.length) {
+        store.applyMessageDelta(
+          event.messageId,
+          event.conversationId,
+          event.accountId,
+          event.text || "",
+          event.widgets
+        )
       }
       break
     case "approvals":
@@ -31,6 +37,16 @@ function handleEvent(event: AdapterEvent): void {
       break
     case "login":
       store.setAccountStatus(event.accountId, event.signedIn ? "online" : "offline")
+      break
+    case "activity":
+      store.setActivity(event.accountId, {
+        code: event.activity.code,
+        text: event.activity.text,
+        emoji: event.activity.emoji,
+        busy: event.activity.busy,
+        subagents: event.activity.subagents,
+        ctaLabel: event.activity.ctaLabel
+      })
       break
   }
 }

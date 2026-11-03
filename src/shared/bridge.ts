@@ -83,6 +83,15 @@ export interface MuseBridge {
   disconnectConnector(accountId: string, connectorId: string): Promise<{ ok: boolean; message?: string }>
   openExternal(url: string): Promise<{ ok: true }>
   openHttps(url: string): Promise<{ ok: true }>
+  selectOption(request: {
+    accountId: string
+    conversationId: string
+    hostMessageId: string
+    selectedText: string
+    optionIndex: number
+    widget: import('./ipc').MuseOptionWidgetView
+    sessionId?: string
+  }): Promise<unknown>
 }
 
 export interface UpdateBridge {

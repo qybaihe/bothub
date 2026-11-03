@@ -69,7 +69,9 @@ export const MUSE_CHANNELS = {
   /** Open https://muse.ai URL in the system browser (Upgrade CTA). */
   openExternal: 'bothub:muse:open-external',
   /** Open any https URL (connector OAuth). */
-  openHttps: 'bothub:muse:open-https'
+  openHttps: 'bothub:muse:open-https',
+  /** Tap Muse option widget (Kai/Juno). */
+  selectOption: 'bothub:muse:select-option'
 } as const
 
 export interface MuseEnsureRequest {
@@ -103,6 +105,18 @@ export interface MuseSessionStatus {
 
 export type MuseConnectionPhase = 'signed-out' | 'connecting' | 'hydrating' | 'waking-vm' | 'reloading' | 'ready'
 
+
+/** Renderer-safe option chip widget (onboarding Kai/Juno, etc.). */
+export interface MuseOptionWidgetView {
+  kind: 'option'
+  widgetId: string
+  options: string[]
+  buttonStyle: 'dotted_lines' | 'center_aligned_filled'
+  customInputPlaceholder?: string
+  selectedText?: string | null
+  baseVersion: number
+}
+
 export type MuseMainEvent =
   | { type: 'status'; status: MuseSessionStatus }
   | { type: 'approvals'; accountId: string; pending: unknown[] }
@@ -113,6 +127,18 @@ export type MuseMainEvent =
       messageId: string
       text: string
       done: boolean
+      widgets?: MuseOptionWidgetView[]
+    }
+  | {
+      type: 'activity'
+      accountId: string
+      activityCode: string
+      activityText?: string
+      activityEmoji?: string
+      agentId?: string
+      subagents?: number
+      busy: boolean
+      ctaLabel?: string
     }
   | {
       type: 'login'

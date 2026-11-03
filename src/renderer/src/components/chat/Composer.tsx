@@ -104,7 +104,7 @@ export function Composer({ bot, account, onSend, onConnect, onMuseLogin, onGrokL
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const connected = account?.status === 'online' || account?.status === 'busy'
+  const connected = account?.status === 'online' || account?.status === 'busy' || account?.status === 'attention'
   const [multiline, setMultiline] = useState(false)
   const expanded = multiline || attachments.length > 0
   const hasContent = text.trim().length > 0 || attachments.length > 0

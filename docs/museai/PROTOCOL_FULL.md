@@ -42,7 +42,7 @@ Transport details: `protocol.md` + `NATIVE_CLIENT.md`. Protos: `samples/proto/`.
 | `{"type":"text","text"}` | **done** | Default send |
 | `{"type":"image","mime_type","data_base64","filename"}` | **done** | Composer reads ≤12MiB → chat.stream items |
 | `{"type":"file","mime_type","data_base64","filename"}` | **done** | Non-image ≤12MiB inline base64 |
-| `{"type":"file_ref","mime_type","path","filename"}` | **missing** | Needs eager fs/media upload; path workspace/user/files/<safe>_<n>_<rand>.ext |
+| `{"type":"file_ref","mime_type","path","filename"}` | **done** | Chunked `fs.write` (+ optional staging rename) via `uploadWorkspaceFile`; path `workspace/user/files/<safe>_<n>_<rand>.ext`; threshold non-image ≥10MiB / video ≥60MiB |
 
 ### 2.2 Stream / subscribe events
 
@@ -53,7 +53,7 @@ Transport details: `protocol.md` + `NATIVE_CLIENT.md`. Protos: `samples/proto/`.
 | `delta.message_start` | **done** | Create streaming stub |
 | `delta.text_append` | **done** | Append payload.text (needs delta_stream cap) |
 | `delta.message_done` | **done** | Finalize; may carry transcript |
-| `delta.presentation` | **partial** | Option widgets + media parts; shopping/maps/html still ignored |
+| `delta.presentation` | **partial** | Option + media + rich widgets (shopping/maps/html/slides RO); commerce write still N/A |
 | `delta.placeholder` | **missing** | Ignored |
 | `delta.tool_start / delta.tool_done` | **missing** | No tool chip UI |
 | `tool_call.started / tool_call.completed` | **missing** | Seen in JS; not wired |
@@ -68,12 +68,13 @@ Other subscriptions in registry: `chat.stream_events`, `activity.subscribe`, `ar
 | kind | Status | Notes |
 |---|---|---|
 | `option` | **done** | Chip UI + widgets.state.set + resend label |
-| `image / images` | **partial** | Chat media chips + http(s) `<img>`; workspace `fs.raw` preview still missing |
-| `file / file_ref` | **partial** | Inbound path chips; outbound base64 ≤12MB; large file_ref binary upload still missing |
+| `image / images` | **done** | http(s) inline; workspace paths via `fs.raw` preview (≤8MiB Range); honest chip if preview fails |
+| `file / file_ref` | **done** | Inbound path chips; outbound image ≤12MiB / file ≤40MiB base64; ≥10MiB non-image → file_ref via `fs.write` |
 | `image_options` | **missing** |  |
-| `shopping_cart / shopping_results(_v2)` | **missing** |  |
-| `local_map / marketplace_map` | **missing** |  |
-| `slides / html / audio / video` | **missing** |  |
+| `shopping_cart / shopping_results(_v2)` | **partial** | Read-only product/cart UI; no checkout / shopping.* write |
+| `local_map / marketplace_map` | **partial** | Read-only places/listings + sandboxed map html when present |
+| `slides / html` | **partial** | Sandboxed html iframe; slides = label/slug/path chip |
+| `audio / video` | **missing** |  |
 
 
 ### 2.4 Tool chips & media (BotHub)
@@ -81,7 +82,7 @@ Other subscriptions in registry: `chat.stream_events`, `activity.subscribe`, `ar
 | Surface | Status | Notes |
 |---|---|---|
 | `tool_call.*` / `delta.tool_*` → chat tool chips | **done** | Running/Done/Failed chips under assistant bubbles |
-| Inbound image/file message parts | **partial** | Path chips; http(s) images inline; no `fs.raw` blob yet |
+| Inbound image/file message parts | **done** | Path chips; http(s) + workspace `fs.raw` image preview; honest chip on failure |
 | Electron Notification (blurred) | **done** | `needs_approval` refresh + stream `done` with text; click focuses window; never auto-approves |
 
 State RPC: `widgets.state.set` (**done** for options), `widgets.state.patch` (**partial**).
@@ -109,7 +110,7 @@ Decisions: `allow_once`, `allow_session`, `allow_always`, `deny`, `deny_always`.
 | `egress.approval.edit_message` `POST /approvals/{approval_id}/edit-message` · sentinel | **partial** |
 | `egress.approval.history` `GET /approvals/history` · sentinel | **partial** |
 | `egress.permissions` `GET /permissions` · sentinel | **partial** |
-| `permissions.settings` `GET /permissions/settings` · sentinel | **partial** |
+| `permissions.settings` `GET /permissions/settings` · sentinel | **done** |
 | `permissions.inventory` `GET /permissions/inventory` · daemon | **partial** |
 | `permissions.settings.update` `PATCH /permissions/settings` · sentinel | **partial** |
 | `egress.permissions.hitl` `PATCH /permissions/hitl` · sentinel | **partial** |
@@ -391,7 +392,7 @@ Total methods: **387**.
 | `fs.library` | POST | `/fs/library` | — |  | **done** |
 | `fs.list` | POST | `/fs/list` | — |  | **done** |
 | `fs.mkdir` | POST | `/fs/mkdir` | — |  | **partial** |
-| `fs.raw` | GET | `/fs/raw/{*path}` | — |  | **partial** |
+| `fs.raw` | GET | `/fs/raw/{*path}` | — |  | **done** |
 | `fs.read` | POST | `/fs/read` | — |  | **done** |
 | `fs.reads` | POST | `/fs/reads` | — |  | **partial** |
 | `fs.rename` | POST | `/fs/rename` | — |  | **partial** |
@@ -620,16 +621,18 @@ From official `HatchAttachments` (JS):
 3. **Smaller non-image** → `{type:"file", mime_type, data_base64, filename}`.
 4. Video `file_ref` ingest was **withdrawn** in current web client.
 
-Upload transport for file_ref is a binary media write (not fully archived in samples) — treat large-file
-upload as **missing** until a redacted capture exists. Prefer base64 items for BotHub v1.
+**Upload transport (official HatchGatewayFs, 2026):** chunked `fs.write` with `data_base64` (512 KiB),
+`overwrite`/`append`/`create_parent`; when `stageBeforePublish && chunks>1`, write to
+`.upload-<uuid>.part` then `fs.rename` to dest. BotHub: `src/main/muse-native/fs.ts`
+(`uploadWorkspaceFile` / `fetchFsRawPreview`). Preview: `fs.raw` GET binary + optional `Range`.
 
 ## 7. Notifications / settings
 
 | Surface | RPC / source | Status |
 |---|---|---|
 | Approval attention | `agent.status` needs_approval + `egress.approvals` | **done** (in-chat card) |
-| Desktop OS notifications | client-local | **missing** |
-| Permissions settings pane | `permissions.settings*` / `egress.permissions*` | **partial** — InfoPanel read-only flatten; honest empty; no PATCH yet |
+| Desktop OS notifications | client-local | **done** — Electron Notification when blurred (approval / new reply) |
+| Permissions settings pane | `permissions.settings*` / `egress.permissions*` | **partial** — InfoPanel + Save → `permissions.settings.update` (network_default / connector_default = auto_allow\|always_ask); protocols[] modes still RO; honest empty |
 | Config pane | `config.get` / `config.update` | **partial** (get only) |
 | Themes | `chat.themes*` / `theme.subscribe` | **missing** |
 | Memory pane | `memory.*` | **partial** — Muse MemorySection (`memory.search`/`get`/`consolidate`); local BotHub notes kept separate |
@@ -644,22 +647,34 @@ upload as **missing** until a redacted capture exists. Prefer base64 items for B
 | `src/main/muse-native/noise.ts` + `transport.ts` + `gateway.ts` | Noise + RPC + subscriptions |
 | `src/main/muse-native/chat.ts` | chat.stream / chat.subscribe state machine |
 | `src/main/muse-native/methods.ts` | 387-method registry |
-| `src/main/muse-native/{files,sessions,schedules,quota,invite}.ts` | Domain helpers |
+| `src/main/muse-native/{files,sessions,schedules,quota,invite,fs}.ts` | Domain helpers (+ fs.raw preview / chunked upload) |
 | `src/main/muse/museSessionManager.ts` | Account lifecycle, watch, bridge to adapter |
 | `src/adapters/meta-muse/adapter.ts` | Renderer-facing adapter |
 | `src/renderer/.../ApprovalCard.tsx` | In-chat HITL |
 
 ## 9. Highest-value remaining gaps
 
-1. ~~Approval refresh on `needs_approval`~~ **done** (session manager + adapter).
-2. ~~Outbound attachments `data_base64`~~ **done** for image/file ≤12MiB; `file_ref` still missing.
-3. Rich inbound blocks: ~~tool chips + image/file parts~~ (**done** UI); shopping/maps/html widgets still missing.
-4. ~~`permissions.*` settings pane~~ (**partial** read-only).
-5. ~~Muse `memory.*` + `skills.*` panels~~ (**partial**).
-6. Desktop Notification when blurred for `needs_approval` / new agent reply (**done**).
-6. Trusted Network `peers.*` / Shared Agents (see GAPS.md).
-7. Per-account client proxy.
-8. OS notifications when approval pending / reply arrives.
+1. ~~Approval refresh on `needs_approval`~~ **done**.
+2. ~~Outbound attachments `data_base64` + `file_ref` via `fs.write`~~ **done** (image ≤12MiB inline; non-image ≥10MiB → file_ref).
+3. ~~Rich inbound: tool chips + media + shopping/maps/html/slides~~ **done** (RO widgets; no fake commerce).
+4. ~~Workspace image preview via `fs.raw`~~ **done** (≤8MiB; honest chip on failure).
+5. ~~`permissions.settings` read + Save PATCH defaults~~ **partial** — defaults write UI present; full `protocols[]` mode editor + live confirmation against real VM still needed.
+6. ~~Muse `memory.*` + `skills.*` panels~~ (**partial**).
+7. ~~Desktop Notification when blurred~~ **done**.
+8. Trusted Network `peers.*` / Shared Agents (see GAPS.md).
+9. Per-account client proxy.
+10. Live redacted capture of `permissions.settings.update` body + shopping widget payload samples (UI parses known shapes from muse.ai JS; wire samples still thin).
+
+
+## 10. Slice 70 (near-native media / widgets / permissions write / file_ref)
+
+| Item | Status | Notes |
+|---|---|---|
+| Inbound workspace image via `fs.raw` | **done** | `fetchFsRawPreview` + MessageBubble `WorkspaceImage`; honest chip |
+| Shopping / maps / html / slides widgets | **partial** | `parseRichWidgets` + RO UI; no commerce writes |
+| `permissions.settings.update` Save UI | **partial** | Explicit click; body `network_default`/`connector_default`; protocols[] still RO |
+| Outbound `file_ref` | **done** | Official JS path: chunked `fs.write` (+ staging rename); no secrets guessed |
+| Shots | 70-prefixed | ui-parity/shots |
 
 ---
 

@@ -23,6 +23,8 @@ export interface BotHubState {
   selectedBotId: string | null
   collapsedGroups: Record<string, boolean>
   infoPanelOpen: boolean
+  /** Sidebar width in px (dragged by its right edge). */
+  sidebarWidth: number
   addBotOpen: boolean
   /** Bumped on every open so each add-bot flow starts fresh. */
   addBotKey: number
@@ -37,6 +39,7 @@ export interface BotHubState {
   selectBot: (botId: string) => void
   toggleGroup: (groupId: string) => void
   toggleInfoPanel: () => void
+  setSidebarWidth: (width: number) => void
   setAddBotOpen: (open: boolean) => void
   toggleWebSession: () => void
   openPalette: (query?: string) => void
@@ -82,6 +85,10 @@ export interface BotHubState {
 }
 
 const seed = createSeed()
+
+export const SIDEBAR_MIN = 240
+export const SIDEBAR_MAX = 400
+export const SIDEBAR_DEFAULT = 280
 
 /** Turn form drafts into account ids, creating BotAccounts for new ones. */
 function materializeAccounts(
@@ -167,6 +174,7 @@ export const useBotStore = create<BotHubState>()(
     selectedBotId: seed.bots[0]?.id ?? null,
     collapsedGroups: {},
     infoPanelOpen: true,
+    sidebarWidth: SIDEBAR_DEFAULT,
     addBotOpen: false,
     addBotKey: 0,
     paletteOpen: false,
@@ -186,6 +194,9 @@ export const useBotStore = create<BotHubState>()(
       })),
 
     toggleInfoPanel: () => set((state) => ({ infoPanelOpen: !state.infoPanelOpen })),
+
+    setSidebarWidth: (width) =>
+      set({ sidebarWidth: Math.round(Math.min(SIDEBAR_MAX, Math.max(SIDEBAR_MIN, width))) }),
 
     setAddBotOpen: (open) =>
       set((state) => (open ? { addBotOpen: true, addBotKey: state.addBotKey + 1 } : { addBotOpen: false })),
@@ -554,7 +565,8 @@ export const useBotStore = create<BotHubState>()(
       messages: state.messages,
       selectedBotId: state.selectedBotId,
       collapsedGroups: state.collapsedGroups,
-      infoPanelOpen: state.infoPanelOpen
+      infoPanelOpen: state.infoPanelOpen,
+      sidebarWidth: state.sidebarWidth
     })
   }
 )

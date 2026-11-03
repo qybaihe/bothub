@@ -23,10 +23,12 @@ import { AccountList } from './AccountList'
 import { MemoryEditor } from './MemoryEditor'
 import { EmptyLine, Section } from './Section'
 
-type InfoTab = 'details' | 'browser'
+/** Grok Bot–aligned chips: Overview / Library / Computer (Slice 1 UI parity). */
+type InfoTab = 'overview' | 'library' | 'computer'
 const TABS: ReadonlyArray<[InfoTab, string]> = [
-  ['details', 'Details'],
-  ['browser', 'Browser']
+  ['overview', 'Overview'],
+  ['library', 'Library'],
+  ['computer', 'Computer']
 ]
 
 /** Avatar (click: photo) and name (click: rename) at the top of details. */
@@ -138,7 +140,7 @@ export function InfoPanel() {
   const accountMap = useBotStore((s) => s.accounts)
   const toggleInfoPanel = useBotStore((s) => s.toggleInfoPanel)
   const updateNotes = useBotStore((s) => s.updateNotes)
-  const [tab, setTab] = useState<InfoTab>('details')
+  const [tab, setTab] = useState<InfoTab>('overview')
 
   const accounts = useMemo(() => (bot ? getBotAccounts(bot, accountMap) : []), [bot, accountMap])
 
@@ -161,7 +163,7 @@ export function InfoPanel() {
           <Tabs tab={tab} onChange={setTab} />
 
           <div key={`${bot.id}:${tab}`} className="animate-veil-in">
-            {tab === 'details' ? (
+            {tab === 'overview' ? (
               <>
                 <Section title="Accounts" count={accounts.length > 1 ? accounts.length : undefined} action={<AddAccountsButton bot={bot} />} flush>
                   <AccountList bot={bot} accounts={accounts} />
@@ -179,20 +181,30 @@ export function InfoPanel() {
                     className="block w-full resize-none bg-transparent px-3 py-2.5 text-[13px] leading-[18px] text-ink outline-none placeholder:text-ink-muted"
                   />
                 </Section>
+                {bot.platformId === 'meta-muse' && bot.activeAccountId ? (
+                  <>
+                    <QuotaSection accountId={bot.activeAccountId} />
+                    <InviteSection accountId={bot.activeAccountId} />
+                    <SessionsSection accountId={bot.activeAccountId} />
+                    <SchedulesSection accountId={bot.activeAccountId} />
+                    <ApprovalsSection accountId={bot.activeAccountId} />
+                    <ConnectorsSection accountId={bot.activeAccountId} />
+                  </>
+                ) : null}
               </>
-            ) : bot.platformId === 'meta-muse' && bot.activeAccountId ? (
-              <>
-                <QuotaSection accountId={bot.activeAccountId} />
-                <InviteSection accountId={bot.activeAccountId} />
-                <SessionsSection accountId={bot.activeAccountId} />
+            ) : tab === 'library' ? (
+              bot.platformId === 'meta-muse' && bot.activeAccountId ? (
                 <FilesSection accountId={bot.activeAccountId} />
-                <SchedulesSection accountId={bot.activeAccountId} />
-                <ApprovalsSection accountId={bot.activeAccountId} />
-                <ConnectorsSection accountId={bot.activeAccountId} />
-              </>
+              ) : (
+                <Section title="Library">
+                  <EmptyLine>Library is available for Muse bots (files on the agent).</EmptyLine>
+                </Section>
+              )
             ) : (
-              <Section title="Browser">
-                <EmptyLine>Not available for this platform</EmptyLine>
+              <Section title="Computer">
+                <EmptyLine>
+                  Muse has no Grok-style cloud computer yet. This tab is a shell for future parity — nothing to show.
+                </EmptyLine>
               </Section>
             )}
           </div>

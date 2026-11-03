@@ -13,6 +13,8 @@ import type {
   MuseSessionMutation,
   MuseSessionStatus,
   MuseTaskRun,
+  MuseProxyView,
+  MuseProxyConfigInput,
   UpdateStatusEvent,
   WebViewBounds,
   WebViewInfo,
@@ -100,6 +102,8 @@ export interface MuseBridge {
     accountId: string,
     args: { filename: string; mimeType: string; dataBase64: string }
   ): Promise<{ path: string; filename: string; mimeType: string }>
+  getProxy(accountId: string): Promise<MuseProxyView>
+  setProxy(accountId: string, config: MuseProxyConfigInput): Promise<MuseProxyView>
 }
 
 export interface UpdateBridge {

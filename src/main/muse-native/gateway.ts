@@ -129,6 +129,10 @@ export interface MuseNativeGatewayOptions {
   fetch: FetchFn
   /** Keep the socket up (heartbeat + auto reconnect) even without in-flight calls. */
   keepAlive?: boolean
+  /** Optional per-account egress proxy agent for Noise WSS (Node `ws`). */
+  agent?: import('node:https').Agent
+  /** Refresh agent before each connect (e.g. after proxy settings change). */
+  resolveAgent?: () => Promise<import('node:https').Agent | undefined>
   log?: (msg: string, extra?: Record<string, unknown>) => void
 }
 
@@ -150,6 +154,11 @@ export class MuseNativeGateway extends EventEmitter {
   constructor(private readonly opts: MuseNativeGatewayOptions) {
     super()
     this.cp = new MuseControlPlane(opts.fetch)
+  }
+
+  /** Hot-swap WSS proxy agent (session.setProxy is applied separately). */
+  setProxyAgent(agent: import('node:https').Agent | undefined): void {
+    this.opts.agent = agent
   }
 
   private log(msg: string, extra?: Record<string, unknown>): void {
@@ -198,7 +207,12 @@ export class MuseNativeGateway extends EventEmitter {
     const url = `${NOISE_URL}?${parts.join('&')}`
 
     this.setPhase('connecting')
-    const ws = new WebSocket(url, { headers: { Origin: 'https://muse.ai', 'User-Agent': UA }, perMessageDeflate: false })
+    const agent = (await this.opts.resolveAgent?.()) ?? this.opts.agent
+    const ws = new WebSocket(url, {
+      headers: { Origin: 'https://muse.ai', 'User-Agent': UA },
+      perMessageDeflate: false,
+      ...(agent ? { agent } : {})
+    })
     ws.binaryType = 'nodebuffer'
     this.ws = ws
 

@@ -65,7 +65,9 @@ const bridge: BotHubBridge = {
     previewWorkspaceFile: (accountId, path) =>
       ipcRenderer.invoke(MUSE_CHANNELS.previewWorkspaceFile, accountId, path),
     uploadWorkspaceFile: (accountId, args) =>
-      ipcRenderer.invoke(MUSE_CHANNELS.uploadWorkspaceFile, accountId, args)
+      ipcRenderer.invoke(MUSE_CHANNELS.uploadWorkspaceFile, accountId, args),
+    getProxy: (accountId) => ipcRenderer.invoke(MUSE_CHANNELS.getProxy, accountId),
+    setProxy: (accountId, config) => ipcRenderer.invoke(MUSE_CHANNELS.setProxy, accountId, config)
   },
   updates: {
     check: () => ipcRenderer.invoke(UPDATE_CHANNELS.check),

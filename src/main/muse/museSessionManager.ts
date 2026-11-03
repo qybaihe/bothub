@@ -15,6 +15,7 @@ import {
   type MuseOptionWidget
 } from '../muse-native'
 import { fetchFsRawPreview, uploadWorkspaceFile, buildWorkspaceUploadPath } from '../muse-native/fs'
+import { createProxyAgent } from './accountProxy'
 import { fetchInviteSummary, fetchSubscription } from '../muse-native/quota'
 import {
   fetchInvite,
@@ -693,6 +694,15 @@ export class MuseSessionManager {
     })
     return { path: uploaded, filename: args.filename || 'file', mimeType: args.mimeType || 'application/octet-stream' }
   }
+
+  /** Re-apply stored proxy to live Noise client (session.setProxy already applied in save). */
+  async applyAccountProxy(accountId: string): Promise<void> {
+    const client = this.native.peek(accountId)
+    if (!client) return
+    const agent = await createProxyAgent(accountId)
+    client.gateway.setProxyAgent(agent)
+  }
+
 
   async rpc(
     accountId: string,

@@ -2,6 +2,7 @@ import { ipcMain, shell, type BrowserWindow, type IpcMainInvokeEvent } from 'ele
 import { MUSE_CHANNELS, type MuseEnsureRequest, type MuseRpcRequest, type WebViewBounds } from '@shared/ipc'
 import { WebContentsViewManager } from '../webContentsViewManager'
 import { MuseSessionManager } from './museSessionManager'
+import { getProxyView, saveProxyConfig, type MuseProxyConfig } from './accountProxy'
 
 const managers = new Map<number, MuseSessionManager>()
 
@@ -179,6 +180,20 @@ export function registerMuseIpc(): void {
       mimeType: a['mimeType'],
       dataBase64: a['dataBase64']
     })
+  })
+
+  ipcMain.handle(MUSE_CHANNELS.getProxy, async (_event, accountId: unknown) => {
+    if (typeof accountId !== 'string') throw new TypeError('Invalid accountId')
+    return getProxyView(accountId)
+  })
+
+  ipcMain.handle(MUSE_CHANNELS.setProxy, async (event, accountId: unknown, config: unknown) => {
+    if (typeof accountId !== 'string') throw new TypeError('Invalid accountId')
+    if (!config || typeof config !== 'object') throw new TypeError('Invalid proxy config')
+    const c = config as MuseProxyConfig
+    const view = await saveProxyConfig(accountId, c)
+    await managerFor(event).applyAccountProxy(accountId)
+    return view
   })
 
   ipcMain.handle(MUSE_CHANNELS.selectOption, async (event, request: unknown) => {

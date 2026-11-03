@@ -75,7 +75,9 @@ export const MUSE_CHANNELS = {
   /** fs.raw preview for workspace image/file paths. */
   previewWorkspaceFile: 'bothub:muse:files:preview',
   /** Chunked fs.write eager upload → file_ref path. */
-  uploadWorkspaceFile: 'bothub:muse:files:upload'
+  uploadWorkspaceFile: 'bothub:muse:files:upload',
+  getProxy: 'bothub:muse:proxy:get',
+  setProxy: 'bothub:muse:proxy:set'
 } as const
 
 export interface MuseEnsureRequest {
@@ -161,6 +163,15 @@ export type MuseRichWidgetView =
     }
   | { kind: 'html'; widgetId: string; html: string; downloadable?: boolean }
   | { kind: 'slides'; widgetId: string; label: string; path?: string; slug: string }
+  | {
+      kind: 'image_options'
+      widgetId: string
+      images: Array<{ path: string; imageId?: string }>
+      multiSelect?: boolean
+      selectedPath?: string | null
+      selectedIndices?: number[]
+      baseVersion: number
+    }
 
 export interface MuseOptionWidgetView {
   kind: 'option'
@@ -170,6 +181,27 @@ export interface MuseOptionWidgetView {
   customInputPlaceholder?: string
   selectedText?: string | null
   baseVersion: number
+}
+
+
+export type MuseProxyMode = 'direct' | 'http' | 'socks5' | 'socks5h'
+
+/** Renderer-safe proxy view (password never returned). */
+export interface MuseProxyView {
+  mode: MuseProxyMode
+  host?: string
+  port?: number
+  username?: string
+  hasPassword: boolean
+}
+
+export interface MuseProxyConfigInput {
+  mode: MuseProxyMode
+  host?: string
+  port?: number
+  username?: string
+  /** Empty string keeps previous password when hasPassword. */
+  password?: string
 }
 
 export type MuseMainEvent =

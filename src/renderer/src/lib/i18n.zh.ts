@@ -267,4 +267,7 @@ export const ZH: Record<string, string> = {
   'Definitions': '定义',
   'No shared agent definitions': '暂无共享智能体定义',
   'Remote open/send needs Noise connectionClass=shared_agent + Msg3 ticket — ticket bootstrap not captured; connect UI withheld': 'remote.open/send 需要 Noise connectionClass=shared_agent 与 Msg3 ticket — ticket 获取路径尚未捕获，故不提供连接 UI',
+  "Online": "在线",
+  "Busy": "忙碌",
+  "Needs attention": "需处理",
 }

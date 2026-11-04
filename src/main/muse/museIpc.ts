@@ -74,6 +74,19 @@ export function registerMuseIpc(): void {
     return managerFor(event).openLogin(req.botId, req.accountId)
   })
 
+  ipcMain.handle(MUSE_CHANNELS.autoLogin, async (event, request: unknown) => {
+    const req = parseEnsure(request)
+    const r = request as Record<string, unknown>
+    if (typeof r['email'] !== 'string' || !/^[^\s@]+@[^\s@]+$/.test(r['email'])) throw new TypeError('Invalid email')
+    if (typeof r['inboxUrl'] !== 'string' || !/^https:\/\//.test(r['inboxUrl'])) throw new TypeError('Invalid inbox URL')
+    return managerFor(event).autoLogin({ ...req, email: r['email'], inboxUrl: r['inboxUrl'] })
+  })
+
+  ipcMain.handle(MUSE_CHANNELS.showLogin, (event, accountId: unknown) => {
+    if (typeof accountId !== 'string') throw new TypeError('Invalid accountId')
+    return managerFor(event).showLogin(accountId)
+  })
+
   ipcMain.handle(MUSE_CHANNELS.cancelLogin, async (event, accountId: unknown) => {
     if (typeof accountId !== 'string') throw new TypeError('Invalid accountId')
     await managerFor(event).cancelLogin(accountId)

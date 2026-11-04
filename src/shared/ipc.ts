@@ -51,6 +51,10 @@ export const MUSE_CHANNELS = {
   openLogin: 'bothub:muse:open-login',
   /** Close an unfinished login window and wipe its partition. */
   cancelLogin: 'bothub:muse:cancel-login',
+  /** Batch import: drive email one-time-code login in a hidden login window. */
+  autoLogin: 'bothub:muse:auto-login',
+  /** Reveal a hidden (auto) login window for a manual checkpoint. */
+  showLogin: 'bothub:muse:show-login',
   getQuota: 'bothub:muse:quota:get',
   refreshQuota: 'bothub:muse:quota:refresh',
   getInvite: 'bothub:muse:invite:get',

@@ -1,3 +1,4 @@
+import type { MuseAutoLoginRequest, MuseAutoLoginResult } from './museBatch'
 import type {
   CreateWebViewRequest,
   MuseChatSessionView,
@@ -68,6 +69,10 @@ export interface MuseBridge {
   openLogin(request: MuseEnsureRequest): Promise<MuseSessionStatus>
   /** Close an unfinished login window and wipe the account partition. */
   cancelLogin(accountId: string): Promise<void>
+  /** Batch import: email one-time-code login, code read from the inbox page. */
+  autoLogin(request: MuseAutoLoginRequest): Promise<MuseAutoLoginResult>
+  /** Show the hidden login window (manual checkpoint). False when none is open. */
+  showLogin(accountId: string): Promise<boolean>
   getQuota(accountId: string): Promise<MuseQuotaSnapshot | null>
   refreshQuota(accountId: string): Promise<MuseQuotaSnapshot>
   getInvite(accountId: string): Promise<MuseInviteSnapshot | null>

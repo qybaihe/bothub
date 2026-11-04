@@ -41,6 +41,8 @@ import type {
   MuseSessionMutation,
   MuseTaskRun
 } from '@shared/ipc'
+import { driveEmailOtpLogin } from './museAutoLogin'
+import type { MuseAutoLoginRequest, MuseAutoLoginResult } from '@shared/museBatch'
 import { applyMuseKeepAlive, MUSE_HEALTH_SCRIPT, museWakeScript } from './museKeepAlive'
 
 const MUSE_ORIGIN = 'https://muse.ai'
@@ -90,6 +92,8 @@ function isAllowedMuseUrl(url: string): boolean {
 export class MuseSessionManager {
   private readonly sessions = new Map<string, AccountSession>()
   private readonly listeners = new Set<(event: MuseMainEvent) => void>()
+  /** Running batch auto-logins keyed by accountId. */
+  private readonly autoLogins = new Map<string, AbortController>()
   /** Interactive login windows keyed by accountId (same persist partition). */
   private readonly loginWindows = new Map<string, BrowserWindow>()
   /** Native Noise gateway clients (default transport; hook is the fallback). */
@@ -1237,15 +1241,17 @@ export class MuseSessionManager {
    * and loads muse.ai. Meta/Facebook auth redirects stay in-window. When the
    * `hatch_sess` cookie appears, emit login, reload the embedded view, and close.
    */
-  async openLogin(botId: string, accountId: string): Promise<MuseSessionStatus> {
+  async openLogin(botId: string, accountId: string, opts?: { hidden?: boolean }): Promise<MuseSessionStatus> {
     await this.ensure(botId, accountId)
     const refreshed = await this.refreshSession(accountId)
     if (refreshed?.signedIn) return refreshed
 
     const existing = this.loginWindows.get(accountId)
     if (existing && !existing.isDestroyed()) {
-      existing.show()
-      existing.focus()
+      if (!opts?.hidden) {
+        existing.show()
+        existing.focus()
+      }
       return this.sessions.get(accountId)!.status
     }
 
@@ -1256,6 +1262,7 @@ export class MuseSessionManager {
       minWidth: 720,
       minHeight: 560,
       title: '使用 Muse 登录',
+      show: !opts?.hidden,
       backgroundColor: '#f7f7f8',
       autoHideMenuBar: true,
       parent: this.window.isDestroyed() ? undefined : this.window,
@@ -1391,7 +1398,44 @@ export class MuseSessionManager {
    * Abandon an unfinished login: close its window (if open), tear down the
    * view and wipe the partition so no orphaned session stays on disk.
    */
+  /** Batch import: email one-time-code login driven inside a hidden login window. */
+  async autoLogin(req: MuseAutoLoginRequest): Promise<MuseAutoLoginResult> {
+    this.autoLogins.get(req.accountId)?.abort()
+    const ctrl = new AbortController()
+    this.autoLogins.set(req.accountId, ctrl)
+    try {
+      const status = await this.openLogin(req.botId, req.accountId, { hidden: true })
+      if (status.signedIn) return { ok: true }
+      const win = this.loginWindows.get(req.accountId)
+      if (!win || win.isDestroyed()) {
+        return (await this.hasSessionCookie(req.accountId)) ? { ok: true } : { ok: false, reason: 'timeout' }
+      }
+      const result = await driveEmailOtpLogin(win, req, {
+        signal: ctrl.signal,
+        isSignedIn: async () =>
+          Boolean(this.sessions.get(req.accountId)?.status.signedIn) || (await this.hasSessionCookie(req.accountId))
+      })
+      if (!result.ok) console.warn('[muse] auto login did not finish:', result.reason)
+      return result
+    } catch (error) {
+      console.warn('[muse] auto login failed:', error instanceof Error ? error.name : 'error')
+      return { ok: false, reason: 'timeout' }
+    } finally {
+      if (this.autoLogins.get(req.accountId) === ctrl) this.autoLogins.delete(req.accountId)
+    }
+  }
+
+  showLogin(accountId: string): boolean {
+    const win = this.loginWindows.get(accountId)
+    if (!win || win.isDestroyed()) return false
+    win.show()
+    win.focus()
+    return true
+  }
+
   async cancelLogin(accountId: string): Promise<void> {
+    this.autoLogins.get(accountId)?.abort()
+    this.autoLogins.delete(accountId)
     const win = this.loginWindows.get(accountId)
     this.loginWindows.delete(accountId)
     if (win && !win.isDestroyed()) win.destroy()

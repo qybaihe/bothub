@@ -367,9 +367,9 @@ export const useBotStore = create<BotHubState>()(
         bots: [...s.bots, bot],
         accounts: { ...s.accounts, ...created },
         messages: { ...s.messages, [bot.id]: [] },
-        selectedBotId: bot.id,
+        selectedBotId: input.background ? s.selectedBotId ?? bot.id : bot.id,
         collapsedGroups: { ...s.collapsedGroups, [groupId]: false },
-        addBotOpen: false
+        addBotOpen: input.background ? s.addBotOpen : false
       }))
 
       const accounts = get().accounts

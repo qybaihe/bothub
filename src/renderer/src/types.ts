@@ -181,4 +181,6 @@ export interface NewBotInput {
   /** Defaults to the selected bot's group, then the first group. */
   group?: GroupChoice
   accounts: AccountDraft[]
+  /** Batch import: add without selecting the bot or closing the add-bot dialog. */
+  background?: boolean
 }

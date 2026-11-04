@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react'
-import { X } from 'lucide-react'
+import { Pencil, X } from 'lucide-react'
 import { AddAccountsButton } from '@/components/add-bot/AddAccountsDialog'
 import { PaneHeader } from '@/components/layout/PaneHeader'
 import { ApprovalsSection } from '@/components/muse/ApprovalsSection'
@@ -27,7 +27,7 @@ import { useBotStore } from '@/store/botStore'
 import type { Bot } from '@/types'
 import { AccountList } from './AccountList'
 import { MemoryEditor } from './MemoryEditor'
-import { EmptyLine, Section } from './Section'
+import { EmptyLine, Section, SectionsCollapsed } from './Section'
 import { t } from '@/lib/i18n'
 
 /** Grok Bot–aligned chips: Overview / Library / Computer (Slice 1 UI parity). */
@@ -39,22 +39,39 @@ const TABS: ReadonlyArray<[InfoTab, string]> = [
   ['members', 'Members']
 ]
 
-/** Avatar (click: photo) and name (click: rename) at the top of details. */
+const STATUS_LABEL: Record<string, string> = {
+  online: 'Online',
+  busy: 'Busy',
+  attention: 'Needs attention',
+  offline: 'Offline',
+  error: 'Error'
+}
+const STATUS_DOT: Record<string, string> = {
+  online: 'bg-status-online',
+  busy: 'bg-status-attention',
+  attention: 'bg-status-attention',
+  offline: 'bg-ink-muted',
+  error: 'bg-status-error'
+}
+
+/** Compact header row: avatar (click: photo), name (click: rename), status, quick actions. */
 function BotHero({ bot }: { bot: Bot }) {
   const accounts = useBotStore((s) => s.accounts)
   const renameBot = useBotStore((s) => s.renameBot)
   const setBotAvatar = useBotStore((s) => s.setBotAvatar)
   const [editing, setEditing] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
+  const status = getBotStatus(bot, accounts)
+  const platform = bot.platformId === 'meta-muse' ? 'Muse' : bot.platformId
 
   return (
-    <div className="flex flex-col items-center px-5 pt-1 pb-5 text-center">
+    <div className="flex items-center gap-3 px-4 pb-3">
       <button
         type="button"
         onClick={() => fileRef.current?.click()}
         aria-label={bot.avatar ? t('Change photo') : t('Add a photo')}
         title={bot.avatar ? t('Change photo') : t('Add a photo')}
-        className="press-icon rounded-full"
+        className="press-icon shrink-0 rounded-full"
       >
         <span key={bot.avatar ?? 'mark'} className="inline-flex animate-mark-pop">
           <BotAvatar
@@ -62,8 +79,8 @@ function BotHero({ bot }: { bot: Bot }) {
             seed={bot.id}
             avatar={bot.avatar}
             platformId={bot.platformId}
-            status={getBotStatus(bot, accounts)}
-            size="lg"
+            status={status}
+            size="md"
             ringClassName="ring-main"
           />
         </span>
@@ -79,26 +96,27 @@ function BotHero({ bot }: { bot: Bot }) {
           if (file) void avatarFromFile(file).then((avatar) => setBotAvatar(bot.id, avatar), () => {})
         }}
       />
-      <div className="mt-3 flex h-7 w-full max-w-[240px] items-center justify-center">
+      <div className="min-w-0 flex-1">
         {editing ? (
           <InlineEdit
             value={bot.name}
             label={t('Bot name')}
-            className="h-8 text-center text-[17px] font-medium"
+            className="h-7 text-[15px] font-semibold"
             onCommit={(name) => renameBot(bot.id, name)}
             onDone={() => setEditing(false)}
           />
         ) : (
-          <button
-            type="button"
-            onClick={() => setEditing(true)}
-            title={t('Rename')}
-            className="max-w-full truncate rounded-md px-1.5 text-[17px] leading-6 font-medium tracking-tight text-ink transition-colors hover:bg-hover"
-          >
-            {bot.name}
-          </button>
+          <p className="truncate text-[15px] leading-5 font-semibold tracking-tight text-ink">{bot.name}</p>
         )}
+        <p className="mt-0.5 flex items-center gap-1.5 text-[12px] text-ink-secondary">
+          <span aria-hidden className={cn('size-1.5 rounded-full', STATUS_DOT[status] ?? 'bg-ink-muted')} />
+          <span>{t(STATUS_LABEL[status] ?? status)}</span>
+          <span className="text-ink-muted">· {platform}</span>
+        </p>
       </div>
+      <IconButton label={t('Rename')} className="shrink-0" onClick={() => setEditing(true)}>
+        <Pencil />
+      </IconButton>
     </div>
   )
 }
@@ -166,42 +184,50 @@ export function InfoPanel() {
       </PaneHeader>
 
       {bot && (
-        <div className="min-h-0 flex-1 overflow-y-auto pb-6">
+        <div className="min-h-0 flex-1 overflow-y-auto pb-4">
           <BotHero key={bot.id} bot={bot} />
           <Tabs tab={tab} onChange={setTab} />
 
           <div key={`${bot.id}:${tab}`} className="animate-veil-in">
             {tab === 'overview' ? (
               <>
+                {bot.platformId === 'meta-muse' && bot.activeAccountId && (
+                  <>
+                    <QuotaSection accountId={bot.activeAccountId} />
+                    <ApprovalsSection accountId={bot.activeAccountId} />
+                    <SessionsSection accountId={bot.activeAccountId} />
+                    <SchedulesSection accountId={bot.activeAccountId} />
+                  </>
+                )}
                 <Section title={t('Accounts')} count={accounts.length > 1 ? accounts.length : undefined} action={<AddAccountsButton bot={bot} />} flush>
                   <AccountList bot={bot} accounts={accounts} />
                 </Section>
-                <Section title={t('Local notes (BotHub)')} count={bot.memory.length}>
-                  <MemoryEditor bot={bot} />
-                </Section>
-                <Section title={t('Notes')} flush>
-                  <textarea
-                    value={bot.notes}
-                    onChange={(event) => updateNotes(bot.id, event.target.value)}
-                    placeholder={t('Private notes')}
-                    aria-label={t('Notes')}
-                    rows={3}
-                    className="block w-full resize-none bg-transparent px-3 py-2.5 text-[13px] leading-[18px] text-ink outline-none placeholder:text-ink-muted"
-                  />
-                </Section>
-                {bot.platformId === 'meta-muse' && bot.activeAccountId ? (
-                  <>
-                    <QuotaSection accountId={bot.activeAccountId} />
-                    <SessionsSection accountId={bot.activeAccountId} />
-                    <SchedulesSection accountId={bot.activeAccountId} />
-                    <ApprovalsSection accountId={bot.activeAccountId} />
-                    <ProxySection accountId={bot.activeAccountId} />
-                    <PermissionsSection accountId={bot.activeAccountId} />
-                    <MemorySection accountId={bot.activeAccountId} />
-                    <SkillsSection accountId={bot.activeAccountId} />
-                    <ConnectorsSection accountId={bot.activeAccountId} />
-                  </>
-                ) : null}
+                {bot.platformId === 'meta-muse' && bot.activeAccountId && (
+                  <ConnectorsSection accountId={bot.activeAccountId} />
+                )}
+                <SectionsCollapsed>
+                  {bot.platformId === 'meta-muse' && bot.activeAccountId && (
+                    <>
+                      <PermissionsSection accountId={bot.activeAccountId} />
+                      <MemorySection accountId={bot.activeAccountId} />
+                      <SkillsSection accountId={bot.activeAccountId} />
+                      <ProxySection accountId={bot.activeAccountId} />
+                    </>
+                  )}
+                  <Section title={t('Local notes (BotHub)')} count={bot.memory.length}>
+                    <MemoryEditor bot={bot} />
+                  </Section>
+                  <Section title={t('Notes')} flush>
+                    <textarea
+                      value={bot.notes}
+                      onChange={(event) => updateNotes(bot.id, event.target.value)}
+                      placeholder={t('Private notes')}
+                      aria-label={t('Notes')}
+                      rows={3}
+                      className="block w-full resize-none bg-transparent px-3 py-2 text-[13px] leading-[18px] text-ink outline-none placeholder:text-ink-muted"
+                    />
+                  </Section>
+                </SectionsCollapsed>
               </>
             ) : tab === 'library' ? (
               bot.platformId === 'meta-muse' && bot.activeAccountId ? (
@@ -215,9 +241,11 @@ export function InfoPanel() {
               <>
                 {bot.platformId === 'meta-muse' && bot.activeAccountId ? (
                   <>
-                    <PeersSection accountId={bot.activeAccountId} />
                     <SharedAgentsSection accountId={bot.activeAccountId} />
                     <InviteSection accountId={bot.activeAccountId} />
+                    <SectionsCollapsed>
+                      <PeersSection accountId={bot.activeAccountId} />
+                    </SectionsCollapsed>
                   </>
                 ) : (
                   <Section title={t('Members')}>

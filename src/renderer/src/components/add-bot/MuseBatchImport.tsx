@@ -89,6 +89,8 @@ export function MuseBatchImport({ onDone }: { onDone: () => void }) {
       name: freshName(`Muse · ${local}`, taken),
       accounts: [{ key: row.accountId, accountId: row.accountId, displayName: local, handle: '' }]
     })
+    // addBot closes the add-bot dialog; the batch keeps running, so keep it open (same key, no remount).
+    useBotStore.setState({ addBotOpen: true })
     patch(row.id, { state: 'ok', reason: undefined })
   }
 

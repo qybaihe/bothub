@@ -34,3 +34,9 @@
 
 ## 优先级
 额度只读 UI + 定时任务 list/run/delete → 再考虑 plans/checkout 与 goals。
+
+## Live status / final report / onboarding chips (2026-11-03)
+
+- `ACTIVITY.md` — `agent.status` (`activity_code` / `activity_text` / `activity_emoji`) on `chat.subscribe`
+- `FINAL_REPORT.md` — why late “报告” bubbles disappear (early idle settle + new message_id drop)
+- `ONBOARDING.md` — welcome chips via widget `kind:"option"` + `widgets.state.set` + `chat.stream`

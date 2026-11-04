@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { MuseQuotaSnapshot } from '@shared/ipc'
 import { EmptyLine, Section } from '@/components/info/Section'
-import { Button } from '@/components/ui/Button'
 import { RefreshButton } from '@/components/muse/RefreshButton'
 import { getBridge } from '@/lib/bridge'
 import { useBotStore } from '@/store/botStore'
@@ -57,7 +56,6 @@ export function QuotaSection({ accountId }: { accountId: string }) {
   }, [accountId])
 
   const sub = snap?.subscription
-  const upgradeLabel = sub?.entryPointCtaLabel || t('Upgrade')
 
   return (
     <Section title="额度管理" action={<RefreshButton loading={loading} onClick={() => void refresh()} />}>
@@ -65,10 +63,10 @@ export function QuotaSection({ accountId }: { accountId: string }) {
       {!sub ? (
         <EmptyLine>{loading ? t('Loading usage…') : t('Usage unavailable')}</EmptyLine>
       ) : (
-        <div className="flex flex-col gap-3 py-0.5">
-          <div>
-            <p className="text-[13px] font-medium text-ink">{sub.tier.name}</p>
-            {sub.statusSubtitle && <p className="mt-0.5 text-[12px] text-ink-secondary">{sub.statusSubtitle}</p>}
+        <div className="flex flex-col gap-2 py-0.5">
+          <div className="flex items-baseline justify-between gap-2">
+            <p className="truncate text-[13px] font-medium text-ink">{sub.tier.name}</p>
+            {sub.statusSubtitle && <p className="shrink-0 text-[11px] text-ink-muted">{sub.statusSubtitle}</p>}
           </div>
           {sub.usage.state === 'METERED' && (
             <div>
@@ -84,25 +82,12 @@ export function QuotaSection({ accountId }: { accountId: string }) {
           )}
           {sub.usage.state === 'UNLIMITED' && <p className="text-[12px] text-ink-secondary">{t('Unlimited usage')}</p>}
           {(sub.topupRowLabel || sub.topupRowValueLabel) && (
-            <div className="rounded-lg bg-hover/60 px-2.5 py-2">
-              <p className="text-[12px] font-medium text-ink">{sub.topupRowLabel || t('Additional tokens')}</p>
-              {sub.topupRowValueLabel && (
-                <p className="mt-0.5 text-[12px] text-ink-secondary">{sub.topupRowValueLabel}</p>
-              )}
+            <div className="flex items-baseline justify-between gap-2 border-t border-line pt-2">
+              <span className="text-[12px] text-ink-secondary">{sub.topupRowLabel || t('Additional tokens')}</span>
+              {sub.topupRowValueLabel && <span className="text-[12px] text-ink tabular-nums">{sub.topupRowValueLabel}</span>}
             </div>
           )}
           {snap?.stale && <p className="text-[11px] text-status-attention">{t('Showing last known usage')}</p>}
-          <div>
-            <Button
-              size="sm"
-              variant="primary"
-              onClick={() => {
-                void getBridge()?.muse?.openExternal?.('https://muse.ai/')
-              }}
-            >
-              {upgradeLabel}
-            </Button>
-          </div>
         </div>
       )}
     </Section>

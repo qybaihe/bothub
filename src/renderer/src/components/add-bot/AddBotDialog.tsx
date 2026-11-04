@@ -3,7 +3,8 @@ import { getPlatform } from '@adapters/platforms'
 import { adapterRegistry } from '@adapters/registry'
 import type { PlatformId } from '@adapters/types'
 import { createId } from '@shared/id'
-import { Camera, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Camera, ChevronLeft, ChevronRight, ListPlus } from 'lucide-react'
+import { MuseBatchImport } from './MuseBatchImport'
 import { BotAvatar } from '@/components/ui/Avatar'
 import { Button } from '@/components/ui/Button'
 import { Dialog } from '@/components/ui/Dialog'
@@ -58,6 +59,7 @@ function AddBotFlow({ open, onClose }: { open: boolean; onClose: () => void }) {
   const morph = useMorphHeight<HTMLDivElement>()
   const created = useRef(false)
   const [template, setTemplate] = useState<BotTemplate>(BLANK_TEMPLATE)
+  const [batch, setBatch] = useState(false)
   const { phase } = login
   const t = useT()
   const locale = usePrefsStore((s) => s.locale)
@@ -85,8 +87,9 @@ function AddBotFlow({ open, onClose }: { open: boolean; onClose: () => void }) {
   }
 
   const platform = phase.kind === 'idle' ? undefined : getPlatform(phase.platformId)
-  const title =
-    phase.kind === 'idle'
+  const title = batch
+    ? t('Batch import Muse accounts')
+    : phase.kind === 'idle'
       ? t('New bot')
       : phase.kind === 'waiting'
         ? t('Sign in to {name}', { name: platform!.name })
@@ -97,9 +100,13 @@ function AddBotFlow({ open, onClose }: { open: boolean; onClose: () => void }) {
       open={open}
       onOpenChange={(next) => !next && close()}
       title={title}
-      className="w-[min(92vw,420px)]"
+      className={batch ? 'w-[min(92vw,520px)]' : 'w-[min(92vw,420px)]'}
       headerStart={
-        phase.kind === 'waiting' ? (
+        batch ? (
+          <IconButton label={t('Back')} size="sm" onClick={() => setBatch(false)} className="-ml-1">
+            <ChevronLeft />
+          </IconButton>
+        ) : phase.kind === 'waiting' ? (
           <IconButton label={t('Back')} size="sm" onClick={login.discard} className="-ml-1">
             <ChevronLeft />
           </IconButton>
@@ -121,10 +128,25 @@ function AddBotFlow({ open, onClose }: { open: boolean; onClose: () => void }) {
         style={{ height: morph.height }}
       >
         <div ref={morph.ref}>
-          {phase.kind === 'idle' && (
-            <PlatformStep key="platform" listRef={listRef} error={phase.error} onPick={login.start} />
+          {batch && (
+            <MuseBatchImport
+              key="batch"
+              onDone={() => {
+                created.current = true
+                onClose()
+              }}
+            />
           )}
-          {phase.kind === 'waiting' && (
+          {!batch && phase.kind === 'idle' && (
+            <PlatformStep
+              key="platform"
+              listRef={listRef}
+              error={phase.error}
+              onPick={login.start}
+              onBatch={() => setBatch(true)}
+            />
+          )}
+          {!batch && phase.kind === 'waiting' && (
             <LoginWaiting
               key="login"
               platformId={phase.platformId}
@@ -132,7 +154,7 @@ function AddBotFlow({ open, onClose }: { open: boolean; onClose: () => void }) {
               onReopen={login.reopen}
             />
           )}
-          {phase.kind === 'signed-in' && (
+          {!batch && phase.kind === 'signed-in' && (
             <NameStep
               key="name"
               platformId={phase.platformId}
@@ -165,11 +187,13 @@ function moveFocus(event: KeyboardEvent<HTMLElement>) {
 function PlatformStep({
   listRef,
   error,
-  onPick
+  onPick,
+  onBatch
 }: {
   listRef: RefObject<HTMLUListElement | null>
   error?: string
   onPick: (platformId: PlatformId) => void
+  onBatch: () => void
 }) {
   const platforms = adapterRegistry.listPlatforms()
   const t = useT()
@@ -207,6 +231,15 @@ function PlatformStep({
           </li>
         ))}
       </ul>
+      <button
+        type="button"
+        onClick={onBatch}
+        className="mt-2 flex h-10 w-full items-center gap-2.5 rounded-[10px] border border-dashed border-line px-3 text-left text-[13px] text-ink-secondary transition-colors hover:border-ink/20 hover:bg-hover hover:text-ink"
+      >
+        <ListPlus className="size-4" aria-hidden />
+        <span className="flex-1">{t('Batch import Muse accounts')}</span>
+        <span className="text-[11px] text-ink-muted">{t('email | inbox link')}</span>
+      </button>
       {error && (
         <p className="mt-3 px-2 text-[12px] text-status-error" role="alert">
           {error}

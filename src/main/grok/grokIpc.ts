@@ -11,7 +11,9 @@ import { onGrokAuthCaptured, openGrokLoginWindow } from './grokLogin'
 import { runGrokRpc } from './grokRpc'
 import { getOrCreateGrokMachineId } from './grokMachineId'
 import {
+  clearAllSandTokens,
   clearSandTokens,
+  listPersistedSandAccountIds,
   loadSandTokens,
   persistSandTokens,
   type SandTokens
@@ -90,7 +92,7 @@ export function registerGrokIpc(): void {
     const existing = await loadSandTokens(req.accountId)
     const next: SandTokens = {
       accessToken,
-      refreshToken: existing?.refreshToken,
+      refreshToken: req.refreshToken?.trim() || existing?.refreshToken,
       authId: existing?.authId ?? req.accountSlot,
       selectedTeamId: req.teamId ?? existing?.selectedTeamId
     }
@@ -105,6 +107,13 @@ export function registerGrokIpc(): void {
 
   ipcMain.handle(GROK_CHANNELS.clearAuth, async (_event, accountId: unknown) => {
     if (typeof accountId !== 'string') throw new TypeError('Invalid accountId')
+    if (accountId === '*') {
+      for (const id of listPersistedSandAccountIds()) {
+        clearGrokMainAuth(id)
+      }
+      clearAllSandTokens()
+      return { accountId: '*', signedIn: false }
+    }
     clearGrokMainAuth(accountId)
     clearSandTokens(accountId)
     return statusFor(accountId)

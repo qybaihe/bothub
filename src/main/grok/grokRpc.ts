@@ -1,8 +1,16 @@
+import { BrowserWindow } from 'electron'
+import { GROK_CHANNELS, type GrokMainEvent, type GrokRpcRequest, type GrokRpcResponse } from '@shared/ipc'
 import { getGrokMainAuth, setGrokMainAuth } from './grokAuthStore'
 import { GrokConnectClient, GrokConnectError } from './connectClient'
 import { getOrCreateGrokMachineId } from './grokMachineId'
 import { forceRefreshSandAccessToken, getValidSandAccessToken } from './grokSandAuth'
-import type { GrokRpcRequest, GrokRpcResponse } from '@shared/ipc'
+
+function broadcastGrokEvent(event: GrokMainEvent): void {
+  for (const win of BrowserWindow.getAllWindows()) {
+    if (win.isDestroyed() || win.webContents.isDestroyed()) continue
+    win.webContents.send(GROK_CHANNELS.event, event)
+  }
+}
 
 /**
  * Resolve the write-capable sand accessToken for an account.
@@ -79,9 +87,12 @@ function decodeTranscriptBody(raw: Record<string, unknown>): Record<string, unkn
 }
 
 function textFromEntry(e: Record<string, unknown>): string {
+  const msg = e['message'] as Record<string, unknown> | undefined
   const t =
     (typeof e['text'] === 'string' && e['text']) ||
     (typeof e['content'] === 'string' && e['content']) ||
+    (typeof msg?.['text'] === 'string' && (msg['text'] as string)) ||
+    (typeof msg?.['content'] === 'string' && (msg['content'] as string)) ||
     ''
   return t.trim()
 }
@@ -100,16 +111,28 @@ function isAssistantEntry(e: Record<string, unknown>, afterMessageId?: string): 
 async function watchUntilReply(
   client: GrokConnectClient,
   args: {
+    accountId: string
+    conversationId?: string
     agentId: string
     sessionId: string
     afterUpdatedSeq?: string
     afterMessageId?: string
     timeoutMs?: number
   }
-): Promise<{ text: string; entry?: Record<string, unknown> }> {
+): Promise<{ text: string; messageId?: string; entry?: Record<string, unknown> }> {
   const timeoutMs = args.timeoutMs ?? 90_000
   const ac = new AbortController()
   const timer = setTimeout(() => ac.abort(), timeoutMs)
+  let latestText = ''
+  let latestId = ''
+  let latestEntry: Record<string, unknown> | undefined
+  let idleSettleTimer: ReturnType<typeof setTimeout> | undefined
+
+  const armSettle = () => {
+    if (idleSettleTimer) clearTimeout(idleSettleTimer)
+    idleSettleTimer = setTimeout(() => ac.abort(), 1600)
+  }
+
   try {
     const cursors = [
       {
@@ -120,7 +143,6 @@ async function watchUntilReply(
       }
     ]
     for await (const frame of client.watchTranscripts({ cursors }, ac.signal)) {
-      // Connect JSON oneof: { rows: {...} } | { connected: {...} } | flat rows fields
       const rows =
         (frame['rows'] as Record<string, unknown> | undefined) ??
         (frame['Rows'] as Record<string, unknown> | undefined) ??
@@ -134,12 +156,37 @@ async function watchUntilReply(
         const e = decodeTranscriptBody(raw)
         if (!isAssistantEntry(e, args.afterMessageId)) continue
         const text = textFromEntry(e)
-        if (text) return { text, entry: e }
+        if (!text) continue
+        const rawId = String(e['id'] ?? e['message_id'] ?? e['messageId'] ?? 'reply')
+        const msgId = `grok_${rawId}`
+        const isStreaming = e['isStreaming'] === true || e['is_streaming'] === true
+        latestText = text
+        latestId = msgId
+        latestEntry = e
+
+        broadcastGrokEvent({
+          type: 'stream',
+          accountId: args.accountId,
+          conversationId: args.conversationId,
+          agentId: args.agentId,
+          messageId: msgId,
+          text,
+          done: !isStreaming
+        })
+
+        if (!isStreaming) {
+          armSettle()
+        } else if (idleSettleTimer) {
+          clearTimeout(idleSettleTimer)
+        }
       }
     }
-    return { text: '' }
+    return { text: latestText, messageId: latestId || undefined, entry: latestEntry }
+  } catch {
+    return { text: latestText, messageId: latestId || undefined, entry: latestEntry }
   } finally {
     clearTimeout(timer)
+    if (idleSettleTimer) clearTimeout(idleSettleTimer)
   }
 }
 
@@ -223,12 +270,21 @@ async function runGrokRpcOnce(request: GrokRpcRequest): Promise<GrokRpcResponse>
       }
       case 'watchUntilReply': {
         const data = await watchUntilReply(client, {
+          accountId: request.accountId,
+          conversationId: request.conversationId,
           agentId: request.agentId,
           sessionId: request.sessionId ?? defaultSession,
           afterUpdatedSeq: request.afterUpdatedSeq,
           afterMessageId: request.afterMessageId,
           timeoutMs: request.timeoutMs
         })
+        return { ok: true, data }
+      }
+      case 'call': {
+        if (!request.method || !/^[A-Za-z0-9_]+$/.test(request.method)) {
+          throw new Error('Invalid GrokBotService method name')
+        }
+        const data = await client.unary(request.method, request.params ?? {})
         return { ok: true, data }
       }
       default: {

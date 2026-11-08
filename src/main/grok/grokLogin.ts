@@ -2,8 +2,8 @@ import { BrowserWindow, session as electronSession, shell } from "electron"
 import { partitionForAccount } from "../webContentsViewManager"
 import { setGrokMainAuth } from "./grokAuthStore"
 import { getOrCreateGrokMachineId } from "./grokMachineId"
+import { createPkce, persistSandTokens, pollSandAuth, sandLoginUrl } from "./grokSandAuth"
 
-const LOGIN_URL = "https://authenticator.cursor.sh"
 const ALLOWED =
   /^(authenticator\.cursor\.sh|prod\.authentication\.cursor\.sh|cursor\.com|www\.cursor\.com|x\.ai|accounts\.x\.ai|api2\.cursor\.sh)$/i
 
@@ -19,6 +19,7 @@ export type GrokAuthCaptured = {
   accountId: string
   accessToken: string
   accountSlot?: string
+  teamId?: string
   machineId: string
 }
 
@@ -56,7 +57,6 @@ export function accessTokenFromWorkosCookie(raw: string): { accessToken: string;
   } catch {
     /* keep raw */
   }
-  // user_<id>::<jwt>
   const parts = value.split("::")
   if (parts.length >= 2) {
     const slot = parts[0]?.trim()
@@ -71,46 +71,12 @@ export function accessTokenFromWorkosCookie(raw: string): { accessToken: string;
   return null
 }
 
-function looksLikeJwt(value: string): boolean {
-  return /^eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/.test(value)
-}
-
-function extractTokenFromObject(obj: unknown, depth = 0): string | null {
-  if (depth > 6 || obj == null) return null
-  if (typeof obj === "string") {
-    const fromCookie = accessTokenFromWorkosCookie(obj)
-    if (fromCookie) return fromCookie.accessToken
-    if (looksLikeJwt(obj)) return obj
-    return null
-  }
-  if (Array.isArray(obj)) {
-    for (const item of obj) {
-      const hit = extractTokenFromObject(item, depth + 1)
-      if (hit) return hit
-    }
-    return null
-  }
-  if (typeof obj === "object") {
-    const rec = obj as Record<string, unknown>
-    for (const key of ["accessToken", "access_token", "token", "jwt"]) {
-      const v = rec[key]
-      if (typeof v === "string") {
-        const hit = extractTokenFromObject(v, depth + 1)
-        if (hit) return hit
-      }
-    }
-    for (const v of Object.values(rec)) {
-      const hit = extractTokenFromObject(v, depth + 1)
-      if (hit) return hit
-    }
-  }
-  return null
-}
-
 /**
- * Open Cursor/Grok authenticator in a BrowserWindow sharing the account
- * partition. On success, capture accessToken from WorkosCursorSessionToken
- * (or auth JSON / storage) into Hub memory — never Keychain / sand-secrets.
+ * Open Cursor/Grok official PKCE `loginDeepControl?redirectTarget=sand` in a
+ * BrowserWindow sharing the account partition, and poll `api2.cursor.sh/auth/poll`
+ * for the write-capable sand `{accessToken, refreshToken}` pair (persisted via
+ * Electron safeStorage). Also keeps cookie/header fallback if user closes early
+ * after signing in on web.
  */
 export async function openGrokLoginWindow(accountId: string, parent?: BrowserWindow): Promise<void> {
   const existing = loginWindows.get(accountId)
@@ -123,14 +89,16 @@ export async function openGrokLoginWindow(accountId: string, parent?: BrowserWin
   const partition = partitionForAccount(`grok-${accountId}`)
   const ses = electronSession.fromPartition(partition)
   const machineId = getOrCreateGrokMachineId(accountId)
+  const { verifier, challenge, uuid } = createPkce()
+  const deepUrl = sandLoginUrl(challenge, uuid)
 
   const win = new BrowserWindow({
     width: 980,
     height: 760,
     minWidth: 720,
     minHeight: 560,
-    title: "使用 Grok Bot 登录",
-    backgroundColor: "#f7f7f8",
+    title: "使用 Grok Bot 登录 (Sand PKCE)",
+    backgroundColor: "#f5f5f5",
     autoHideMenuBar: true,
     parent: parent && !parent.isDestroyed() ? parent : undefined,
     webPreferences: {
@@ -153,18 +121,38 @@ export async function openGrokLoginWindow(accountId: string, parent?: BrowserWin
   })
 
   let settling = false
+  let closed = false
+  let fallbackCookieToken: { accessToken: string; accountSlot?: string } | null = null
 
-  const finish = (accessToken: string, accountSlot?: string): void => {
-    if (settling || win.isDestroyed()) return
+  const finish = (
+    accessToken: string,
+    opts: { refreshToken?: string; accountSlot?: string; teamId?: string; fromPkce?: boolean } = {}
+  ): void => {
+    if (settling) return
     if (!accessToken || accessToken.length < 20) return
     settling = true
     setGrokMainAuth({
       accountId,
       accessToken,
-      accountSlot,
+      accountSlot: opts.accountSlot,
+      teamId: opts.teamId,
       machineId
     })
-    const payload: GrokAuthCaptured = { accountId, accessToken, accountSlot, machineId }
+    if (opts.fromPkce || opts.refreshToken) {
+      void persistSandTokens(accountId, {
+        accessToken,
+        refreshToken: opts.refreshToken,
+        authId: opts.accountSlot,
+        selectedTeamId: opts.teamId
+      }).catch((err) => console.warn("[grok] safeStorage persist failed", err))
+    }
+    const payload: GrokAuthCaptured = {
+      accountId,
+      accessToken,
+      accountSlot: opts.accountSlot,
+      teamId: opts.teamId,
+      machineId
+    }
     try {
       captureListener?.(payload)
     } catch (error) {
@@ -173,7 +161,29 @@ export async function openGrokLoginWindow(accountId: string, parent?: BrowserWin
     if (!win.isDestroyed()) win.close()
   }
 
-  const tryCookies = async (): Promise<boolean> => {
+  // Primary path: official Sand PKCE /auth/poll
+  void pollSandAuth(uuid, verifier, {
+    isAborted: () => closed || settling,
+    maxAttempts: 150
+  })
+    .then((tokens) => {
+      finish(tokens.accessToken, {
+        refreshToken: tokens.refreshToken,
+        accountSlot: tokens.authId,
+        teamId: tokens.selectedTeamId,
+        fromPkce: true
+      })
+    })
+    .catch(() => {
+      /* if window closed after web login but before confirm click, use fallback cookie if available */
+      if (!settling && fallbackCookieToken) {
+        finish(fallbackCookieToken.accessToken, { accountSlot: fallbackCookieToken.accountSlot })
+      }
+    })
+
+  // Record fallback web cookie in case user closes window right after login without clicking "Yes, log in"
+  const checkCookiesForFallback = async (): Promise<void> => {
+    if (settling || win.isDestroyed()) return
     try {
       const cookies = await ses.cookies.get({})
       for (const cookie of cookies) {
@@ -183,122 +193,25 @@ export async function openGrokLoginWindow(accountId: string, parent?: BrowserWin
         if (cookie.name.endsWith(".sig")) continue
         const parsed = accessTokenFromWorkosCookie(cookie.value)
         if (parsed) {
-          finish(parsed.accessToken, parsed.accountSlot)
-          return true
-        }
-      }
-    } catch (error) {
-      console.error("[grok] cookie read failed", error)
-    }
-    return false
-  }
-
-  const tryStorage = async (): Promise<boolean> => {
-    if (win.isDestroyed()) return false
-    try {
-      const found = (await win.webContents.executeJavaScript(`(() => {
-        const out = []
-        const scan = (store, label) => {
-          try {
-            for (let i = 0; i < store.length; i++) {
-              const k = store.key(i)
-              const v = store.getItem(k)
-              if (!v) continue
-              if (/accessToken|access_token|WorkosCursorSessionToken|cursorAuth/i.test(k) || /eyJ[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+/.test(v)) {
-                out.push({ label, key: k, value: v.slice(0, 4000) })
-              }
-            }
-          } catch {}
-        }
-        scan(localStorage, "local")
-        scan(sessionStorage, "session")
-        return out
-      })()`)) as Array<{ key: string; value: string }>
-      for (const item of found || []) {
-        try {
-          const asJson = JSON.parse(item.value) as unknown
-          const fromJson = extractTokenFromObject(asJson)
-          if (fromJson) {
-            finish(fromJson)
-            return true
-          }
-        } catch {
-          /* not json */
-        }
-        const parsed = accessTokenFromWorkosCookie(item.value)
-        if (parsed) {
-          finish(parsed.accessToken, parsed.accountSlot)
-          return true
-        }
-        if (looksLikeJwt(item.value)) {
-          finish(item.value)
-          return true
+          fallbackCookieToken = parsed
+          break
         }
       }
     } catch {
-      /* page may not allow */
-    }
-    return false
-  }
-
-  const tryCapture = async (): Promise<void> => {
-    if (settling || win.isDestroyed()) return
-    if (await tryCookies()) return
-    await tryStorage()
-  }
-
-  const onNav = (): void => {
-    void tryCapture()
-  }
-  win.webContents.on("did-finish-load", onNav)
-  win.webContents.on("did-navigate", onNav)
-  win.webContents.on("did-navigate-in-page", onNav)
-  win.webContents.on("did-redirect-navigation", onNav)
-
-  const onCookie = (
-    _event: unknown,
-    cookie: { name: string },
-    _cause: string,
-    removed: boolean
-  ): void => {
-    if (removed) return
-    if (
-      TOKEN_COOKIE_NAMES.has(cookie.name) ||
-      /workos.*session|cursor.*session/i.test(cookie.name)
-    ) {
-      void tryCapture()
+      /* ignore */
     }
   }
-  ses.cookies.on("changed", onCookie)
 
-  // Sniff Bearer tokens and JSON bodies on Cursor auth / API hosts.
-  const filter = { urls: ["https://*.cursor.sh/*", "https://*.cursor.com/*", "https://api2.cursor.sh/*"] }
-  // Response Authorization echo is rare; Bearer capture is via onBeforeSendHeaders.
-
-  ses.webRequest.onBeforeSendHeaders(filter, (details, callback) => {
-    const headers = details.requestHeaders || {}
-    const auth = headers["Authorization"] || headers["authorization"]
-    if (typeof auth === "string" && /^Bearer\s+eyJ/i.test(auth)) {
-      const token = auth.replace(/^Bearer\s+/i, "").trim()
-      if (token.length > 40) finish(token)
-    }
-    callback({ requestHeaders: headers })
-  })
+  win.webContents.on("did-finish-load", () => void checkCookiesForFallback())
+  win.webContents.on("did-navigate", () => void checkCookiesForFallback())
 
   win.on("closed", () => {
-    ses.cookies.off("changed", onCookie)
+    closed = true
     loginWindows.delete(accountId)
+    if (!settling && fallbackCookieToken) {
+      finish(fallbackCookieToken.accessToken, { accountSlot: fallbackCookieToken.accountSlot })
+    }
   })
 
-  // Poll cookies while the window is open (auth redirects can be quiet).
-  const poll = setInterval(() => {
-    if (win.isDestroyed() || settling) {
-      clearInterval(poll)
-      return
-    }
-    void tryCapture()
-  }, 1500)
-  win.on("closed", () => clearInterval(poll))
-
-  await win.loadURL(LOGIN_URL)
+  await win.loadURL(deepUrl)
 }

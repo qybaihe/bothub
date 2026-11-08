@@ -299,8 +299,7 @@ export class GrokBotAdapter implements PlatformAdapter {
     if (!agentId) throw new AdapterError('unknown-account', 'No Grok Bot agents on this account.')
 
     const messageId = createId('tNu')
-    // Sand 404s (agent-not-found) on a non-empty unknown session_id; empty is accepted.
-    const sessionId = ''
+    const sessionId = message.sessionId ?? ''
     const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
 
     this.setStatus(message.accountId, 'busy')
@@ -340,12 +339,14 @@ export class GrokBotAdapter implements PlatformAdapter {
       })
 
       let reply = ''
+      let replyMessageId = ''
       try {
         const watched = await invokeGrokRpc({
           accountId: message.accountId,
           timeZone,
           op: 'watchUntilReply',
           agentId,
+          conversationId: message.conversationId,
           sessionId,
           afterUpdatedSeq: afterSeq,
           afterMessageId: messageId,
@@ -355,6 +356,7 @@ export class GrokBotAdapter implements PlatformAdapter {
           const w = watched as Record<string, unknown>
           if (typeof w['text'] === 'string') reply = w['text']
           else reply = extractReplyText(watched, messageId)
+          if (typeof w['messageId'] === 'string') replyMessageId = w['messageId']
         }
       } catch {
         // Fallback: brief list poll if Watch unavailable.
@@ -386,7 +388,7 @@ export class GrokBotAdapter implements PlatformAdapter {
 
       if (reply) {
         const incoming: IncomingMessage = {
-          id: createId('msg'),
+          id: replyMessageId || createId('msg'),
           conversationId: message.conversationId,
           accountId: message.accountId,
           text: reply,

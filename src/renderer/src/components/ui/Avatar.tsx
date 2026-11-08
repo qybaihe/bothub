@@ -1,86 +1,98 @@
-import type { ConnectionStatus } from '@adapters/types'
-import type { PlatformId } from '@adapters/types'
+import type { ConnectionStatus, PlatformId } from '@adapters/types'
 import { cn } from '@/lib/cn'
-import { platformIcon } from '@/lib/platformIcons'
 import { initials } from '@/lib/format'
+import { GrokBotMark } from './GrokBotMark'
 import { StatusDot } from './Status'
-
-/** Soft tints for bot tiles; content colors, not brand colors. */
-const TINTS_DARK = ['#2c2a45', '#21352b', '#3a2f20', '#22303f', '#3a2730', '#2b2b30', '#213536']
-const TINTS = ['#f0efff', '#eaf5ef', '#fdf2e4', '#ebf2fb', '#fbedf1', '#f1f1f4', '#eef6f6']
-
-function tintFor(seed: string): string {
-  let hash = 0
-  for (let i = 0; i < seed.length; i++) hash = (hash * 33 + seed.charCodeAt(i)) >>> 0
-  const dark = typeof document !== "undefined" && document.documentElement.dataset.theme === "dark"
-  const list = dark ? TINTS_DARK : TINTS
-  return list[hash % list.length]!
-}
 
 const BOT_SIZES = {
   xs: 'size-6 rounded-full text-xs',
   sm: 'size-7 rounded-full text-sm',
   md: 'size-9 rounded-full text-lg',
   lg: 'size-16 rounded-full text-[30px]',
-  xl: 'size-[72px] rounded-full text-[34px]'
+  xl: 'size-[60px] rounded-full text-[30px]'
 } as const
+
+const BOT_PX: Record<keyof typeof BOT_SIZES, number> = {
+  xs: 24,
+  sm: 28,
+  md: 36,
+  lg: 64,
+  xl: 60
+}
 
 const DOT_SIZES = {
   xs: 'size-2 ring-[1.5px]',
   sm: 'size-2 ring-[1.5px]',
-  md: 'size-2.5 ring-[1.5px]',
+  md: 'size-2.5 ring-[2px]',
   lg: 'size-3.5 ring-[2.5px]',
-  xl: 'size-4 ring-[3px]'
+  xl: 'size-3.5 ring-[2.5px]'
 } as const
 
 interface BotAvatarProps {
-  emoji: string
+  emoji?: string
   seed: string
-  /** User photo; wins over the platform mark and the emoji tile. */
+  /** User photo; wins over the animated GrokBotMark character. */
   avatar?: string
-  /** When the platform has an official mark, it replaces the emoji tile. */
+  avatarShape?: string
+  avatarColor?: string
   platformId?: PlatformId
   size?: keyof typeof BOT_SIZES
   status?: ConnectionStatus
+  isWorking?: boolean
+  gaze?: [number, number] | null
+  followPointer?: boolean
+  pokeSignal?: number
   /** Ring color around the status dot; should match the background behind it. */
   ringClassName?: string
   className?: string
 }
 
 export function BotAvatar({
-  emoji,
   seed,
   avatar,
-  platformId,
+  avatarShape,
+  avatarColor,
   size = 'md',
   status,
+  isWorking,
+  gaze,
+  followPointer,
+  pokeSignal,
   ringClassName = 'ring-surface',
   className
 }: BotAvatarProps) {
-  const icon = avatar ?? platformIcon(platformId)
   return (
-    <span className={cn('relative inline-flex shrink-0', className)}>
-      {icon ? (
+    <span className={cn('relative inline-flex shrink-0 items-center justify-center', className)}>
+      {avatar ? (
         <img
-          src={icon}
+          src={avatar}
           alt=""
           aria-hidden
           draggable={false}
           className={cn('object-cover ring-1 ring-line select-none', BOT_SIZES[size])}
         />
       ) : (
-        <span
-          aria-hidden
-          className={cn('grid place-items-center leading-none shadow-hairline select-none', BOT_SIZES[size])}
-          style={{ backgroundColor: tintFor(seed) }}
-        >
-          {emoji}
-        </span>
+        <GrokBotMark
+          seed={seed}
+          shape={avatarShape}
+          color={avatarColor}
+          status={status}
+          isWorking={isWorking}
+          gaze={gaze}
+          followPointer={followPointer}
+          pokeSignal={pokeSignal}
+          sizePx={BOT_PX[size]}
+        />
       )}
-      {status && (
+      {status && status !== 'online' && (
         <StatusDot
           status={status}
-          className={cn('absolute -right-0.5 -bottom-0.5', DOT_SIZES[size], ringClassName)}
+          className={cn(
+            'absolute -right-0.5 -bottom-0.5',
+            DOT_SIZES[size],
+            ringClassName,
+            (status === 'busy' || isWorking) && 'animate-pulse'
+          )}
         />
       )}
     </span>

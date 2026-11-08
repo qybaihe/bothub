@@ -258,6 +258,10 @@ export function clearSandTokens(accountId: string): void {
   }
 }
 
+export function clearAllSandTokens(): void {
+  writeFile({})
+}
+
 /** Account ids that currently have a persisted sand-token blob. */
 export function listPersistedSandAccountIds(): string[] {
   return Object.keys(readFile())

@@ -1,6 +1,6 @@
 # Grok Bot（xAI / Anysphere `sand`）协议分析
 
-> 来源：Antigravity 会话 `f52a9e1d-c52c-4322-a755-e17684c57f8b`（Migrate Grok Bot Configuration，2026-11-02）对  
+> 来源：Antigravity 会话 `00000000-0000-4000-8000-000000000001`（Migrate Grok Bot Configuration，2026-11-02）对  
 > `/Applications/Grok Bot.app`（Electron，版本约 `0.78.1`，内部代号 **sand**，Anysphere/Cursor 出品）的静态逆向 + 本机  
 > `~/Library/Application Support/Grok Bot/sand-client-persistence` Base32 `.blob` 缓存分析 + 跨账号迁移脚本。  
 > **未做完整 net-export 抓包**；ConnectRPC 方法名与消息字段来自 `app.asar` 内 `/dist/electron-main/proto.cjs`。  
@@ -306,7 +306,7 @@ Host capabilities 缓存示例：
 
 1. 完整摸清 sand 架构、414 RPC 目录、本地 blob 键空间、roster/transcript 形状。  
 2. 备份 44 个 `.blob` → Antigravity `scratch/persistence-backup/`。  
-3. 生成 `/Users/baihe/Downloads/grokbot-migration/`：`MASTER_MIGRATION.md`、`ALL_MEMORIES_IMPORT.md`、`manifest.json`、每 Bot 的 `BOOTSTRAP.md` / `recipe.json` / `transcript.md|json`、`sync_local_persistence.py`。  
+3. 生成 `./grokbot-migration/`：`MASTER_MIGRATION.md`、`ALL_MEMORIES_IMPORT.md`、`manifest.json`、每 Bot 的 `BOOTSTRAP.md` / `recipe.json` / `transcript.md|json`、`sync_local_persistence.py`。  
 4. 明确：**仅 re-key `.blob` 会被 `ListGrokBotAgents` 冲掉**；正确路径是新账号上 `CreateAgent`/`CreateGrokBotAgentFromTemplate` + 记忆/skill/routine 写入，再可选 `CommitGrokBotTranscriptEntries` 或 BOOTSTRAP 气泡回放。  
 5. `sync_local_persistence.py`：按**名字**把 sidebar / drafts / transcript 副本映射到新 UUID。
 

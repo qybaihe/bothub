@@ -32,7 +32,7 @@ src/adapters/platforms.ts   # 注册 grokbot：显示名、图标、homeUrl/logi
 ```
 
 依赖：`@connectrpc/connect`、`@connectrpc/connect-node` 或 web 运输、`@bufbuild/protobuf`。  
-若暂不引入完整 proto 生成物：可对**已确认**的几个方法先用手写 JSON/binary 最小客户端，但优先从 asar `proto.cjs` 抽 `.proto` 再 codegen（白鹤本机有 `/Applications/Grok Bot.app`）。
+若暂不引入完整 proto 生成物：可对**已确认**的几个方法先用手写 JSON/binary 最小客户端，但优先从 asar `proto.cjs` 抽 `.proto` 再 codegen（本机有 `/Applications/Grok Bot.app`）。
 
 ### PlatformAdapter 方法映射
 
@@ -66,10 +66,10 @@ src/adapters/platforms.ts   # 注册 grokbot：显示名、图标、homeUrl/logi
 
 ## 测试计划（用户账号）
 
-用户本机已有 Grok Bot（khiem / `grok|user_…` 槽）。建议：
+用户本机已有 Grok Bot（`grok|user_…` 槽）。建议：
 
 1. BotHub 添加「Grok Bot」平台 → 完成登录（用户配合 2FA/浏览器）。  
-2. 拉到至少一个 agent（默认 Grok Bot 或已迁移的 `mu`/`bla`…）。  
+2. 拉到至少一个 agent（默认 Grok Bot）。  
 3. 发送 `hi`，确认 Hub 侧出现流式/最终气泡（对拍官方客户端）。  
 4. 若出现 Auto-review / 本机权限卡：在 Hub 点 Allow 一次、Deny 一次。  
 5. 切换第二个 partition 账号（若有）确认隔离。  
@@ -87,7 +87,7 @@ mkdir -p ~/projects/bothub/docs/grokbot
 # 将 protocol.md samples/ HANDOFF_CLAUDE.md INDEX.md 拷入上述目录
 ```
 
-白鹤本机只读证据：`/Applications/Grok Bot.app`、`~/Library/Application Support/Grok Bot/`、`~/Downloads/grokbot-migration/`。
+本机只读参考路径：`/Applications/Grok Bot.app`、`~/Library/Application Support/Grok Bot/`。
 
 ## 完成后回传
 

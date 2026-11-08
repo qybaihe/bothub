@@ -10,7 +10,7 @@
 | `checkpoint_*.md` | Antigravity 压缩检查点原文 | 高（会话自我总结） |
 | `transcript_full.jsonl` | 原始会话 489 步 | 高 |
 | `build_migration.py` | 迁移包生成脚本副本 | 高 |
-| `from-mac/` | 从白鹤拷贝的 MASTER_MIGRATION、extract、samples 包 | 高 |
+| `from-mac/` | 脱敏迁移样例、extract、samples 包 | 高 |
 | `annotations.pbtxt` | 会话标题元数据 | 高 |
 
 ## samples 清单
@@ -41,7 +41,7 @@
 | CommitTranscript 可无痛注入历史 | **中** | API 存在；迁移未闭环证明 |
 | BotHub 应走 RPC 而非纯 WebContents 嵌 App | **高** | 产品形态决定 |
 
-## 额外从白鹤拉取的文件
+## 额外提取的样本文件
 
 已用 CopyToBox：
 

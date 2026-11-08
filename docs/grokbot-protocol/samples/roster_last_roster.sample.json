@@ -3,7 +3,7 @@
   "value": {
     "rows": [
       {
-        "id": "c3790921-be0d-4431-a325-acd6205cd8b8",
+        "id": "00000000-0000-4000-8000-000000000003",
         "name": "mu",
         "harness": "temporal",
         "visibility": "owner",
@@ -12,7 +12,7 @@
         "voiceId": "liora",
         "isGroup": false,
         "memberIds": [],
-        "path": "/home/box/sand-data/agents/c3790921-be0d-4431-a325-acd6205cd8b8/store.db",
+        "path": "/home/box/sand-data/agents/00000000-0000-4000-8000-000000000003/store.db",
         "createdAt": 1792674294294,
         "updatedAt": 1793628187719,
         "lastMessageId": "t224s1176",
@@ -23,7 +23,7 @@
         }
       },
       {
-        "id": "07991e41-428f-4ddd-bfbe-20316ecddf86",
+        "id": "00000000-0000-4000-8000-000000000002",
         "name": "bla",
         "harness": "temporal",
         "visibility": "owner",
@@ -32,7 +32,7 @@
         "voiceId": null,
         "isGroup": false,
         "memberIds": [],
-        "path": "/home/box/sand-data/agents/07991e41-428f-4ddd-bfbe-20316ecddf86/store.db",
+        "path": "/home/box/sand-data/agents/00000000-0000-4000-8000-000000000002/store.db",
         "createdAt": 1792902530950,
         "updatedAt": 1793627039680,
         "lastMessageId": "t46s265",

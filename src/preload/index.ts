@@ -1,11 +1,13 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import type { BotHubBridge } from '@shared/bridge'
 import {
+  DOT_CHANNELS,
   GROK_CHANNELS,
   HARK_CHANNELS,
   MUSE_CHANNELS,
   UPDATE_CHANNELS,
   WEB_VIEW_CHANNELS,
+  type DotMainEvent,
   type GrokMainEvent,
   type HarkMainEvent,
   type MuseMainEvent,
@@ -55,6 +57,11 @@ const bridge: BotHubBridge = {
     listSessions: (accountId) => ipcRenderer.invoke(MUSE_CHANNELS.listSessions, accountId),
     mutateSession: (accountId, mutation) =>
       ipcRenderer.invoke(MUSE_CHANNELS.mutateSession, accountId, mutation),
+    startSession: (accountId) => ipcRenderer.invoke(MUSE_CHANNELS.startSession, accountId),
+    loadSessionHistory: (accountId, sessionId) =>
+      ipcRenderer.invoke(MUSE_CHANNELS.loadSessionHistory, accountId, sessionId),
+    cancelChat: (accountId, sessionId) =>
+      ipcRenderer.invoke(MUSE_CHANNELS.cancelChat, accountId, sessionId),
     listFiles: (accountId) => ipcRenderer.invoke(MUSE_CHANNELS.listFiles, accountId),
     listConnectors: (accountId) => ipcRenderer.invoke(MUSE_CHANNELS.listConnectors, accountId),
     connectConnector: (accountId, connectorId) =>
@@ -69,7 +76,13 @@ const bridge: BotHubBridge = {
     uploadWorkspaceFile: (accountId, args) =>
       ipcRenderer.invoke(MUSE_CHANNELS.uploadWorkspaceFile, accountId, args),
     getProxy: (accountId) => ipcRenderer.invoke(MUSE_CHANNELS.getProxy, accountId),
-    setProxy: (accountId, config) => ipcRenderer.invoke(MUSE_CHANNELS.setProxy, accountId, config)
+    setProxy: (accountId, config) => ipcRenderer.invoke(MUSE_CHANNELS.setProxy, accountId, config),
+    listProxyPool: () => ipcRenderer.invoke(MUSE_CHANNELS.listProxyPool),
+    importProxyPool: (rawText, defaultMode) =>
+      ipcRenderer.invoke(MUSE_CHANNELS.importProxyPool, rawText, defaultMode),
+    removeProxyPoolItem: (id) => ipcRenderer.invoke(MUSE_CHANNELS.removeProxyPoolItem, id),
+    clearProxyPool: () => ipcRenderer.invoke(MUSE_CHANNELS.clearProxyPool),
+    assignProxyPool: (accountIds) => ipcRenderer.invoke(MUSE_CHANNELS.assignProxyPool, accountIds)
   },
   updates: {
     check: () => ipcRenderer.invoke(UPDATE_CHANNELS.check),
@@ -98,11 +111,26 @@ const bridge: BotHubBridge = {
     openLogin: (request) => ipcRenderer.invoke(HARK_CHANNELS.openLogin, request),
     cancelLogin: (accountId) => ipcRenderer.invoke(HARK_CHANNELS.cancelLogin, accountId),
     authStatus: (accountId) => ipcRenderer.invoke(HARK_CHANNELS.authStatus, accountId),
+    importCredentials: (request) => ipcRenderer.invoke(HARK_CHANNELS.importCredentials, request),
+    clearAuth: (accountId) => ipcRenderer.invoke(HARK_CHANNELS.clearAuth, accountId),
     rpc: (request) => ipcRenderer.invoke(HARK_CHANNELS.rpc, request),
     onEvent: (listener) => {
       const handler = (_event: unknown, payload: HarkMainEvent) => listener(payload)
       ipcRenderer.on(HARK_CHANNELS.event, handler)
       return () => ipcRenderer.removeListener(HARK_CHANNELS.event, handler)
+    }
+  },
+  dot: {
+    openLogin: (request) => ipcRenderer.invoke(DOT_CHANNELS.openLogin, request),
+    cancelLogin: (accountId) => ipcRenderer.invoke(DOT_CHANNELS.cancelLogin, accountId),
+    authStatus: (accountId) => ipcRenderer.invoke(DOT_CHANNELS.authStatus, accountId),
+    importCredentials: (request) => ipcRenderer.invoke(DOT_CHANNELS.importCredentials, request),
+    clearAuth: (accountId) => ipcRenderer.invoke(DOT_CHANNELS.clearAuth, accountId),
+    rpc: (request) => ipcRenderer.invoke(DOT_CHANNELS.rpc, request),
+    onEvent: (listener) => {
+      const handler = (_event: unknown, payload: DotMainEvent) => listener(payload)
+      ipcRenderer.on(DOT_CHANNELS.event, handler)
+      return () => ipcRenderer.removeListener(DOT_CHANNELS.event, handler)
     }
   }
 }

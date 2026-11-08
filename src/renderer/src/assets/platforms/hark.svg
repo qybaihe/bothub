@@ -1,4 +1,18 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
-  <rect width="64" height="64" rx="14" fill="#111827"/>
-  <path d="M20 16v32M44 16v32M20 32h24" stroke="#F9FAFB" stroke-width="6" stroke-linecap="round"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 36 36" fill="none">
+  <rect width="36" height="36" fill="url(#hark_bg)"/>
+  <path
+    fill="url(#hark_mark)"
+    d="M25.096 30c-.072 0-.12-.048-.168-.12-4.776-6.384-12.216-10.8-20.736-11.688C4.048 18.168 4 18.096 4 18s.048-.168.192-.192c8.52-.888 15.96-5.304 20.736-11.688.048-.072.096-.12.168-.12s.096.024.168.072A15.02 15.02 0 0 1 31.12 18a15.02 15.02 0 0 1-5.856 11.928c-.072.048-.096.072-.168.072"
+  />
+  <defs>
+    <linearGradient id="hark_bg" x1="18" y1="0" x2="18" y2="36" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#1D1D1F"/>
+      <stop offset="1" stop-color="#3A3A3D"/>
+    </linearGradient>
+    <linearGradient id="hark_mark" x1="17.5" y1="6" x2="17.5" y2="30" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF"/>
+      <stop offset="0.55" stop-color="#E5E5E7"/>
+      <stop offset="1" stop-color="#C7C7CC"/>
+    </linearGradient>
+  </defs>
 </svg>

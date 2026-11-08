@@ -11,7 +11,7 @@
  */
 
 /** Platforms BotHub knows about. Add an id here and to `platforms.ts`. */
-export type PlatformId = 'meta-muse' | 'grok' | 'hark' | 'deepseek' | 'chatgpt' | 'gemini'
+export type PlatformId = 'meta-muse' | 'grok' | 'hark' | 'dot'
 
 /** Connection state of a single platform account. */
 export type ConnectionStatus = 'online' | 'busy' | 'attention' | 'offline' | 'error'
@@ -53,6 +53,8 @@ export interface OutgoingMessage {
   conversationId: string
   /** Account the message is sent from. */
   accountId: string
+  /** Optional platform thread / session id (e.g. Muse session_id). */
+  sessionId?: string
   text: string
   attachments?: AttachmentMeta[]
 }
@@ -61,6 +63,8 @@ export interface SendReceipt {
   /** Platform-side id assigned to the outgoing message. */
   messageId: string
   acceptedAt: number
+  /** Platform thread / session id returned by the send ack. */
+  sessionId?: string
 }
 
 export interface IncomingMessage {
@@ -164,6 +168,40 @@ export type MuseRichWidget =
       selectedPath?: string | null
       selectedIndices?: number[]
       baseVersion: number
+    }
+  | {
+      kind: 'text_with_button'
+      widgetId: string
+      text: string
+      buttons: Array<{ label: string; actionText?: string; url?: string; command?: string }>
+    }
+  | {
+      kind: 'generic_list'
+      widgetId: string
+      title?: string
+      items: Array<{ id: string; title: string; subtitle?: string; sendText?: string; url?: string }>
+    }
+  | {
+      kind: 'voice_options'
+      widgetId: string
+      voices: Array<{ id: string; name: string; description?: string; selected?: boolean }>
+    }
+  | {
+      kind: 'markdown'
+      widgetId: string
+      title?: string
+      markdown: string
+      path?: string
+    }
+  | {
+      kind: 'hotel_results'
+      widgetId: string
+      hotels: Array<{ name: string; price?: string; rating?: string; url?: string; imageUrl?: string; location?: string }>
+    }
+  | {
+      kind: 'idea_cards'
+      widgetId: string
+      cards: Array<{ id: string; title: string; subtitle?: string; prompt?: string }>
     }
 
 export interface MuseOptionWidget {

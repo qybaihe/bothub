@@ -5,6 +5,7 @@ import { attachMuseSessionManager, registerMuseIpc } from './muse/museIpc'
 import { registerUpdaterIpc, startAutoUpdater } from './updater'
 import { registerGrokIpc } from './grok/grokIpc'
 import { registerHarkIpc } from './hark/harkIpc'
+import { registerDotIpc } from './dot/dotIpc'
 
 const isMac = process.platform === 'darwin'
 
@@ -59,6 +60,7 @@ app.whenReady().then(() => {
   registerUpdaterIpc()
   registerGrokIpc()
   registerHarkIpc()
+  registerDotIpc()
   createMainWindow()
   startAutoUpdater()
 

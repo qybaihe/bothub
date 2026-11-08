@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 1024 1024" fill="none">
+  <rect width="1024" height="1024" fill="url(#dot_bg)"/>
+  <path
+    fill-rule="evenodd"
+    clip-rule="evenodd"
+    d="M512 142C716.345 142 882 307.655 882 512C882 716.345 716.345 882 512 882C307.655 882 142 716.345 142 512C142 307.655 307.655 142 512 142ZM512 365.62C431.157 365.62 365.62 431.157 365.62 512C365.62 592.843 431.157 658.38 512 658.38C592.843 658.38 658.38 592.843 658.38 512C658.38 431.157 592.843 365.62 512 365.62Z"
+    fill="url(#dot_torus_base)"
+  />
+  <path
+    fill-rule="evenodd"
+    clip-rule="evenodd"
+    d="M512 142C716.345 142 882 307.655 882 512C882 716.345 716.345 882 512 882C307.655 882 142 716.345 142 512C142 307.655 307.655 142 512 142ZM512 365.62C431.157 365.62 365.62 431.157 365.62 512C365.62 592.843 431.157 658.38 512 658.38C592.843 658.38 658.38 592.843 658.38 512C658.38 431.157 592.843 365.62 512 365.62Z"
+    fill="url(#dot_torus_sheen)"
+  />
+  <defs>
+    <linearGradient id="dot_bg" x1="512" y1="0" x2="512" y2="1024" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#111318"/>
+      <stop offset="1" stop-color="#1E222B"/>
+    </linearGradient>
+    <linearGradient id="dot_torus_base" x1="320" y1="142" x2="704" y2="882" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#DCE2F0"/>
+      <stop offset="0.45" stop-color="#BAC1D3"/>
+      <stop offset="1" stop-color="#949CB0"/>
+    </linearGradient>
+    <radialGradient id="dot_torus_sheen" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(512 512) scale(370)">
+      <stop offset="0.39" stop-color="#6E7588" stop-opacity="0.42"/>
+      <stop offset="0.52" stop-color="#BAC1D3" stop-opacity="0"/>
+      <stop offset="0.69" stop-color="#EEF2FA" stop-opacity="0.48"/>
+      <stop offset="0.88" stop-color="#BAC1D3" stop-opacity="0"/>
+      <stop offset="1" stop-color="#6E7588" stop-opacity="0.38"/>
+    </radialGradient>
+  </defs>
+</svg>

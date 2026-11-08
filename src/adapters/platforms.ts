@@ -33,25 +33,13 @@ export const PLATFORMS: readonly PlatformDescriptor[] = [
     loginUrl: 'https://app.hark.com/login'
   },
   {
-    id: 'deepseek',
-    name: 'DeepSeek',
-    description: 'Reasoning-focused chat models.',
-    availability: 'coming-soon',
-    monogram: 'D'
-  },
-  {
-    id: 'chatgpt',
-    name: 'ChatGPT',
-    description: 'OpenAI conversational assistant.',
-    availability: 'coming-soon',
-    monogram: 'C'
-  },
-  {
-    id: 'gemini',
-    name: 'Gemini',
-    description: 'Google multimodal assistant.',
-    availability: 'coming-soon',
-    monogram: 'Ge'
+    id: 'dot',
+    name: 'Dot',
+    description: 'OpenAI autonomous personal AI (chatgpt.com/dots) — Calpico Room + Celsius WS + gpt-6-astra.',
+    availability: 'available',
+    monogram: 'Do',
+    homeUrl: 'https://chatgpt.com/dots',
+    loginUrl: 'https://chatgpt.com/dots'
   }
 ]
 

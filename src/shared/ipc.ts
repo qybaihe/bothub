@@ -74,6 +74,11 @@ export const MUSE_CHANNELS = {
   openExternal: 'bothub:muse:open-external',
   /** Open any https URL (connector OAuth). */
   openHttps: 'bothub:muse:open-https',
+  /** Cancel generation (chat.cancel). */
+  cancelChat: 'bothub:muse:chat:cancel',
+  /** Start a new session (session.start) or load chat.history for a session. */
+  startSession: 'bothub:muse:sessions:start',
+  loadSessionHistory: 'bothub:muse:sessions:history',
   /** Tap Muse option widget (Kai/Juno). */
   selectOption: 'bothub:muse:select-option',
   /** fs.raw preview for workspace image/file paths. */
@@ -81,7 +86,12 @@ export const MUSE_CHANNELS = {
   /** Chunked fs.write eager upload → file_ref path. */
   uploadWorkspaceFile: 'bothub:muse:files:upload',
   getProxy: 'bothub:muse:proxy:get',
-  setProxy: 'bothub:muse:proxy:set'
+  setProxy: 'bothub:muse:proxy:set',
+  listProxyPool: 'bothub:muse:proxy-pool:list',
+  importProxyPool: 'bothub:muse:proxy-pool:import',
+  removeProxyPoolItem: 'bothub:muse:proxy-pool:remove',
+  clearProxyPool: 'bothub:muse:proxy-pool:clear',
+  assignProxyPool: 'bothub:muse:proxy-pool:assign'
 } as const
 
 export interface MuseEnsureRequest {
@@ -176,6 +186,40 @@ export type MuseRichWidgetView =
       selectedIndices?: number[]
       baseVersion: number
     }
+  | {
+      kind: 'text_with_button'
+      widgetId: string
+      text: string
+      buttons: Array<{ label: string; actionText?: string; url?: string; command?: string }>
+    }
+  | {
+      kind: 'generic_list'
+      widgetId: string
+      title?: string
+      items: Array<{ id: string; title: string; subtitle?: string; sendText?: string; url?: string }>
+    }
+  | {
+      kind: 'voice_options'
+      widgetId: string
+      voices: Array<{ id: string; name: string; description?: string; selected?: boolean }>
+    }
+  | {
+      kind: 'markdown'
+      widgetId: string
+      title?: string
+      markdown: string
+      path?: string
+    }
+  | {
+      kind: 'hotel_results'
+      widgetId: string
+      hotels: Array<{ name: string; price?: string; rating?: string; url?: string; imageUrl?: string; location?: string }>
+    }
+  | {
+      kind: 'idea_cards'
+      widgetId: string
+      cards: Array<{ id: string; title: string; subtitle?: string; prompt?: string }>
+    }
 
 export interface MuseOptionWidgetView {
   kind: 'option'
@@ -206,6 +250,16 @@ export interface MuseProxyConfigInput {
   username?: string
   /** Empty string keeps previous password when hasPassword. */
   password?: string
+}
+
+export interface MuseProxyPoolItemView {
+  id: string
+  mode: Exclude<MuseProxyMode, 'direct'>
+  host: string
+  port: number
+  username?: string
+  hasPassword: boolean
+  assignedAccountId?: string
 }
 
 export type MuseMainEvent =
@@ -321,6 +375,17 @@ export type MuseSessionMutation =
   | { op: 'archive' | 'unarchive' | 'pin' | 'unpin' | 'delete'; sessionId: string }
   | { op: 'rename'; sessionId: string; title: string }
 
+export interface MuseHistoryMessageView {
+  id: string
+  role: 'user' | 'bot'
+  text: string
+  createdAt: number
+  widgets?: MuseOptionWidgetView[]
+  richWidgets?: MuseRichWidgetView[]
+  tools?: MuseToolCallView[]
+  media?: MuseMediaPartView[]
+}
+
 export interface MuseChatSessionView {
   id: string
   title: string
@@ -399,6 +464,15 @@ export type GrokMainEvent =
       machineId?: string
     }
   | { type: 'auth'; accountId: string; signedIn: false }
+  | {
+      type: 'stream'
+      accountId: string
+      conversationId?: string
+      agentId: string
+      messageId: string
+      text: string
+      done: boolean
+    }
 
 export interface GrokOpenLoginRequest {
   accountId: string
@@ -407,6 +481,7 @@ export interface GrokOpenLoginRequest {
 export interface GrokSetAccessTokenRequest {
   accountId: string
   accessToken: string
+  refreshToken?: string
   accountSlot?: string
   teamId?: string
   machineId?: string
@@ -476,10 +551,18 @@ export type GrokRpcRequest =
       timeZone?: string
       op: 'watchUntilReply'
       agentId: string
+      conversationId?: string
       sessionId?: string
       afterUpdatedSeq?: string
       afterMessageId?: string
       timeoutMs?: number
+    }
+  | {
+      accountId: string
+      timeZone?: string
+      op: 'call'
+      method: string
+      params?: Record<string, unknown>
     }
   | {
       accountId: string
@@ -520,6 +603,8 @@ export const HARK_CHANNELS = {
   openLogin: 'bothub:hark:open-login',
   cancelLogin: 'bothub:hark:cancel-login',
   authStatus: 'bothub:hark:auth-status',
+  importCredentials: 'bothub:hark:import-credentials',
+  clearAuth: 'bothub:hark:clear-auth',
   rpc: 'bothub:hark:rpc',
   event: 'bothub:hark:event'
 } as const
@@ -538,9 +623,32 @@ export type HarkMainEvent =
       signedIn: false
       windowClosed?: boolean
     }
+  | {
+      type: 'stream'
+      accountId: string
+      conversationId?: string
+      messageId: string
+      text: string
+      done: boolean
+      tools?: MuseToolCallView[]
+      richWidgets?: MuseRichWidgetView[]
+    }
+  | {
+      type: 'activity'
+      accountId: string
+      activityCode: string
+      activityText?: string
+      activityEmoji?: string
+      busy: boolean
+    }
 
 export interface HarkOpenLoginRequest {
   accountId: string
+}
+
+export interface HarkImportCredentialsRequest {
+  accountId: string
+  rawInput: string
 }
 
 export interface HarkAuthStatus {
@@ -563,17 +671,201 @@ export type HarkRpcRequest =
       conversationId: string
       text: string
       timezone?: string
+      attachments?: Array<{ name: string; mimeType: string; dataBase64: string }>
     }
   | {
       accountId: string
       op: 'pollReply'
       conversationId: string
+      botId?: string
+      responseMessageId?: string
       timezone?: string
       afterMessageCount?: number
       afterMessageIds?: string[]
       timeoutMs?: number
     }
+  | {
+      accountId: string
+      op: 'call'
+      method?: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE'
+      path: string
+      query?: Record<string, string | undefined>
+      body?: unknown
+    }
 
 export type HarkRpcResponse =
   | { ok: true; data: unknown }
   | { ok: false; status: number; code?: string; message: string; body?: string }
+
+
+export const DOT_CHANNELS = {
+  openLogin: 'bothub:dot:open-login',
+  cancelLogin: 'bothub:dot:cancel-login',
+  authStatus: 'bothub:dot:auth-status',
+  importCredentials: 'bothub:dot:import-credentials',
+  clearAuth: 'bothub:dot:clear-auth',
+  rpc: 'bothub:dot:rpc',
+  event: 'bothub:dot:event'
+} as const
+
+export type DotMainEvent =
+  | {
+      type: 'login'
+      accountId: string
+      signedIn: true
+      handle?: string
+      displayName?: string
+      planType?: string
+      chatgptAccountId?: string
+    }
+  | {
+      type: 'login'
+      accountId: string
+      signedIn: false
+      windowClosed?: boolean
+    }
+  | {
+      type: 'stream'
+      accountId: string
+      conversationId?: string
+      dotId?: string
+      messageId: string
+      text: string
+      done: boolean
+      stillBusy?: boolean
+      tools?: MuseToolCallView[]
+      media?: MuseMediaPartView[]
+      richWidgets?: MuseRichWidgetView[]
+    }
+  | {
+      type: 'activity'
+      accountId: string
+      activityCode: string
+      activityText?: string
+      activityEmoji?: string
+      busy: boolean
+    }
+
+export interface DotOpenLoginRequest {
+  accountId: string
+}
+
+export interface DotAuthStatus {
+  accountId: string
+  signedIn: boolean
+  handle?: string
+  displayName?: string
+  planType?: string
+  chatgptAccountId?: string
+  activeDotId?: string
+  roomId?: string
+  threadId?: string
+  mode?: 'dot' | 'native'
+  model?: string
+  effort?: string
+  hasRefreshToken?: boolean
+  expiresAtMs?: number
+  updatedAt?: number
+  hasProxy?: boolean
+  migration?: {
+    goalCopied: boolean
+    memoriesCopied: number
+  }
+}
+
+export interface DotImportCredentialsRequest {
+  accountId: string
+  /** Raw ChatGPT access_token (eyJ...), refresh_token (rt_...), or JSON (auth.json / session JSON). */
+  rawInput: string
+  refreshToken?: string
+  chatgptAccountId?: string
+  proxyUrl?: string
+  /** Optional source accountId to migrate Dot goal & memory from when replacing credentials. */
+  migrateDataFromAccountId?: string
+}
+
+export type DotRpcRequest =
+  | { accountId: string; op: 'authStatus' }
+  | { accountId: string; op: 'listStoredAccounts' }
+  | { accountId: string; op: 'listDots'; ensureDefault?: boolean }
+  | { accountId: string; op: 'createDot'; displayName?: string; color?: string }
+  | { accountId: string; op: 'getDot'; dotId: string }
+  | { accountId: string; op: 'deleteDot'; dotId: string }
+  | { accountId: string; op: 'selectDot'; dotId: string; botId?: string }
+  | { accountId: string; op: 'pauseRuntime'; dotId?: string }
+  | { accountId: string; op: 'resumeRuntime'; dotId?: string }
+  | { accountId: string; op: 'cancelTurn'; dotId?: string }
+  | { accountId: string; op: 'listThreads'; dotId?: string }
+  | {
+      accountId: string
+      op: 'listRoomMessages'
+      roomId?: string
+      dotId?: string
+      limit?: number
+      after?: string
+    }
+  | {
+      accountId: string
+      op: 'sendMessage'
+      botId?: string
+      dotId?: string
+      roomId?: string
+      text: string
+      mode?: 'dot' | 'native'
+      model?: string
+      effort?: string
+      attachments?: Array<{ name: string; mimeType: string; dataBase64: string }>
+    }
+  | {
+      accountId: string
+      op: 'setMode'
+      mode: 'dot' | 'native'
+      model?: string
+      effort?: string
+    }
+  | { accountId: string; op: 'rateLimits' }
+  | { accountId: string; op: 'listModels' }
+  | { accountId: string; op: 'listLibrary'; limit?: number }
+  | {
+      accountId: string
+      op: 'downloadFile'
+      url?: string
+      downloadUrl?: string
+      fileId?: string
+      roomId?: string
+      name?: string
+    }
+  | { accountId: string; op: 'createPage'; title: string; layout?: 'document' | 'spatial' }
+  | { accountId: string; op: 'deletePage'; pageId: string }
+  | { accountId: string; op: 'getGoal'; threadId?: string }
+  | { accountId: string; op: 'setGoal'; threadId?: string; goal: string }
+  | { accountId: string; op: 'clearGoal'; threadId?: string }
+  | {
+      accountId: string
+      op: 'exportMemory'
+      mode?: 'fast' | 'deep'
+      dotId?: string
+      roomId?: string
+    }
+  | {
+      accountId: string
+      op: 'importMemory'
+      markdown: string
+      goal?: string
+      botId?: string
+      dotId?: string
+      roomId?: string
+    }
+  | {
+      accountId: string
+      op: 'call'
+      method?: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE'
+      path: string
+      query?: Record<string, string | undefined>
+      body?: unknown
+    }
+
+export type DotRpcResponse =
+  | { ok: true; data: unknown }
+  | { ok: false; status: number; code?: string; message: string; body?: string }
+

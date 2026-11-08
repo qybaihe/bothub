@@ -6,6 +6,7 @@ import type {
   MuseConnectorView,
   MuseEnsureRequest,
   MuseFileEntryView,
+  MuseHistoryMessageView,
   MuseInviteSnapshot,
   MuseMainEvent,
   MuseQuotaSnapshot,
@@ -16,6 +17,7 @@ import type {
   MuseTaskRun,
   MuseProxyView,
   MuseProxyConfigInput,
+  MuseProxyPoolItemView,
   UpdateStatusEvent,
   WebViewBounds,
   WebViewInfo,
@@ -28,9 +30,16 @@ import type {
   GrokRpcResponse,
   HarkMainEvent,
   HarkOpenLoginRequest,
+  HarkImportCredentialsRequest,
   HarkAuthStatus,
   HarkRpcRequest,
-  HarkRpcResponse
+  HarkRpcResponse,
+  DotMainEvent,
+  DotOpenLoginRequest,
+  DotAuthStatus,
+  DotImportCredentialsRequest,
+  DotRpcRequest,
+  DotRpcResponse
 } from './ipc'
 
 /** Controls embedded platform web sessions (Electron WebContentsView). */
@@ -84,6 +93,9 @@ export interface MuseBridge {
   deleteSchedule(accountId: string, jobId: string): Promise<unknown>
   listSessions(accountId: string): Promise<MuseChatSessionView[]>
   mutateSession(accountId: string, mutation: MuseSessionMutation): Promise<unknown>
+  startSession(accountId: string): Promise<{ sessionId: string | null }>
+  loadSessionHistory(accountId: string, sessionId: string): Promise<MuseHistoryMessageView[]>
+  cancelChat(accountId: string, sessionId?: string): Promise<{ ok: true }>
   listFiles(accountId: string): Promise<MuseFileEntryView[]>
   listConnectors(accountId: string): Promise<MuseConnectorView[]>
   connectConnector(accountId: string, connectorId: string): Promise<MuseConnectorConnectResult>
@@ -109,6 +121,14 @@ export interface MuseBridge {
   ): Promise<{ path: string; filename: string; mimeType: string }>
   getProxy(accountId: string): Promise<MuseProxyView>
   setProxy(accountId: string, config: MuseProxyConfigInput): Promise<MuseProxyView>
+  listProxyPool(): Promise<MuseProxyPoolItemView[]>
+  importProxyPool(
+    rawText: string,
+    defaultMode?: Exclude<import('./ipc').MuseProxyMode, 'direct'>
+  ): Promise<{ added: number; total: number; items: MuseProxyPoolItemView[] }>
+  removeProxyPoolItem(id: string): Promise<MuseProxyPoolItemView[]>
+  clearProxyPool(): Promise<MuseProxyPoolItemView[]>
+  assignProxyPool(accountIds: string[]): Promise<{ assignedCount: number; items: MuseProxyPoolItemView[] }>
 }
 
 export interface UpdateBridge {
@@ -137,8 +157,20 @@ export interface HarkBridge {
   openLogin(request: HarkOpenLoginRequest): Promise<HarkAuthStatus>
   cancelLogin(accountId: string): Promise<HarkAuthStatus>
   authStatus(accountId: string): Promise<HarkAuthStatus>
+  importCredentials(request: HarkImportCredentialsRequest): Promise<HarkAuthStatus>
+  clearAuth(accountId: string): Promise<HarkAuthStatus>
   rpc(request: HarkRpcRequest): Promise<HarkRpcResponse>
   onEvent(listener: (event: HarkMainEvent) => void): () => void
+}
+
+export interface DotBridge {
+  openLogin(request: DotOpenLoginRequest): Promise<DotAuthStatus>
+  cancelLogin(accountId: string): Promise<DotAuthStatus>
+  authStatus(accountId: string): Promise<DotAuthStatus>
+  importCredentials(request: DotImportCredentialsRequest): Promise<DotAuthStatus>
+  clearAuth(accountId: string): Promise<DotAuthStatus>
+  rpc(request: DotRpcRequest): Promise<DotRpcResponse>
+  onEvent(listener: (event: DotMainEvent) => void): () => void
 }
 
 export interface BotHubBridge {
@@ -154,4 +186,5 @@ export interface BotHubBridge {
   readonly updates: UpdateBridge
   readonly grok: GrokBridge
   readonly hark: HarkBridge
+  readonly dot: DotBridge
 }

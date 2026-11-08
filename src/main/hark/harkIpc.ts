@@ -2,25 +2,68 @@ import { BrowserWindow, ipcMain, type IpcMainInvokeEvent } from 'electron'
 import {
   HARK_CHANNELS,
   type HarkAuthStatus,
+  type HarkImportCredentialsRequest,
   type HarkOpenLoginRequest,
   type HarkRpcRequest,
-  type HarkRpcResponse
+  type HarkRpcResponse,
+  type MuseRichWidgetView,
+  type MuseToolCallView
 } from '@shared/ipc'
 import {
+  callHarkApi,
+  cancelHarkWatch,
+  clearHarkAccount,
   conversationIdFromPayload,
   extractMessages,
+  fetchConversationSnapshotSummary,
   getAuthSession,
   getConversationStatuses,
   getMainConversation,
   getProfile,
+  importHarkCredentials,
+  isHarkReplyDone,
   listConversations,
   listSessionCookieNames,
   sendMessage,
   timezoneName,
+  uploadHarkAttachment,
+  watchHarkConversationSync,
   extractHandle,
-  HarkApiError
+  HarkApiError,
+  type HarkChatMessage,
+  type HarkUploadedAttachment
 } from './harkClient'
 import { cancelHarkLogin, onHarkLoginEvent, openHarkLoginWindow } from './harkLogin'
+
+function mapHarkTools(msg: HarkChatMessage): MuseToolCallView[] | undefined {
+  if (!msg.toolCalls || msg.toolCalls.length === 0) return undefined
+  return msg.toolCalls.map((tc) => ({
+    id: tc.dispatchId,
+    name: tc.name,
+    status:
+      /^(running|pending|active|started|waiting_for_input|awaiting_input)$/i.test(tc.status)
+        ? 'running'
+        : /^(failed|errored|error)$/i.test(tc.status)
+          ? 'errored'
+          : 'completed',
+    summary: tc.url || tc.command || tc.result
+  }))
+}
+
+function mapHarkRichWidgets(msg: HarkChatMessage): MuseRichWidgetView[] | undefined {
+  if (!msg.actions || msg.actions.length === 0) return undefined
+  return [
+    {
+      kind: 'text_with_button',
+      widgetId: `hark_act_${msg.id}`,
+      text: '',
+      buttons: msg.actions.map((a) => ({
+        label: a.label || `Connect ${a.connector ?? ''}`,
+        actionText: a.connector ? `Connect ${a.connector}` : a.label
+      }))
+    }
+  ]
+}
 
 function ownerWindow(event: IpcMainInvokeEvent): BrowserWindow | undefined {
   return BrowserWindow.fromWebContents(event.sender) ?? undefined
@@ -76,12 +119,20 @@ async function runHarkRpc(req: HarkRpcRequest): Promise<HarkRpcResponse> {
         return { ok: true, data: await listConversations(req.accountId) }
       case 'mainConversation': {
         const data = await getMainConversation(req.accountId, req.timezone ?? timezoneName())
+        const convId = conversationIdFromPayload(data)
+        const snap = convId ? await fetchConversationSnapshotSummary(req.accountId, convId) : null
+        const messages = snap && snap.messages.length > 0 ? snap.messages : extractMessages(data)
         return {
           ok: true,
           data: {
             raw: data,
-            conversationId: conversationIdFromPayload(data),
-            messages: extractMessages(data)
+            conversationId: convId,
+            messages,
+            panels: snap?.panels ?? [],
+            asks: snap?.asks ?? [],
+            artifacts: snap?.artifacts ?? [],
+            activeActivity: snap?.activeActivity ?? null,
+            narration: snap?.narration ?? null
           }
         }
       }
@@ -91,67 +142,163 @@ async function runHarkRpc(req: HarkRpcRequest): Promise<HarkRpcResponse> {
         if (typeof req.conversationId !== 'string' || !req.conversationId) {
           return { ok: false, status: 400, message: 'conversationId required' }
         }
-        if (typeof req.text !== 'string' || !req.text.trim()) {
-          return { ok: false, status: 400, message: 'text required' }
+        const hasAttachments = Array.isArray(req.attachments) && req.attachments.length > 0
+        if ((typeof req.text !== 'string' || !req.text.trim()) && !hasAttachments) {
+          return { ok: false, status: 400, message: 'text or attachments required' }
+        }
+        let uploaded: HarkUploadedAttachment[] | undefined
+        if (hasAttachments && req.attachments) {
+          uploaded = []
+          for (const a of req.attachments) {
+            if (!a.dataBase64) continue
+            uploaded.push(await uploadHarkAttachment(req.accountId, req.conversationId, a))
+          }
         }
         const sent = await sendMessage(
           req.accountId,
           req.conversationId,
-          req.text.trim(),
-          req.timezone ?? timezoneName()
+          (req.text ?? '').trim(),
+          req.timezone ?? timezoneName(),
+          uploaded
         )
         return {
           ok: true,
-          data: { result: sent.result, bodyKeys: sent.bodyKeys, conversationId: req.conversationId }
+          data: {
+            result: sent.result,
+            idempotencyKey: sent.idempotencyKey,
+            responseMessageId: sent.responseMessageId,
+            conversationId: req.conversationId
+          }
         }
       }
       case 'pollReply': {
         if (typeof req.conversationId !== 'string' || !req.conversationId) {
           return { ok: false, status: 400, message: 'conversationId required' }
         }
-        const afterCount = typeof req.afterMessageCount === 'number' ? req.afterMessageCount : 0
         const afterIds = new Set(req.afterMessageIds ?? [])
-        const deadline = Date.now() + (req.timeoutMs ?? 60_000)
-        let lastMessages = extractMessages(
-          (await getMainConversation(req.accountId, req.timezone ?? timezoneName())) as unknown
-        )
-        while (Date.now() < deadline) {
-          try {
-            await getConversationStatuses(req.accountId)
-          } catch {
-            /* status is best-effort */
+        const watched = await watchHarkConversationSync(req.accountId, req.conversationId, {
+          responseMessageId: req.responseMessageId,
+          afterMessageIds: afterIds,
+          timeoutMs: req.timeoutMs ?? 90_000,
+          onUpdate: (msg, syncState) => {
+            const done = isHarkReplyDone(msg)
+            const text = msg.content.trim()
+            const tools = mapHarkTools(msg)
+            const richWidgets = mapHarkRichWidgets(msg)
+            const activePhrase =
+              msg.narration?.trim() ||
+              msg.thought?.trim() ||
+              syncState.narration?.trim() ||
+              syncState.activeActivity?.trim() ||
+              ''
+
+            if (!done && activePhrase) {
+              broadcast({
+                type: 'activity',
+                accountId: req.accountId,
+                activityCode: 'thinking',
+                activityText: activePhrase.slice(0, 120),
+                busy: true
+              })
+            }
+
+            if (!text && !tools?.length && !richWidgets?.length && !done) return
+            broadcast({
+              type: 'stream',
+              accountId: req.accountId,
+              conversationId: req.botId,
+              messageId: `hark_${msg.id}`,
+              text,
+              done,
+              ...(tools ? { tools } : {}),
+              ...(richWidgets ? { richWidgets } : {})
+            })
           }
-          const main = await getMainConversation(req.accountId, req.timezone ?? timezoneName())
-          lastMessages = extractMessages(main)
-          const assistant = [...lastMessages]
-            .reverse()
-            .find((m) => /assistant|bot|hark/i.test(m.role) && m.content.trim())
-          const grew = lastMessages.length > afterCount
-          const fresh =
-            assistant &&
-            !afterIds.has(assistant.id) &&
-            (grew || Boolean(assistant.content.trim()))
-          if (fresh && assistant) {
-            return {
-              ok: true,
-              data: {
-                conversationId: conversationIdFromPayload(main) ?? req.conversationId,
-                messages: lastMessages,
-                reply: assistant
+        })
+
+        // Always clear activity when pollReply finishes
+        broadcast({
+          type: 'activity',
+          accountId: req.accountId,
+          activityCode: 'idle',
+          busy: false
+        })
+
+        const finalReply = watched.reply
+        if (
+          finalReply &&
+          (finalReply.content.trim() ||
+            finalReply.toolCalls?.length ||
+            finalReply.actions?.length ||
+            finalReply.artifacts?.length)
+        ) {
+          const msgId = `hark_${finalReply.id}`
+          const tools = mapHarkTools(finalReply)
+          const richWidgets = mapHarkRichWidgets(finalReply)
+          broadcast({
+            type: 'stream',
+            accountId: req.accountId,
+            conversationId: req.botId,
+            messageId: msgId,
+            text: finalReply.content.trim(),
+            done: true,
+            ...(tools ? { tools } : {}),
+            ...(richWidgets ? { richWidgets } : {})
+          })
+          return {
+            ok: true,
+            data: {
+              conversationId: req.conversationId,
+              messages: watched.messages,
+              reply: {
+                ...finalReply,
+                id: msgId,
+                tools,
+                richWidgets
               }
             }
           }
-          await new Promise((r) => setTimeout(r, 1500))
+        }
+        if (req.botId) {
+          broadcast({
+            type: 'stream',
+            accountId: req.accountId,
+            conversationId: req.botId,
+            messageId: req.responseMessageId ? `hark_${req.responseMessageId}` : 'hark_timeout',
+            text: '',
+            done: true
+          })
         }
         return {
           ok: true,
           data: {
             conversationId: req.conversationId,
-            messages: lastMessages,
+            messages: watched.messages,
             reply: null,
             timedOut: true
           }
         }
+      }
+      case 'call': {
+        if (typeof req.path !== 'string' || !req.path.trim()) {
+          return { ok: false, status: 400, message: 'path required' }
+        }
+        if (/pause-agent|stop-tool/i.test(req.path)) {
+          cancelHarkWatch(req.accountId)
+          broadcast({
+            type: 'activity',
+            accountId: req.accountId,
+            activityCode: 'idle',
+            busy: false
+          })
+        }
+        const data = await callHarkApi(req.accountId, {
+          method: req.method,
+          path: req.path,
+          query: req.query,
+          body: req.body
+        })
+        return { ok: true, data }
       }
       default:
         return { ok: false, status: 400, message: `Unknown op` }
@@ -222,6 +369,41 @@ export function registerHarkIpc(): void {
   ipcMain.handle(HARK_CHANNELS.authStatus, async (_event, accountId: unknown) => {
     if (typeof accountId !== 'string') throw new TypeError('Invalid accountId')
     return statusFor(accountId)
+  })
+
+  ipcMain.handle(HARK_CHANNELS.importCredentials, async (_event, request: unknown) => {
+    if (typeof request !== 'object' || request === null) {
+      throw new TypeError('Invalid hark importCredentials request')
+    }
+    const req = request as HarkImportCredentialsRequest
+    const targetId = typeof req.accountId === 'string' && req.accountId.trim() ? req.accountId.trim() : ''
+    if (!targetId) throw new TypeError('accountId required')
+    const imported = await importHarkCredentials(targetId, req.rawInput ?? '')
+    if (!imported) {
+      return { accountId: targetId, signedIn: false }
+    }
+    const st = await statusFor(targetId)
+    if (st.signedIn) {
+      broadcast({
+        type: 'login',
+        accountId: targetId,
+        signedIn: true as const,
+        handle: st.handle,
+        displayName: st.displayName
+      })
+    }
+    return st
+  })
+
+  ipcMain.handle(HARK_CHANNELS.clearAuth, async (_event, accountId: unknown) => {
+    if (typeof accountId !== 'string' || !accountId.trim()) throw new TypeError('Invalid accountId')
+    await clearHarkAccount(accountId.trim())
+    broadcast({
+      type: 'login',
+      accountId: accountId.trim(),
+      signedIn: false as const
+    })
+    return { accountId: accountId.trim(), signedIn: false }
   })
 
   ipcMain.handle(HARK_CHANNELS.rpc, async (_event, request: unknown) => {

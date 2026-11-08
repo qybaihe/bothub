@@ -54,6 +54,78 @@ export class HarkAdapter implements PlatformAdapter {
   }
 
   private handleMainEvent(event: HarkMainEvent): void {
+    if (event.type === 'activity') {
+      this.emit({
+        type: 'activity',
+        accountId: event.accountId,
+        activity: {
+          code: event.activityCode,
+          text: event.activityText ?? null,
+          emoji: event.activityEmoji ?? null,
+          agentId: null,
+          subagents: 0,
+          busy: event.busy
+        }
+      })
+      return
+    }
+    if (event.type === 'stream') {
+      const convId = event.conversationId ?? event.accountId
+      if (!event.done) {
+        this.emit({
+          type: 'typing',
+          conversationId: convId,
+          accountId: event.accountId,
+          isTyping: true
+        })
+        if (event.text || event.tools?.length || event.richWidgets?.length) {
+          this.emit({
+            type: 'message_delta',
+            messageId: event.messageId,
+            conversationId: convId,
+            accountId: event.accountId,
+            text: event.text,
+            tools: event.tools,
+            richWidgets: event.richWidgets
+          })
+        }
+      } else {
+        this.emit({
+          type: 'typing',
+          conversationId: convId,
+          accountId: event.accountId,
+          isTyping: false
+        })
+        this.emit({
+          type: 'activity',
+          accountId: event.accountId,
+          activity: {
+            code: 'idle',
+            text: null,
+            emoji: null,
+            agentId: null,
+            subagents: 0,
+            busy: false
+          }
+        })
+        this.setStatus(event.accountId, 'online')
+        if (event.text || event.tools?.length || event.richWidgets?.length) {
+          this.emit({
+            type: 'message',
+            message: {
+              id: event.messageId,
+              conversationId: convId,
+              accountId: event.accountId,
+              text: event.text,
+              createdAt: Date.now(),
+              tools: event.tools,
+              richWidgets: event.richWidgets
+            }
+          })
+        }
+      }
+      return
+    }
     if (event.type !== 'login') return
     if (event.signedIn) {
       this.emit({
@@ -217,24 +289,44 @@ export class HarkAdapter implements PlatformAdapter {
       const beforeMsgs = Array.isArray(before?.messages) ? before.messages : []
       const afterIds = beforeMsgs.map((m) => m.id)
 
-      await invokeHarkRpc({
+      const sent = (await invokeHarkRpc({
         accountId: message.accountId,
         op: 'sendMessage',
         conversationId,
         text: message.text,
-        timezone: timeZone
-      })
+        timezone: timeZone,
+        attachments: message.attachments
+          ?.filter((a) => Boolean(a.dataBase64))
+          .map((a) => ({
+            name: a.name,
+            mimeType: a.mimeType,
+            dataBase64: a.dataBase64!
+          }))
+      })) as {
+        responseMessageId?: string
+        idempotencyKey?: string
+      }
+
+      if (sent?.idempotencyKey) afterIds.push(sent.idempotencyKey)
 
       const polled = (await invokeHarkRpc({
         accountId: message.accountId,
         op: 'pollReply',
         conversationId,
+        botId: message.conversationId,
+        responseMessageId: sent?.responseMessageId,
         timezone: timeZone,
         afterMessageCount: beforeMsgs.length,
         afterMessageIds: afterIds,
         timeoutMs: 90_000
       })) as {
-        reply?: { id: string; content: string; role: string } | null
+        reply?: {
+          id: string
+          content: string
+          role: string
+          tools?: import('../types').MuseToolCall[]
+          richWidgets?: import('../types').MuseRichWidget[]
+        } | null
       }
 
       this.emit({
@@ -243,27 +335,64 @@ export class HarkAdapter implements PlatformAdapter {
         accountId: message.accountId,
         isTyping: false
       })
+      this.emit({
+        type: 'activity',
+        accountId: message.accountId,
+        activity: {
+          code: 'idle',
+          text: null,
+          emoji: null,
+          agentId: null,
+          subagents: 0,
+          busy: false
+        }
+      })
 
-      const replyText = polled?.reply?.content?.trim()
-      if (replyText) {
-        const incoming: IncomingMessage = {
-          id: polled.reply?.id || createId('msg'),
+      const replyText = polled?.reply?.content?.trim() ?? ''
+      const replyTools = polled?.reply?.tools
+      const replyRich = polled?.reply?.richWidgets
+      if (replyText || replyTools?.length || replyRich?.length) {
+        const rawReplyId = polled?.reply?.id
+        const normalizedReplyId = rawReplyId
+          ? rawReplyId.startsWith('hark_')
+            ? rawReplyId
+            : `hark_${rawReplyId}`
+          : createId('msg')
+        const incoming: IncomingMessage & {
+          tools?: import('../types').MuseToolCall[]
+          richWidgets?: import('../types').MuseRichWidget[]
+        } = {
+          id: normalizedReplyId,
           conversationId: message.conversationId,
           accountId: message.accountId,
           text: replyText,
-          createdAt: Date.now()
+          createdAt: Date.now(),
+          ...(replyTools?.length ? { tools: replyTools } : {}),
+          ...(replyRich?.length ? { richWidgets: replyRich } : {})
         }
         this.emit({ type: 'message', message: incoming })
       }
 
       this.setStatus(message.accountId, 'online')
-      return { messageId: createId('msg'), acceptedAt: Date.now() }
+      return { messageId: createId('msg'), acceptedAt: Date.now(), sessionId: conversationId }
     } catch (error) {
       this.emit({
         type: 'typing',
         conversationId: message.conversationId,
         accountId: message.accountId,
         isTyping: false
+      })
+      this.emit({
+        type: 'activity',
+        accountId: message.accountId,
+        activity: {
+          code: 'idle',
+          text: null,
+          emoji: null,
+          agentId: null,
+          subagents: 0,
+          busy: false
+        }
       })
       const detail = error instanceof Error ? error.message : String(error)
       this.setStatus(message.accountId, 'error', detail)

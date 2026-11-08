@@ -18,7 +18,7 @@ import {
 } from './harkClient'
 
 const ALLOWED_HOST =
-  /^(?:[\w-]+\.)*(?:hark\.com|google\.com|googleusercontent\.com|gstatic\.com|googleapis\.com|youtube\.com|chromiumapp\.org)$/i
+  /^(?:[\w-]+\.)*(?:hark\.com|google\.com|googleusercontent\.com|gstatic\.com|googleapis\.com|youtube\.com|chromiumapp\.org|apple\.com|icloud\.com|cloudflare\.com)$/i
 
 const loginWindows = new Map<string, BrowserWindow>()
 

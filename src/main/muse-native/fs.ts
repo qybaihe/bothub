@@ -31,9 +31,7 @@ export function buildWorkspaceUploadPath(filename: string, counter = 0): string 
 
 function normalizeFsPath(path: string): string {
   const s = path.trim().replace(/^\/+/, '')
-  if (!s.startsWith('workspace/')) {
-    throw new Error(`fs path must be under workspace/: ${path.slice(0, 80)}`)
-  }
+  if (!s) throw new Error('empty fs path')
   for (const seg of s.split('/')) {
     if (!seg || seg === '.' || seg === '..' || seg.includes('\\') || seg.includes('\0')) {
       throw new Error(`unsafe fs path segment in ${path.slice(0, 80)}`)
@@ -135,5 +133,10 @@ function guessMime(path: string): string | undefined {
   if (lower.endsWith('.mp4') || lower.endsWith('.m4v')) return 'video/mp4'
   if (lower.endsWith('.webm')) return 'video/webm'
   if (lower.endsWith('.mov')) return 'video/quicktime'
+  if (lower.endsWith('.html') || lower.endsWith('.htm')) return 'text/html'
+  if (lower.endsWith('.md') || lower.endsWith('.markdown')) return 'text/markdown'
+  if (lower.endsWith('.json')) return 'application/json'
+  if (lower.endsWith('.csv') || lower.endsWith('.tsv')) return 'text/csv'
+  if (/\.(txt|log|py|ts|tsx|js|jsx|sh|yaml|yml|toml|css|sql|xml)$/.test(lower)) return 'text/plain'
   return undefined
 }

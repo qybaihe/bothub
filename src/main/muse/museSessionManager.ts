@@ -10,6 +10,10 @@ import {
   selectOptionWidget,
   parseAgentStatus,
   parseOptionWidgets,
+  parseRichWidgets,
+  parseMediaParts,
+  parseHistoryTranscript,
+  transcriptText,
   unwrapMuseResult,
   type MuseChatEvent,
   type MuseOptionWidget
@@ -35,6 +39,7 @@ import type {
   MuseConnectorConnectResult,
   MuseConnectorView,
   MuseFileEntryView,
+  MuseHistoryMessageView,
   MuseInviteSnapshot,
   MuseQuotaSnapshot,
   MuseSchedule,
@@ -66,6 +71,9 @@ interface AccountSession {
   quotaTimer?: ReturnType<typeof setInterval>
   /** Cancel handle for tasks.subscribe. */
   tasksSubCancel?: (reason?: string) => void
+  /** Cancel handles for fs.subscribe / artifacts.subscribe. */
+  filesSubCancel?: (reason?: string) => void
+  artifactsSubCancel?: (reason?: string) => void
   schedules?: MuseSchedule[]
   invite?: MuseInviteSnapshot
   chatSessions?: MuseChatSessionView[]
@@ -102,6 +110,10 @@ export class MuseSessionManager {
   )
   /** Accounts with a lifetime chat.subscribe activity/widget watcher. */
   private readonly chatWatchBound = new Set<string>()
+  /** Accounts currently inside an active streamChat turn (watch listener defers to streamChat). */
+  private readonly activeStreams = new Map<string, AbortController>()
+  /** Spontaneous delta.text_append accumulator keyed by `${accountId}:${messageId}`. */
+  private readonly watchTexts = new Map<string, string>()
 
   constructor(
     private readonly window: BrowserWindow,
@@ -471,6 +483,7 @@ export class MuseSessionManager {
     }
     // Spontaneous assistant / presentation (e.g. onboarding) when not driven by streamChat UI:
     // only emit when we have a botId conversation and the event carries a message id.
+    if (this.activeStreams.has(accountId)) return
     const conversationId = session.botId
     if (!conversationId) return
     const id = typeof p['message_id'] === 'string' ? (p['message_id'] as string) : ''
@@ -480,44 +493,67 @@ export class MuseSessionManager {
       e.name === 'delta.message_start' ||
       e.name === 'delta.text_append' ||
       e.name === 'delta.message_done' ||
-      e.name === 'delta.presentation'
+      e.name === 'delta.presentation' ||
+      e.name === 'delta.placeholder'
     if (!watched) return
     const widgets = parseOptionWidgets(p)
-    let text = ''
-    if (e.name === 'delta.text_append' && typeof p['text'] === 'string') text = p['text'] as string
+    const richWidgets = parseRichWidgets(p)
+    const media = parseMediaParts(p)
+    const watchKey = `${accountId}:${id}`
     const display =
+      transcriptText(p) ||
       (typeof p['display_text'] === 'string' && p['display_text']) ||
       (typeof p['content'] === 'string' && p['content']) ||
       ''
-    if (e.name === 'delta.message_start') {
+    if (e.name === 'delta.message_start' || e.name === 'delta.placeholder') {
+      const placeholder = e.name === 'delta.placeholder' ? String(p['text'] ?? p['placeholder'] ?? '') : ''
+      this.watchTexts.set(watchKey, placeholder)
       this.emit({
         type: 'stream',
         accountId,
         conversationId,
         messageId: `muse_native_${id}`,
-        text: '',
+        text: placeholder,
         done: false,
-        widgets: widgets.length ? widgets : undefined
+        widgets: widgets.length ? widgets : undefined,
+        richWidgets: richWidgets.length ? richWidgets : undefined,
+        media: media.length ? media : undefined
       })
       return
     }
-    if (e.name === 'delta.text_append' && text) {
-      // Append-only path needs the full text; streamChat owns in-turn appends.
-      // For watch-only, emit delta as fragment via message text replace is wrong —
-      // rely on message.assistant / message_done for spontaneous turns.
+    if (e.name === 'delta.text_append') {
+      const chunk = typeof p['text'] === 'string' ? (p['text'] as string) : ''
+      if (!chunk) return
+      const next = (this.watchTexts.get(watchKey) ?? '') + chunk
+      this.watchTexts.set(watchKey, next)
+      this.emit({
+        type: 'stream',
+        accountId,
+        conversationId,
+        messageId: `muse_native_${id}`,
+        text: next,
+        done: false,
+        widgets: widgets.length ? widgets : undefined,
+        richWidgets: richWidgets.length ? richWidgets : undefined,
+        media: media.length ? media : undefined
+      })
       return
     }
     if (e.name === 'delta.presentation' || e.name === 'message.assistant' || e.name === 'delta.message_done') {
-      const body = display || text
-      if (!body && !widgets.length) return
+      const body = display || this.watchTexts.get(watchKey) || ''
+      const isDone = e.name === 'message.assistant' || e.name === 'delta.message_done'
+      if (isDone) this.watchTexts.delete(watchKey)
+      if (!body && !widgets.length && !richWidgets.length && !media.length) return
       this.emit({
         type: 'stream',
         accountId,
         conversationId,
         messageId: `muse_native_${id}`,
         text: body,
-        done: e.name === 'message.assistant' || e.name === 'delta.message_done',
-        widgets: widgets.length ? widgets : undefined
+        done: isDone,
+        widgets: widgets.length ? widgets : undefined,
+        richWidgets: richWidgets.length ? richWidgets : undefined,
+        media: media.length ? media : undefined
       })
     }
   }
@@ -577,40 +613,54 @@ export class MuseSessionManager {
     const ids = new Map<string, string>()
     let last = ''
     let lastId = ''
-    const result = await streamChat(
-      client.gateway,
-      client.chat,
-      { text, nodeId: client.nodeId, sessionId, messageOrigin, items: extractChatItems(params) },
-      (u) => {
-        let id = ids.get(u.messageId)
-        if (!id) {
-          id = `muse_native_${u.messageId}`
-          ids.set(u.messageId, id)
-        }
-        last = u.text
-        lastId = id
-        if (conversationId) {
-          this.emit({
-            type: 'stream',
-            accountId,
-            conversationId,
-            messageId: id,
-            text: u.text,
-            done: u.done,
-            widgets: this.mapStreamWidgets(u.widgets),
-            richWidgets: u.richWidgets,
-            tools: u.tools,
-            media: u.media
-          })
-          if (u.done && u.text.trim()) {
-            this.maybeNotify('Muse', u.text.trim().slice(0, 120))
+    this.activeStreams.get(accountId)?.abort()
+    const ctrl = new AbortController()
+    this.activeStreams.set(accountId, ctrl)
+    try {
+      const result = await streamChat(
+        client.gateway,
+        client.chat,
+        { text, nodeId: client.nodeId, sessionId, messageOrigin, items: extractChatItems(params) },
+        (u) => {
+          let id = ids.get(u.messageId)
+          if (!id) {
+            id = `muse_native_${u.messageId}`
+            ids.set(u.messageId, id)
           }
-        }
-      },
-      { timeoutMs: 600_000, settleMs: 1500 }
-    )
-    const reply = result.text || last
-    return { ...result.ack, text: reply, display_text: reply, reply, assistant_message_id: lastId || undefined }
+          last = u.text
+          lastId = id
+          if (conversationId) {
+            this.emit({
+              type: 'stream',
+              accountId,
+              conversationId,
+              messageId: id,
+              text: u.text,
+              done: u.done,
+              widgets: this.mapStreamWidgets(u.widgets),
+              richWidgets: u.richWidgets,
+              tools: u.tools,
+              media: u.media
+            })
+            if (u.done && u.text.trim()) {
+              this.maybeNotify('Muse', u.text.trim().slice(0, 120))
+            }
+          }
+        },
+        { timeoutMs: 600_000, settleMs: 1500, signal: ctrl.signal }
+      )
+      const reply = result.text || last
+      return {
+        ...result.ack,
+        session_id: result.sessionId ?? result.ack['session_id'],
+        text: reply,
+        display_text: reply,
+        reply,
+        assistant_message_id: lastId || undefined
+      }
+    } finally {
+      if (this.activeStreams.get(accountId) === ctrl) this.activeStreams.delete(accountId)
+    }
   }
 
   async selectOption(
@@ -928,6 +978,8 @@ export class MuseSessionManager {
     if (session.quotaTimer) clearInterval(session.quotaTimer)
     try {
       session.tasksSubCancel?.('dispose')
+      session.filesSubCancel?.('dispose')
+      session.artifactsSubCancel?.('dispose')
     } catch {
       /* ignore */
     }
@@ -1164,6 +1216,48 @@ export class MuseSessionManager {
     return raw
   }
 
+  async cancelChat(accountId: string, sessionId?: string): Promise<{ ok: true }> {
+    this.activeStreams.get(accountId)?.abort()
+    this.activeStreams.delete(accountId)
+    try {
+      const params: Record<string, unknown> = {}
+      if (sessionId) params['session_id'] = sessionId
+      const native = await this.rpcNative(accountId, 'chat.cancel', params)
+      if (!native) await this.rpc(accountId, 'chat.cancel', params)
+    } catch {
+      /* best effort */
+    }
+    return { ok: true }
+  }
+
+  async startSession(accountId: string): Promise<{ sessionId: string | null }> {
+    const native = await this.rpcNative(accountId, 'session.start', {})
+    const raw = native ? native.value : await this.rpc(accountId, 'session.start', {})
+    const o = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {}
+    const nested = o['session'] && typeof o['session'] === 'object' ? (o['session'] as Record<string, unknown>) : o
+    const sessionId =
+      typeof nested['session_id'] === 'string'
+        ? (nested['session_id'] as string)
+        : typeof nested['id'] === 'string'
+          ? (nested['id'] as string)
+          : null
+    void this.listSessions(accountId)
+    return { sessionId }
+  }
+
+  async loadSessionHistory(accountId: string, sessionId: string): Promise<MuseHistoryMessageView[]> {
+    const params = { session_id: sessionId, limit: 100 }
+    const native = await this.rpcNative(accountId, 'chat.history', params)
+    const raw = native ? native.value : await this.rpc(accountId, 'chat.history', params)
+    const rows = parseHistoryTranscript(raw)
+    try {
+      void this.rpcNative(accountId, 'chat.mark_seen', { thread_id: sessionId, session_id: sessionId }).catch(() => undefined)
+    } catch {
+      /* ignore */
+    }
+    return rows
+  }
+
   async listFiles(accountId: string): Promise<MuseFileEntryView[]> {
     const out: MuseFileEntryView[] = []
     try {
@@ -1190,7 +1284,53 @@ export class MuseSessionManager {
     const session = this.sessions.get(accountId)
     if (session) session.files = unique
     this.emit({ type: 'files', accountId, files: unique })
+    void this.ensureFilesSubscribe(accountId)
     return unique
+  }
+
+  private async ensureFilesSubscribe(accountId: string): Promise<void> {
+    if (!this.nativeReady(accountId)) return
+    const session = this.sessions.get(accountId)
+    if (!session) return
+    const client = this.native.get(accountId)
+    if (!session.filesSubCancel) {
+      try {
+        const h = await client.gateway.subscribe('fs.subscribe', {}, () => {
+          void this.listFiles(accountId)
+        })
+        session.filesSubCancel = h.cancel
+        void h.ack.catch(() => undefined)
+        void h.done.then(
+          () => {
+            if (session.filesSubCancel === h.cancel) session.filesSubCancel = undefined
+          },
+          () => {
+            if (session.filesSubCancel === h.cancel) session.filesSubCancel = undefined
+          }
+        )
+      } catch {
+        /* ignore */
+      }
+    }
+    if (!session.artifactsSubCancel) {
+      try {
+        const h = await client.gateway.subscribe('artifacts.subscribe', {}, () => {
+          void this.listFiles(accountId)
+        })
+        session.artifactsSubCancel = h.cancel
+        void h.ack.catch(() => undefined)
+        void h.done.then(
+          () => {
+            if (session.artifactsSubCancel === h.cancel) session.artifactsSubCancel = undefined
+          },
+          () => {
+            if (session.artifactsSubCancel === h.cancel) session.artifactsSubCancel = undefined
+          }
+        )
+      } catch {
+        /* ignore */
+      }
+    }
   }
 
   async listConnectors(accountId: string): Promise<MuseConnectorView[]> {

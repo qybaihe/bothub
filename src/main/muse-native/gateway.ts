@@ -95,8 +95,12 @@ function backoffMs(attempt: number, trusted: boolean): number {
 
 function substitutePath(path: string, params: Record<string, unknown>): { path: string; rest: Record<string, unknown> } {
   const rest = { ...params }
+  const qIdx = path.indexOf('?')
+  const basePath = qIdx >= 0 ? path.slice(0, qIdx) : path
+  const queryTemplate = qIdx >= 0 ? path.slice(qIdx + 1) : ''
+
   // Official paths use `{id}` and splat `{*path}` (e.g. /fs/raw/{*path}).
-  const out = path.replace(/\{\*?(\w+)\}/g, (full, k: string) => {
+  const outBase = basePath.replace(/\{\*?(\w+)\}/g, (full, k: string) => {
     const splat = full.startsWith('{*')
     const v = rest[k]
     delete rest[k]
@@ -112,17 +116,38 @@ function substitutePath(path: string, params: Record<string, unknown>): { path: 
     }
     return encodeURIComponent(s)
   })
-  return { path: out, rest }
+
+  if (!queryTemplate) return { path: outBase, rest }
+
+  // Strip optional query params when their placeholder value is missing/null.
+  const keepPairs: string[] = []
+  for (const rawPair of queryTemplate.split('&')) {
+    if (!rawPair) continue
+    let missing = false
+    const substituted = rawPair.replace(/\{(\w+)\}/g, (_m, k: string) => {
+      const v = rest[k]
+      delete rest[k]
+      if (v == null || v === '') {
+        missing = true
+        return ''
+      }
+      return encodeURIComponent(String(v))
+    })
+    if (!missing) keepPairs.push(substituted)
+  }
+  const outQuery = keepPairs.join('&')
+  return { path: outQuery ? `${outBase}?${outQuery}` : outBase, rest }
 }
 
-function toQuery(params: Record<string, unknown>): string {
+function toQuery(params: Record<string, unknown>, existingPath = ''): string {
   const q = new URLSearchParams()
   for (const [k, v] of Object.entries(params)) {
     if (v == null) continue
     q.set(k, typeof v === 'object' ? JSON.stringify(v) : String(v))
   }
   const s = q.toString()
-  return s ? `?${s}` : ''
+  if (!s) return ''
+  return existingPath.includes('?') ? `&${s}` : `?${s}`
 }
 
 /** Noise handshake class. Personal VM = hatch_vm; Shared Agent remote = shared_agent. */
@@ -432,17 +457,35 @@ export class MuseNativeGateway extends EventEmitter {
     }
   }
 
-  private buildRequest(method: string, params: Record<string, unknown>): { service: ServiceName; verb: string; path: string; body: Uint8Array; subscription: boolean } {
+  private buildRequest(
+    method: string,
+    params: Record<string, unknown>
+  ): {
+    service: ServiceName
+    verb: string
+    path: string
+    body: Uint8Array
+    subscription: boolean
+    streamMode: 'unary' | 'subscription' | 'records'
+    responseType?: 'binary'
+    requestTimeoutMs?: number
+    maxResponseBytes?: number
+  } {
     const spec = MUSE_METHODS[method]
     if (!spec) throw new MuseGatewayError(`unknown muse method ${method}`, 'unknown_method')
     const { path, rest } = substitutePath(spec.path, params)
     const isGet = spec.httpMethod === 'GET'
+    const isEmptyBody = isGet || spec.requestBody === 'empty'
     return {
       service: (spec.service ?? 'daemon') as ServiceName,
       verb: spec.httpMethod,
-      path: isGet ? path + toQuery(rest) : path,
-      body: isGet ? new Uint8Array(0) : new TextEncoder().encode(JSON.stringify(rest)),
-      subscription: !!spec.subscription
+      path: isGet ? path + toQuery(rest, path) : path,
+      body: isEmptyBody ? new Uint8Array(0) : new TextEncoder().encode(JSON.stringify(rest)),
+      subscription: !!spec.subscription,
+      streamMode: spec.streamMode ?? (spec.subscription ? 'subscription' : 'unary'),
+      responseType: spec.responseType,
+      requestTimeoutMs: spec.requestTimeoutMs,
+      maxResponseBytes: spec.maxResponseBytes
     }
   }
 
@@ -468,30 +511,65 @@ export class MuseNativeGateway extends EventEmitter {
     return enc.streamId
   }
 
-  /** Unary RPC. Returns parsed JSON (or text) body; throws on HTTP ≥ 400. */
-  async request(method: string, params: Record<string, unknown> = {}, timeoutMs = 30_000): Promise<unknown> {
+  /** Unary RPC. Returns parsed JSON (or text/records/binary) body; throws on HTTP ≥ 400. */
+  async request(method: string, params: Record<string, unknown> = {}, timeoutMs?: number): Promise<unknown> {
     await this.connect()
     const req = this.buildRequest(method, params)
     if (req.subscription) throw new MuseGatewayError(`${method} is a subscription; use subscribe()`, 'unknown_method')
-    const res = await new Promise<{ status: number; body: Uint8Array }>((resolve, reject) => {
+    const effectiveTimeout = timeoutMs ?? req.requestTimeoutMs ?? 30_000
+    const res = await new Promise<{ status: number; body: Uint8Array; headers?: Array<[string, string]> }>((resolve, reject) => {
       const id = this.send(req.service, req.verb, req.path, req.body)
       const st: PendingStream = { service: req.service, subscription: false, chunks: [], lineBuf: '', decoder: new TextDecoder(), ackSeen: false, resolveUnary: resolve, rejectUnary: reject }
       st.timer = setTimeout(() => {
         this.cancelStream(id, 'timeout')
         reject(new MuseGatewayError(`${method} timed out`, 'timeout'))
-      }, timeoutMs)
+      }, effectiveTimeout)
       this.streams.set(id, st)
     })
+    if (res.status >= 400) {
+      const errText = new TextDecoder().decode(res.body)
+      let errJson: unknown = errText
+      try {
+        errJson = errText ? JSON.parse(errText) : null
+      } catch {
+        /* keep text */
+      }
+      const detail = errJson && typeof errJson === 'object' ? JSON.stringify(errJson).slice(0, 200) : String(errText).slice(0, 200)
+      throw new MuseGatewayError(`${method}: HTTP ${res.status} ${detail}`, 'http', res.status)
+    }
+    if (req.responseType === 'binary') {
+      const ct = res.headers?.find(([k]) => k.toLowerCase() === 'content-type')?.[1]
+      const clipped =
+        req.maxResponseBytes && res.body.byteLength > req.maxResponseBytes
+          ? res.body.subarray(0, req.maxResponseBytes)
+          : res.body
+      return {
+        contentType: ct ?? 'application/octet-stream',
+        byteLength: clipped.byteLength,
+        dataBase64: Buffer.from(clipped).toString('base64')
+      }
+    }
     const text = new TextDecoder().decode(res.body)
+    if (req.streamMode === 'records') {
+      const lines = text
+        .split(/\r?\n/)
+        .map((l) => l.trim())
+        .filter(Boolean)
+      const records: unknown[] = []
+      for (const line of lines) {
+        try {
+          records.push(JSON.parse(line))
+        } catch {
+          /* ignore non-JSON line */
+        }
+      }
+      return { ok: true, result: { records, items: records } }
+    }
     let json: unknown = text
     try {
       json = text ? JSON.parse(text) : null
     } catch {
       /* keep text */
-    }
-    if (res.status >= 400) {
-      const detail = json && typeof json === 'object' ? JSON.stringify(json).slice(0, 200) : String(text).slice(0, 200)
-      throw new MuseGatewayError(`${method}: HTTP ${res.status} ${detail}`, 'http', res.status)
     }
     return json
   }
@@ -503,7 +581,7 @@ export class MuseNativeGateway extends EventEmitter {
   async requestBinary(
     method: string,
     params: Record<string, unknown> = {},
-    timeoutMs = 120_000
+    timeoutMs?: number
   ): Promise<{ status: number; body: Uint8Array; contentType?: string }> {
     await this.connect()
     const range = params['_range'] as { start?: number; end?: number } | undefined
@@ -511,6 +589,7 @@ export class MuseNativeGateway extends EventEmitter {
     delete clean['_range']
     const req = this.buildRequest(method, clean)
     if (req.subscription) throw new MuseGatewayError(`${method} is a subscription; use subscribe()`, 'unknown_method')
+    const effectiveTimeout = timeoutMs ?? req.requestTimeoutMs ?? 120_000
     const extraHeaders: Array<[string, string]> = []
     if (
       range &&
@@ -536,7 +615,7 @@ export class MuseNativeGateway extends EventEmitter {
       st.timer = setTimeout(() => {
         this.cancelStream(id, 'timeout')
         reject(new MuseGatewayError(`${method} timed out`, 'timeout'))
-      }, timeoutMs)
+      }, effectiveTimeout)
       this.streams.set(id, st)
     })
     if (res.status >= 400) {
@@ -544,7 +623,11 @@ export class MuseNativeGateway extends EventEmitter {
       throw new MuseGatewayError(`${method}: HTTP ${res.status} ${detail}`, 'http', res.status)
     }
     const ct = res.headers?.find(([k]) => k.toLowerCase() === 'content-type')?.[1]
-    return { status: res.status, body: res.body, contentType: ct }
+    const body =
+      req.maxResponseBytes && res.body.byteLength > req.maxResponseBytes
+        ? res.body.subarray(0, req.maxResponseBytes)
+        : res.body
+    return { status: res.status, body, contentType: ct }
   }
 
   /** Subscription RPC (chat.stream / chat.subscribe …): ack + NDJSON events on one stream. */

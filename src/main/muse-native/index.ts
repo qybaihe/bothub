@@ -20,9 +20,24 @@ export {
   isMuseBusyActivity,
   isMuseIdleActivity,
   parseAgentStatus,
-  parseOptionWidgets
+  parseOptionWidgets,
+  parseRichWidgets,
+  parseMediaParts,
+  parseToolCall,
+  historyAssistants,
+  parseHistoryTranscript,
+  transcriptText
 } from './chat'
-export type { MuseOptionWidget, MuseAgentActivity, ChatStreamUpdate, MuseChatEvent } from './chat'
+export type {
+  MuseOptionWidget,
+  MuseRichWidget,
+  MuseMediaPart,
+  MuseToolCall,
+  MuseHistoryMessage,
+  MuseAgentActivity,
+  ChatStreamUpdate,
+  MuseChatEvent
+} from './chat'
 
 export type MuseTransportMode = 'native' | 'hook'
 

@@ -2,7 +2,17 @@ import { ipcMain, shell, type BrowserWindow, type IpcMainInvokeEvent } from 'ele
 import { MUSE_CHANNELS, type MuseEnsureRequest, type MuseRpcRequest, type WebViewBounds } from '@shared/ipc'
 import { WebContentsViewManager } from '../webContentsViewManager'
 import { MuseSessionManager } from './museSessionManager'
-import { getProxyView, saveProxyConfig, type MuseProxyConfig } from './accountProxy'
+import {
+  assignProxyPoolToAccounts,
+  clearProxyPool,
+  getProxyView,
+  importProxyPool,
+  listProxyPool,
+  removeProxyPoolItem,
+  saveProxyConfig,
+  type MuseProxyConfig,
+  type MuseProxyMode
+} from './accountProxy'
 
 const managers = new Map<number, MuseSessionManager>()
 
@@ -150,6 +160,23 @@ export function registerMuseIpc(): void {
     return managerFor(event).mutateSession(accountId, mutation as never)
   })
 
+  ipcMain.handle(MUSE_CHANNELS.startSession, async (event, accountId: unknown) => {
+    if (typeof accountId !== 'string') throw new TypeError('Invalid accountId')
+    return managerFor(event).startSession(accountId)
+  })
+
+  ipcMain.handle(MUSE_CHANNELS.loadSessionHistory, async (event, accountId: unknown, sessionId: unknown) => {
+    if (typeof accountId !== 'string' || typeof sessionId !== 'string') {
+      throw new TypeError('Invalid loadSessionHistory request')
+    }
+    return managerFor(event).loadSessionHistory(accountId, sessionId)
+  })
+
+  ipcMain.handle(MUSE_CHANNELS.cancelChat, async (event, accountId: unknown, sessionId: unknown) => {
+    if (typeof accountId !== 'string') throw new TypeError('Invalid accountId')
+    return managerFor(event).cancelChat(accountId, typeof sessionId === 'string' ? sessionId : undefined)
+  })
+
   ipcMain.handle(MUSE_CHANNELS.listFiles, async (event, accountId: unknown) => {
     if (typeof accountId !== 'string') throw new TypeError('Invalid accountId')
     return managerFor(event).listFiles(accountId)
@@ -207,6 +234,35 @@ export function registerMuseIpc(): void {
     const view = await saveProxyConfig(accountId, c)
     await managerFor(event).applyAccountProxy(accountId)
     return view
+  })
+
+  ipcMain.handle(MUSE_CHANNELS.listProxyPool, async () => {
+    return listProxyPool()
+  })
+
+  ipcMain.handle(MUSE_CHANNELS.importProxyPool, async (_event, rawText: unknown, defaultMode: unknown) => {
+    if (typeof rawText !== 'string') throw new TypeError('Invalid proxy pool text')
+    const mode: Exclude<MuseProxyMode, 'direct'> =
+      defaultMode === 'http' || defaultMode === 'socks5h' ? defaultMode : 'socks5'
+    return importProxyPool(rawText, mode)
+  })
+
+  ipcMain.handle(MUSE_CHANNELS.removeProxyPoolItem, async (_event, id: unknown) => {
+    if (typeof id !== 'string') throw new TypeError('Invalid pool item id')
+    return removeProxyPoolItem(id)
+  })
+
+  ipcMain.handle(MUSE_CHANNELS.clearProxyPool, async () => {
+    return clearProxyPool()
+  })
+
+  ipcMain.handle(MUSE_CHANNELS.assignProxyPool, async (event, accountIds: unknown) => {
+    if (!Array.isArray(accountIds)) throw new TypeError('Invalid accountIds array')
+    const ids = accountIds.filter((id): id is string => typeof id === 'string')
+    const mgr = managerFor(event)
+    return assignProxyPoolToAccounts(ids, async (accId) => {
+      await mgr.applyAccountProxy(accId).catch(() => undefined)
+    })
   })
 
   ipcMain.handle(MUSE_CHANNELS.selectOption, async (event, request: unknown) => {

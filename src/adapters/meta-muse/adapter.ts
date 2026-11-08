@@ -366,6 +366,7 @@ export class MuseAdapter implements PlatformAdapter {
         method: 'chat.stream',
         conversationId: message.conversationId,
         params: {
+          ...(message.sessionId ? { session_id: message.sessionId } : {}),
           // Main fills node_id (stable device id) + capabilities per transport.
           items: [
             ...(message.text.trim() ? [{ type: 'text', text: message.text }] : []),
@@ -374,7 +375,16 @@ export class MuseAdapter implements PlatformAdapter {
         }
       })) as unknown
 
-      const receipt: SendReceipt = { messageId: createId('mm_out'), acceptedAt: Date.now() }
+      const resultObj = result && typeof result === 'object' ? (result as Record<string, unknown>) : null
+      const ackSessionId =
+        resultObj && typeof resultObj['session_id'] === 'string'
+          ? (resultObj['session_id'] as string)
+          : undefined
+      const receipt: SendReceipt = {
+        messageId: createId('mm_out'),
+        acceptedAt: Date.now(),
+        sessionId: ackSessionId
+      }
       const text = extractText(result)
       const deliveredKey = `${message.accountId}:${message.conversationId}`
       const deliveredViaStream = this.streamDelivered.delete(deliveredKey)
@@ -393,7 +403,6 @@ export class MuseAdapter implements PlatformAdapter {
           accountId: message.accountId,
           isTyping: false
         })
-        const resultObj = result && typeof result === 'object' ? (result as Record<string, unknown>) : null
         const fromResult =
           resultObj && typeof resultObj['assistant_message_id'] === 'string'
             ? (resultObj['assistant_message_id'] as string)

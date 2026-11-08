@@ -127,6 +127,40 @@ export type MuseRichWidget =
       selectedIndices?: number[]
       baseVersion: number
     }
+  | {
+      kind: 'text_with_button'
+      widgetId: string
+      text: string
+      buttons: Array<{ label: string; actionText?: string; url?: string; command?: string }>
+    }
+  | {
+      kind: 'generic_list'
+      widgetId: string
+      title?: string
+      items: Array<{ id: string; title: string; subtitle?: string; sendText?: string; url?: string }>
+    }
+  | {
+      kind: 'voice_options'
+      widgetId: string
+      voices: Array<{ id: string; name: string; description?: string; selected?: boolean }>
+    }
+  | {
+      kind: 'markdown'
+      widgetId: string
+      title?: string
+      markdown: string
+      path?: string
+    }
+  | {
+      kind: 'hotel_results'
+      widgetId: string
+      hotels: Array<{ name: string; price?: string; rating?: string; url?: string; imageUrl?: string; location?: string }>
+    }
+  | {
+      kind: 'idea_cards'
+      widgetId: string
+      cards: Array<{ id: string; title: string; subtitle?: string; prompt?: string }>
+    }
 
 export interface MuseOptionWidget {
   kind: 'option'
@@ -423,6 +457,173 @@ export function parseRichWidgets(payload: Record<string, unknown>): MuseRichWidg
       })
       continue
     }
+    if (kind === 'text_with_button') {
+      const inner = asObj(data['textWithButton'] || data['text_with_button']) || data
+      const text = str(inner['text'] || inner['markdown'] || inner['body'] || inner['content'] || w['display_text'] || w['title'])
+      const btnsRaw = inner['buttons'] ?? inner['actions'] ?? (inner['button'] ? [inner['button']] : [])
+      const buttons: Array<{ label: string; actionText?: string; url?: string; command?: string }> = []
+      if (Array.isArray(btnsRaw)) {
+        for (const row of btnsRaw) {
+          const b = asObj(row)
+          if (!b) continue
+          const label = str(b['label'] || b['title'] || b['text'])
+          if (!label) continue
+          buttons.push({
+            label,
+            actionText: str(b['send_text'] || b['sendText'] || b['message'] || b['prompt']) || undefined,
+            url: str(b['url'] || b['href']) || undefined,
+            command: str(b['command'] || b['action']) || undefined
+          })
+        }
+      }
+      if (text || buttons.length) {
+        out.push({ kind: 'text_with_button', widgetId, text, buttons: buttons.slice(0, 8) })
+      }
+      continue
+    }
+    if (kind === 'generic_list') {
+      const itemsRaw = data['items'] ?? data['rows'] ?? data['elements']
+      const items: Array<{ id: string; title: string; subtitle?: string; sendText?: string; url?: string }> = []
+      if (Array.isArray(itemsRaw)) {
+        for (const row of itemsRaw.slice(0, 30)) {
+          const o = asObj(row)
+          if (!o) continue
+          const rowData = asObj(o['data']) || o
+          const title = str(o['title'] || o['label'] || o['name'] || rowData['title'] || rowData['text'])
+          if (!title) continue
+          const id = str(o['id'] || rowData['id'] || `${widgetId}-${items.length}`)
+          const typ = str(o['type'] || o['kind'])
+          const sendText =
+            typ === 'send_message'
+              ? str(rowData['text'] || rowData['message'] || title)
+              : str(o['send_text'] || o['sendText'] || rowData['send_text']) || undefined
+          items.push({
+            id,
+            title,
+            subtitle: str(o['subtitle'] || o['description'] || rowData['subtitle']) || undefined,
+            sendText: sendText || undefined,
+            url: str(o['url'] || rowData['url']) || undefined
+          })
+        }
+      }
+      if (items.length) {
+        out.push({
+          kind: 'generic_list',
+          widgetId,
+          title: str(data['title'] || w['title'] || w['display_text']) || undefined,
+          items
+        })
+      }
+      continue
+    }
+    if (kind === 'voice_options') {
+      const optsRaw = data['options'] ?? data['voices'] ?? data['items']
+      const voices: Array<{ id: string; name: string; description?: string; selected?: boolean }> = []
+      const state = asObj(w['state']) || {}
+      const stateData = asObj(state['data']) || {}
+      const selectedId = str(stateData['selectedVoiceId'] || stateData['voiceId'] || data['selected_voice_id'])
+      if (Array.isArray(optsRaw)) {
+        for (const row of optsRaw.slice(0, 20)) {
+          const o = asObj(row)
+          if (!o) continue
+          const id = str(o['id'] || o['voice_id'] || o['voiceId'] || o['name'])
+          const name = str(o['name'] || o['label'] || o['title'] || id)
+          if (!name) continue
+          voices.push({
+            id: id || name,
+            name,
+            description: str(o['description'] || o['subtitle'] || o['style']) || undefined,
+            selected: Boolean(o['selected'] || (selectedId && id === selectedId))
+          })
+        }
+      }
+      if (voices.length) {
+        out.push({ kind: 'voice_options', widgetId, voices })
+      }
+      continue
+    }
+    if (
+      kind === 'markdown' ||
+      kind === 'document' ||
+      kind === 'report' ||
+      kind === 'artifact' ||
+      kind === 'text_document'
+    ) {
+      const md = str(
+        data['markdown'] ||
+          data['content'] ||
+          data['text'] ||
+          data['body'] ||
+          w['markdown'] ||
+          w['content'] ||
+          w['display_text']
+      )
+      const path = str(data['path'] || data['file_path'] || w['path']) || undefined
+      const title = str(data['title'] || data['label'] || data['filename'] || w['title']) || undefined
+      if (md.trim() || path) {
+        out.push({
+          kind: 'markdown',
+          widgetId,
+          title,
+          markdown: md.slice(0, 150_000),
+          path
+        })
+      }
+      continue
+    }
+    if (kind === 'hotel_results' || kind === 'hotels' || kind === 'hotel_search_results') {
+      const hotelsRaw = data['hotels'] ?? data['results'] ?? data['items']
+      const hotels: Array<{
+        name: string
+        price?: string
+        rating?: string
+        url?: string
+        imageUrl?: string
+        location?: string
+      }> = []
+      if (Array.isArray(hotelsRaw)) {
+        for (const row of hotelsRaw.slice(0, 20)) {
+          const o = asObj(row)
+          if (!o) continue
+          const name = str(o['name'] || o['hotel_name'] || o['title'])
+          if (!name) continue
+          hotels.push({
+            name,
+            price: str(o['price'] || o['rate'] || o['price_label'] || o['total_price']) || undefined,
+            rating: str(o['rating'] || o['stars'] || o['review_score']) || undefined,
+            url: str(o['url'] || o['booking_url'] || o['deeplink']) || undefined,
+            imageUrl: str(o['image_url'] || o['imageUrl'] || o['thumbnail']) || undefined,
+            location: str(o['location'] || o['neighborhood'] || o['address']) || undefined
+          })
+        }
+      }
+      if (hotels.length) {
+        out.push({ kind: 'hotel_results', widgetId, hotels })
+      }
+      continue
+    }
+    if (kind === 'idea_cards' || kind === 'ideas' || kind === 'idea_card') {
+      const cardsRaw = data['cards'] ?? data['ideas'] ?? data['items'] ?? [data]
+      const cards: Array<{ id: string; title: string; subtitle?: string; prompt?: string }> = []
+      if (Array.isArray(cardsRaw)) {
+        for (const row of cardsRaw.slice(0, 16)) {
+          const o = asObj(row)
+          if (!o) continue
+          const title = str(o['title'] || o['headline'] || o['name'] || o['text'])
+          if (!title) continue
+          cards.push({
+            id: str(o['id'] || o['idea_card_id'] || `${widgetId}-${cards.length}`),
+            title,
+            subtitle: str(o['subtitle'] || o['description'] || o['category']) || undefined,
+            prompt: str(o['prompt'] || o['send_text'] || o['query'] || title) || undefined
+          })
+        }
+      }
+      if (cards.length) {
+        out.push({ kind: 'idea_cards', widgetId, cards })
+      }
+      continue
+    }
 
   }
   return out
@@ -538,20 +739,33 @@ export function transcriptText(payload: Record<string, unknown>): string {
     const content = Array.isArray(mm['content']) ? (mm['content'] as unknown[]) : []
     for (const c of content) {
       const cc = obj(c)
-      if (cc['type'] === 'text' && typeof cc['text'] === 'string') out.push(cc['text'] as string)
+      const typ = str(cc['type']).toLowerCase()
+      if ((typ === 'text' || typ === 'markdown' || !typ) && typeof cc['text'] === 'string') {
+        out.push(cc['text'] as string)
+      } else if (typeof cc['markdown'] === 'string') {
+        out.push(cc['markdown'] as string)
+      }
+    }
+    if (!content.length && typeof mm['content'] === 'string') {
+      out.push(mm['content'] as string)
     }
   }
-  return out.join('\n\n')
+  const cleaned = out
+    .join('\n\n')
+    .replace(/\[\[hatch_widget:[^\]]+\]\]/g, '')
+    .trim()
+  return cleaned
 }
 
 function assistantTextFromPayload(p: Record<string, unknown>): string {
-  return (
+  const raw =
     transcriptText(p) ||
     str(p['display_text']) ||
+    str(p['markdown']) ||
     str(p['content']) ||
     str(p['text']) ||
     ''
-  )
+  return raw.replace(/\[\[hatch_widget:[^\]]+\]\]/g, '').trim()
 }
 
 /**
@@ -859,6 +1073,17 @@ export async function streamChat(
         pushUpdate(id, false)
         break
       }
+      case 'delta.placeholder': {
+        if (!started || !id) break
+        ensureBubble(id)
+        if (!texts.get(id)) {
+          const placeholder = str(p['text'] || p['display_text'] || p['placeholder'])
+          if (placeholder) texts.set(id, placeholder)
+        }
+        clearSettle()
+        pushUpdate(id, false)
+        break
+      }
       case 'delta.presentation':
         if (!started) break
         applyWidgets(id, p)
@@ -1148,4 +1373,112 @@ export function historyAssistants(raw: unknown): HistoryRow[] {
   }
   rows.sort((a, b) => a.at - b.at)
   return rows
+}
+
+export interface MuseHistoryMessage {
+  id: string
+  role: 'user' | 'bot'
+  text: string
+  createdAt: number
+  widgets?: MuseOptionWidget[]
+  richWidgets?: MuseRichWidget[]
+  tools?: MuseToolCall[]
+  media?: MuseMediaPart[]
+}
+
+function userTextFromPayload(p: Record<string, unknown>, e: Record<string, unknown>): string {
+  const direct = str(e['display_text'] || p['display_text'] || p['text'] || e['text'] || p['content'] || e['content'])
+  if (direct) return direct
+  const items = p['items'] ?? e['items']
+  if (Array.isArray(items)) {
+    const parts: string[] = []
+    for (const it of items) {
+      const o = obj(it)
+      const t = str(o['text'])
+      if (t) parts.push(t)
+    }
+    if (parts.length) return parts.join('\n')
+  }
+  const t = obj(p['transcript'] ?? e['transcript'])
+  const msgs = Array.isArray(t['messages']) ? t['messages'] : []
+  for (const m of msgs) {
+    const mm = obj(m)
+    if (mm['role'] && mm['role'] !== 'user') continue
+    const content = Array.isArray(mm['content']) ? mm['content'] : []
+    const parts: string[] = []
+    for (const c of content) {
+      const cc = obj(c)
+      if (typeof cc['text'] === 'string') parts.push(cc['text'] as string)
+    }
+    if (parts.length) return parts.join('\n')
+  }
+  return ''
+}
+
+/** Full conversation transcript from chat.history (both user and assistant turns), oldest first. */
+export function parseHistoryTranscript(raw: unknown): MuseHistoryMessage[] {
+  let r = obj(raw)
+  if (r['ok'] !== undefined && r['result'] !== undefined) r = obj(r['result'])
+  const list = (r['chat_events'] ?? r['events'] ?? r['messages'] ?? r['items'] ?? (Array.isArray(raw) ? raw : [])) as unknown
+  if (!Array.isArray(list)) return []
+  const byId = new Map<string, MuseHistoryMessage & { seq: number }>()
+  let idx = 0
+  for (const item of list) {
+    idx += 1
+    const e = obj(item)
+    const p = obj(e['payload'])
+    const name = str(e['event_name']) || str(e['event']) || str(e['type'])
+    const roleRaw = str(e['role']) || str(p['role'])
+    const isUser = /message\.user/i.test(name) || roleRaw === 'user'
+    const isAssistant =
+      /assistant/i.test(name) ||
+      /message_done/i.test(name) ||
+      /presentation/i.test(name) ||
+      roleRaw === 'assistant'
+    if (!isUser && !isAssistant) continue
+    const rawId = str(e['message_id']) || str(p['message_id']) || str(e['id']) || `hist_${idx}`
+    const id = isUser ? `muse_user_${rawId}` : `muse_native_${rawId}`
+    const at = Number(e['occurred_at_ms'] ?? e['created_at_ms'] ?? e['ts_ms'] ?? p['created_at_ms'] ?? Date.now()) || Date.now()
+    const seq = Number(e['seq'] ?? idx) || idx
+    const mergedPayload = { ...e, ...p }
+    if (isUser) {
+      const text = userTextFromPayload(p, e)
+      if (!text) continue
+      const prev = byId.get(id)
+      byId.set(id, {
+        id,
+        role: 'user',
+        text: prev ? mergeMonotonic(prev.text, text) : text,
+        createdAt: prev?.createdAt ?? at,
+        seq: prev?.seq ?? seq
+      })
+    } else {
+      const text =
+        transcriptText(p) ||
+        transcriptText(e) ||
+        str(e['display_text']) ||
+        str(p['display_text']) ||
+        str(e['text']) ||
+        str(p['content']) ||
+        str(e['content'])
+      const w = parseOptionWidgets(mergedPayload)
+      const rw = parseRichWidgets(mergedPayload)
+      const m = parseMediaParts(mergedPayload)
+      if (!text && !w.length && !rw.length && !m.length) continue
+      const prev = byId.get(id)
+      byId.set(id, {
+        id,
+        role: 'bot',
+        text: prev ? mergeMonotonic(prev.text, text) : text,
+        createdAt: prev?.createdAt ?? at,
+        widgets: w.length ? w : prev?.widgets,
+        richWidgets: rw.length ? rw : prev?.richWidgets,
+        media: m.length ? m : prev?.media,
+        seq: prev?.seq ?? seq
+      })
+    }
+  }
+  const rows = [...byId.values()]
+  rows.sort((a, b) => (a.createdAt !== b.createdAt ? a.createdAt - b.createdAt : a.seq - b.seq))
+  return rows.map(({ seq: _seq, ...rest }) => rest)
 }

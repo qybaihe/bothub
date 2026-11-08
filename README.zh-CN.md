@@ -1,13 +1,23 @@
-# BotHub（中文文档）
+<div align="center">
 
-<p align="center">
-  <strong>面向多平台、多账号的桌面端个人 AI 智能体中枢</strong><br/>
-  <a href="./README.md">English & Bilingual README</a> · <a href="https://github.com/qybaihe/bothub/releases">下载 Releases</a>
-</p>
+# BotHub
+
+**面向多平台、多账号的桌面端个人 AI 智能体工作台**
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
+[![Platform: macOS arm64](https://img.shields.io/badge/Platform-macOS%20(Apple%20Silicon)-111318.svg)](https://github.com/qybaihe/bothub/releases)
+[![Electron](https://img.shields.io/badge/Electron-33-47848F.svg)](https://www.electronjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.6-3178C6.svg)](https://www.typescriptlang.org/)
+
+[English](./README.md) · **简体中文** · [繁體中文](./README.zh-TW.md) · [日本語](./README.ja.md)
+
+</div>
 
 ---
 
-**BotHub** 是一款基于 Electron、React、TypeScript 与 Tailwind CSS 构建的 macOS 原生桌面端 AI 智能体工作台。它将多个个人 AI Agent 平台（**Meta Muse**、**Grok Bot**、**Hark**、**Dot**）聚合在统一的原生界面中；每个 **Bot** 绑定独立隔离的账号会话（`partition`），支持同平台多账号并行在线、实时流式对话、云端电脑/工具调用检视以及集中式管理中心。
+## 项目简介
+
+**BotHub** 是一款基于 Electron、React、TypeScript 与 Tailwind CSS 构建的 macOS 原生桌面端 AI 智能体中枢。它将多个个人 AI Agent 平台（**Meta Muse**、**Grok Bot**、**Hark**、**Dot**）聚合在统一的原生界面中；每个 **Bot** 绑定独立隔离的账号会话（`partition`），支持同平台多账号并行在线、实时流式对话、云端电脑/工具调用检视以及集中式管理中心。
 
 ## 已接入平台一览
 
@@ -20,18 +30,18 @@
 
 ## 核心特性
 
-1. **原生级多账号会话隔离**
-   - 每个账号运行在独立的 Electron `persist:` 分区或加密凭据槽位中，同一平台可同时挂载多个账号与多个 Bot，互不串号。
-2. **全功能管理中心（Management Console）**
-   - 内置全屏管理视图（`SettingsView`），提供全局概览大盘、按平台/状态/关键字筛选的 Bot 列表、一键批量连通性检测，以及针对四大平台的专属账号、Token 与代理管理面板。
-3. **深度适配的 Agent 聊天与产物体验**
-   - 完整呈现思考过程（Thinking Trace）、工具执行卡片（Tool Invocations）、长耗时任务后台防断流恢复（Watchdog & Background Polling）。
-   - 支持原生文档弹窗预览（`NativeDocumentDialog`）、Markdown 表格与代码高亮、多模态附件上传与本地保存。
-4. **动态几何角色头像（`GrokBotMark`）**
-   - 所有 Bot 默认配备可随鼠标视线互动、思考状态律动的 `GrokBotMark` 动态几何角色头像，同时支持随时切换形状/配色或上传自定义头像图片。
-5. **凭据安全与隐私保护**
-   - 本地持久化的敏感凭据（如 Dot 的 `AT`/`RT` 及账号代理密码）默认通过 Electron `safeStorage`（macOS Keychain）加密并以 `0600` 权限落盘。
-   - 代码库零硬编码密钥、无任何第三方隐私遥测。
+- **原生级多账号会话隔离**
+  每个账号运行在独立的 Electron `persist:` 分区或加密凭据槽位中，同一平台可同时挂载多个账号与多个 Bot，互不串号。
+- **全功能管理中心（Management Console）**
+  内置全屏管理视图（`SettingsView`），提供全局概览大盘、按平台/状态/关键字筛选的 Bot 列表、一键批量连通性检测，以及针对四大平台的专属账号、Token 与代理管理面板。
+- **深度适配的 Agent 聊天与产物体验**
+  - 完整呈现思考过程（Thinking Trace）、工具执行卡片（Tool Invocations）、长耗时任务后台防断流恢复（Watchdog & Background Polling）。
+  - 支持原生文档弹窗预览（`NativeDocumentDialog`）、Markdown 表格与代码高亮、多模态附件上传与本地保存。
+- **动态几何角色头像（`GrokBotMark`）**
+  所有 Bot 默认配备可随鼠标视线互动、思考状态律动的 `GrokBotMark` 动态几何角色头像，同时支持随时切换形状/配色或上传自定义头像图片。
+- **凭据安全与隐私保护**
+  - 本地持久化的敏感凭据（如 Dot 的 `AT`/`RT` 及账号代理密码）默认通过 Electron `safeStorage`（macOS Keychain）加密并以 `0600` 权限落盘。
+  - 代码库零硬编码密钥、无任何第三方隐私遥测。
 
 ## 安装说明
 
@@ -53,6 +63,13 @@ npm run build        # 编译生产构建产物至 out/
 npm run dist         # 使用 electron-builder 打包 macOS arm64 dmg 与 zip
 ```
 
+| 命令 | 说明 |
+| :--- | :--- |
+| `npm run dev` | 启动 Electron 主进程、预加载脚本与 React 渲染层热更新 |
+| `npm run typecheck` | 对 Node 侧（`tsconfig.node.json`）与 Web 侧（`tsconfig.web.json`）执行类型检查 |
+| `npm run build` | 编译生产环境代码至 `out/` 目录 |
+| `npm run dist` | 通过 `electron-builder` 打包 macOS `dmg` 与 `zip` 发行包 |
+
 ## 目录结构
 
 ```text
@@ -73,4 +90,4 @@ src/
 
 ## 开源协议
 
-MIT
+基于 [MIT License](./LICENSE) 开源。

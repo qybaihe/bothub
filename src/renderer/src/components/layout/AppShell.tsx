@@ -72,15 +72,16 @@ function SidebarGrip() {
  */
 export function AppShell({ sidebar, main, aside, asideOpen }: AppShellProps) {
   const sidebarWidth = useBotStore((s) => s.sidebarWidth)
+  const sidebarCollapsed = useBotStore((s) => s.sidebarCollapsed)
   return (
     <div className="flex h-full w-full overflow-hidden bg-canvas text-ink">
       <nav
         aria-label={t('Bots')}
-        style={{ width: sidebarWidth }}
-        className="relative flex shrink-0 flex-col border-r border-ink/[0.12] bg-canvas"
+        style={{ width: sidebarCollapsed ? 68 : sidebarWidth }}
+        className="relative flex shrink-0 flex-col border-r border-ink/[0.12] bg-canvas transition-[width] duration-[300ms] ease-spring-shape"
       >
         {sidebar}
-        <SidebarGrip />
+        {!sidebarCollapsed && <SidebarGrip />}
       </nav>
 
       <div className="flex min-w-0 flex-1">

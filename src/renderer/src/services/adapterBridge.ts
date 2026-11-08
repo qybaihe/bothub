@@ -72,16 +72,42 @@ export function startAdapterBridge(): () => void {
   if (bridge?.grok?.onEvent) {
     unsubscribers.push(
       bridge.grok.onEvent((event) => {
-        if (event.type !== "auth") return
-        if (event.signedIn) {
-          void useBotStore.getState().setGrokAccessToken(
-            event.accountId,
-            event.accessToken,
-            event.accountSlot,
-            event.machineId
-          )
-        } else {
-          useBotStore.getState().setAccountStatus(event.accountId, "offline", "已退出 Grok")
+        if (event.type === "auth") {
+          if (event.signedIn) {
+            void useBotStore.getState().setGrokAccessToken(
+              event.accountId,
+              event.accessToken,
+              event.accountSlot,
+              event.machineId
+            )
+          } else {
+            useBotStore.getState().setAccountStatus(event.accountId, "offline", "已退出 Grok")
+          }
+          return
+        }
+        if (event.type === "stream") {
+          const store = useBotStore.getState()
+          const convId =
+            event.conversationId ||
+            store.bots.find((b) => b.accountIds.includes(event.accountId))?.id ||
+            event.accountId
+          if (!event.done) {
+            store.setTyping(convId, true)
+            if (event.text) {
+              store.applyMessageDelta(event.messageId, convId, event.accountId, event.text)
+            }
+          } else {
+            store.setTyping(convId, false)
+            if (event.text) {
+              store.receiveMessage({
+                id: event.messageId,
+                conversationId: convId,
+                accountId: event.accountId,
+                text: event.text,
+                createdAt: Date.now()
+              })
+            }
+          }
         }
       })
     )

@@ -150,6 +150,7 @@ function AddBotFlow({ open, onClose }: { open: boolean; onClose: () => void }) {
             <LoginWaiting
               key="login"
               platformId={phase.platformId}
+              accountId={login.accountId}
               windowClosed={phase.windowClosed}
               onReopen={login.reopen}
             />
@@ -195,7 +196,7 @@ function PlatformStep({
   onPick: (platformId: PlatformId) => void
   onBatch: () => void
 }) {
-  const platforms = adapterRegistry.listPlatforms()
+  const platforms = adapterRegistry.listPlatforms().filter((p) => p.usable)
   const t = useT()
   return (
     <div className="animate-veil-in">
@@ -208,25 +209,20 @@ function PlatformStep({
           <li key={p.id}>
             <button
               type="button"
-              disabled={!p.usable}
               onClick={() => onPick(p.id)}
               className={cn(
                 'group flex h-12 w-full items-center gap-3 rounded-[10px] px-2 text-left transition-colors duration-100',
-                'hover:bg-hover active:bg-active disabled:pointer-events-none'
+                'hover:bg-hover active:bg-active'
               )}
             >
-              <PlatformGlyph platform={p} size="md" className={cn(!p.usable && 'opacity-50 grayscale')} />
-              <span className={cn('min-w-0 flex-1 truncate text-[14px]', p.usable ? 'text-ink' : 'text-ink-muted')}>
+              <PlatformGlyph platform={p} size="md" />
+              <span className="min-w-0 flex-1 truncate text-[14px] text-ink">
                 {p.name}
               </span>
-              {p.usable ? (
-                <ChevronRight
-                  className="size-4 text-ink-muted opacity-0 transition-opacity duration-100 group-hover:opacity-100 group-focus-visible:opacity-100"
-                  aria-hidden
-                />
-              ) : (
-                <span className="rounded-[4px] bg-sunken px-1.5 text-[11px] leading-4 text-ink-muted">{t('Soon')}</span>
-              )}
+              <ChevronRight
+                className="size-4 text-ink-muted opacity-0 transition-opacity duration-100 group-hover:opacity-100 group-focus-visible:opacity-100"
+                aria-hidden
+              />
             </button>
           </li>
         ))}
@@ -252,17 +248,65 @@ function PlatformStep({
 /** Shared by the add-bot and add-account flows. */
 export function LoginWaiting({
   platformId,
+  accountId,
   windowClosed,
   onReopen
 }: {
   platformId: PlatformId
+  accountId?: string
   windowClosed: boolean
   onReopen: () => void
 }) {
   const platform = getPlatform(platformId)
   const actionRef = useRef<HTMLButtonElement>(null)
   const t = useT()
+  const [dotBusy, setDotBusy] = useState(false)
+  const [dotErr, setDotErr] = useState('')
+  const [dotRaw, setDotRaw] = useState('')
+  const [dotRt, setDotRt] = useState('')
+  const [showRaw, setShowRaw] = useState(false)
+
   useEffect(() => actionRef.current?.focus(), [])
+
+  const quickImportRaw = async () => {
+    if (!accountId || (!dotRaw.trim() && !dotRt.trim()) || !window.electron?.dot?.importCredentials) return
+    setDotBusy(true)
+    setDotErr('')
+    try {
+      await window.electron.dot.importCredentials({
+        accountId,
+        rawInput: dotRaw.trim(),
+        refreshToken: dotRt.trim() || undefined
+      })
+      await window.electron.dot.cancelLogin?.(accountId).catch(() => undefined)
+    } catch (e) {
+      setDotErr(errorMessage(e))
+    } finally {
+      setDotBusy(false)
+    }
+  }
+
+  const quickImportHarkRaw = async () => {
+    if (!accountId || !dotRaw.trim() || !window.electron?.hark?.importCredentials) return
+    setDotBusy(true)
+    setDotErr('')
+    try {
+      const st = await window.electron.hark.importCredentials({
+        accountId,
+        rawInput: dotRaw.trim()
+      })
+      if (!st.signedIn) {
+        setDotErr('未检测到有效 Hark 会话，请检查 Cookie / Session Token 是否有效')
+        return
+      }
+      await window.electron.hark.cancelLogin?.(accountId).catch(() => undefined)
+    } catch (e) {
+      setDotErr(errorMessage(e))
+    } finally {
+      setDotBusy(false)
+    }
+  }
+
   return (
     <div className="flex animate-step-in flex-col items-center gap-4 pt-4 pb-2 text-center" role="status">
       <PlatformGlyph platform={platform} size="lg" />
@@ -272,9 +316,66 @@ export function LoginWaiting({
       >
         {windowClosed ? t('The sign-in window was closed') : t('Waiting for you to sign in…')}
       </p>
-      <Button ref={actionRef} variant={windowClosed ? 'primary' : 'secondary'} onClick={onReopen}>
-        {windowClosed ? t('Open again') : t('Show window')}
-      </Button>
+      <div className="flex flex-wrap justify-center gap-2">
+        <Button ref={actionRef} variant={windowClosed ? 'primary' : 'secondary'} onClick={onReopen}>
+          {windowClosed ? t('Open again') : t('Show window')}
+        </Button>
+        {platformId === 'dot' && accountId && (
+          <Button variant="ghost" disabled={dotBusy} onClick={() => setShowRaw((v) => !v)}>
+            导入 AT / RT 凭据
+          </Button>
+        )}
+        {platformId === 'hark' && accountId && (
+          <Button variant="ghost" disabled={dotBusy} onClick={() => setShowRaw((v) => !v)}>
+            导入 Cookie / Token
+          </Button>
+        )}
+      </div>
+      {platformId === 'dot' && showRaw && (
+        <div className="flex w-full flex-col gap-1.5 text-left">
+          <textarea
+            value={dotRaw}
+            onChange={(e) => setDotRaw(e.target.value)}
+            placeholder="粘贴 ChatGPT access_token (eyJ...)、refresh_token (rt_...) 或 JSON (auth.json)…"
+            rows={3}
+            className="w-full rounded-lg border border-line bg-surface p-2 font-mono text-[11px] text-ink outline-none"
+          />
+          <input
+            value={dotRt}
+            onChange={(e) => setDotRt(e.target.value)}
+            placeholder="可选：单独填写 refresh_token (rt_...) 用于自动续期"
+            className="h-7 w-full rounded-lg border border-line bg-surface px-2 font-mono text-[11px] text-ink outline-none"
+          />
+          <Button
+            size="sm"
+            variant="primary"
+            disabled={dotBusy || (!dotRaw.trim() && !dotRt.trim())}
+            onClick={() => void quickImportRaw()}
+          >
+            {dotBusy ? '正在验证凭据…' : '导入凭据并继续'}
+          </Button>
+        </div>
+      )}
+      {platformId === 'hark' && showRaw && (
+        <div className="flex w-full flex-col gap-1.5 text-left">
+          <textarea
+            value={dotRaw}
+            onChange={(e) => setDotRaw(e.target.value)}
+            placeholder="粘贴 Hark Cookie 字符串（含 __Secure-hark.session_token=...）或 Session Token…"
+            rows={3}
+            className="w-full rounded-lg border border-line bg-surface p-2 font-mono text-[11px] text-ink outline-none"
+          />
+          <Button
+            size="sm"
+            variant="primary"
+            disabled={dotBusy || !dotRaw.trim()}
+            onClick={() => void quickImportHarkRaw()}
+          >
+            {dotBusy ? '正在验证会话…' : '导入凭据并继续'}
+          </Button>
+        </div>
+      )}
+      {dotErr && <p className="text-[12px] text-status-error">{dotErr}</p>}
     </div>
   )
 }

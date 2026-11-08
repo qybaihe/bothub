@@ -119,6 +119,13 @@ export function MuseBatchImport({ onDone }: { onDone: () => void }) {
     const accountId = createId('acc')
     const botId = createId('bot')
     patch(row.id, { state: 'running', accountId, botId, attempts: row.attempts + 1, reason: undefined })
+    // Auto-assign 1 unused proxy from the proxy pool to this account before login starts!
+    if (muse.assignProxyPool) {
+      const existingMuseIds = Object.values(useBotStore.getState().accounts)
+        .filter((a) => a.platformId === 'meta-muse')
+        .map((a) => a.id)
+      await muse.assignProxyPool([...existingMuseIds, accountId]).catch(() => undefined)
+    }
     const current = { ...row, accountId, botId }
     try {
       const res = await muse.autoLogin({ botId, accountId, email: row.email, inboxUrl: row.inboxUrl })

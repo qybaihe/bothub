@@ -25,6 +25,8 @@ export interface BotHubState {
   selectedBotId: string | null
   collapsedGroups: Record<string, boolean>
   infoPanelOpen: boolean
+  /** Sidebar collapsed into compact icon rail (Grok Bot style). */
+  sidebarCollapsed: boolean
   /** Sidebar width in px (dragged by its right edge). */
   sidebarWidth: number
   addBotOpen: boolean
@@ -36,6 +38,9 @@ export interface BotHubState {
   paletteKey: number
   /** Show the embedded platform web session instead of the chat (Electron only). */
   webSessionOpen: boolean
+  /** Open the dedicated Grok Bot-style Settings view in the main pane. */
+  settingsOpen: boolean
+  settingsTab: 'overview' | 'general' | 'muse-accounts' | 'dot-accounts' | 'grok-accounts' | 'hark-accounts' | 'proxy-pool'
 
   // Navigation & layout
   selectBot: (botId: string) => void
@@ -50,9 +55,14 @@ export interface BotHubState {
   /** Local drag-reorder: place `botId` before `beforeId` (or at end) inside `groupId`. */
   reorderBot: (botId: string, groupId: string, beforeId: string | null) => void
   toggleInfoPanel: () => void
+  toggleSidebarCollapsed: () => void
   setSidebarWidth: (width: number) => void
   setAddBotOpen: (open: boolean) => void
   toggleWebSession: () => void
+  setSettingsOpen: (
+    open: boolean,
+    tab?: 'overview' | 'general' | 'muse-accounts' | 'dot-accounts' | 'grok-accounts' | 'hark-accounts' | 'proxy-pool'
+  ) => void
   openPalette: (query?: string) => void
   closePalette: () => void
   /** Select the bot `offset` rows away in sidebar order (wraps). */
@@ -64,6 +74,7 @@ export interface BotHubState {
   addAccountsToBot: (botId: string, drafts: AccountDraft[]) => void
   renameBot: (botId: string, name: string) => void
   setBotAvatar: (botId: string, avatar: string | undefined) => void
+  setBotCharacter: (botId: string, character: { shape?: string; color?: string }) => void
   /** Delete a bot; accounts no other bot uses are signed out and dropped. */
   removeBot: (botId: string) => Promise<void>
 
@@ -77,6 +88,9 @@ export interface BotHubState {
   setActivity: (accountId: string, activity: import('@/types').BotActivity | null) => void
   setMessageWidgets: (botId: string, messageId: string, widgets: import('@/types').ChatOptionWidget[]) => void
   selectChatOption: (botId: string, messageId: string, widgetId: string, selectedText: string, optionIndex: number) => Promise<void>
+  cancelGeneration: (botId: string) => Promise<void>
+  switchMuseSession: (botId: string, sessionId: string) => Promise<void>
+  startNewMuseSession: (botId: string) => Promise<void>
 
   // Bot details
   updateNotes: (botId: string, notes: string) => void
@@ -98,9 +112,23 @@ export interface BotHubState {
   openMuseLogin: (accountId: string) => Promise<void>
   /** Grok: open Cursor authenticator window; token auto-captured when possible. */
   openGrokLogin: (accountId: string) => Promise<void>
-  /** Inject Grok accessToken into adapter after login (not persisted). */
-  setGrokAccessToken: (accountId: string, accessToken: string, accountSlot?: string, machineId?: string) => Promise<void>
+  /** Hark: open Hark login window (Google / Apple / Email OTP). */
+  openHarkLogin: (accountId: string) => Promise<void>
+  /** Dot: open ChatGPT Dot login window (chatgpt.com/dots). */
+  openDotLogin: (accountId: string) => Promise<void>
+  /** Inject Grok accessToken into adapter after login (encrypted via safeStorage). */
+  setGrokAccessToken: (
+    accountId: string,
+    accessToken: string,
+    accountSlot?: string,
+    machineId?: string,
+    refreshToken?: string
+  ) => Promise<void>
   disconnectAccount: (accountId: string) => Promise<void>
+  /** Wipe all stored credentials, tokens, cookies, and proxy pool across all platforms. */
+  clearAllCredentials: () => Promise<void>
+  /** Wipe all credentials and reset workspace (bots, accounts, messages, groups) to factory defaults. */
+  resetWorkspace: () => Promise<void>
 }
 
 
@@ -160,6 +188,57 @@ function prevMediaMerge(
   return prev
 }
 
+function normalizeDotMsgId(rawId: string, role: 'user' | 'bot'): string {
+  const clean = rawId.replace(/^(dot_u_|dot_)+/, '')
+  return role === 'user' ? `dot_u_${clean}` : `dot_${clean}`
+}
+
+function mergeHydratedMessages(existing: ChatMessage[], hydrated: ChatMessage[]): ChatMessage[] {
+  if (hydrated.length === 0) return existing
+  const normalizedExisting = existing.map((m) =>
+    m.id.startsWith('dot_dot_') ? { ...m, id: m.id.replace(/^dot_dot_/, 'dot_') } : m
+  )
+  const hydratedById = new Map(hydrated.map((m) => [m.id, m]))
+  const keptLocal: ChatMessage[] = []
+  const earliestHydratedTs = hydrated[0]?.createdAt ?? 0
+
+  for (const localMsg of normalizedExisting) {
+    if (hydratedById.has(localMsg.id)) continue
+    // If this was a local user message (`msg_...`) that now exists in `hydrated` from the server, skip the duplicate
+    if (
+      localMsg.role === 'user' &&
+      localMsg.id.startsWith('msg_') &&
+      localMsg.delivery === 'sent' &&
+      hydrated.some(
+        (h) =>
+          h.role === 'user' &&
+          h.text.trim() === localMsg.text.trim() &&
+          Math.abs(h.createdAt - localMsg.createdAt) < 120_000
+      )
+    ) {
+      continue
+    }
+    // Keep older history before the hydrated window, or in-flight/failed local messages, or newer real-time messages
+    if (
+      localMsg.delivery === 'sending' ||
+      localMsg.delivery === 'failed' ||
+      localMsg.createdAt < earliestHydratedTs - 1000 ||
+      localMsg.createdAt > (hydrated[hydrated.length - 1]?.createdAt ?? 0) + 1000
+    ) {
+      keptLocal.push(localMsg)
+    }
+  }
+
+  const combined = [...keptLocal, ...hydrated]
+  combined.sort((a, b) => a.createdAt - b.createdAt)
+  const seen = new Set<string>()
+  return combined.filter((m) => {
+    if (seen.has(m.id)) return false
+    seen.add(m.id)
+    return true
+  })
+}
+
 export const useBotStore = create<BotHubState>()(
   persist((set, get) => {
   const updateMessage = (botId: string, messageId: string, patch: Partial<ChatMessage>) =>
@@ -194,12 +273,16 @@ export const useBotStore = create<BotHubState>()(
     }
 
     try {
-      await adapter.sendMessage({
+      const receipt = await adapter.sendMessage({
         conversationId: botId,
         accountId: message.accountId,
+        sessionId: bot.activeSessionId,
         text: message.text,
         attachments: message.attachments
       })
+      if (receipt.sessionId && receipt.sessionId !== bot.activeSessionId) {
+        patchBot(botId, () => ({ activeSessionId: receipt.sessionId }))
+      }
       updateMessage(botId, messageId, { delivery: 'sent', error: undefined })
     } catch (error) {
       updateMessage(botId, messageId, { delivery: 'failed', error: errorMessage(error) })
@@ -213,6 +296,7 @@ export const useBotStore = create<BotHubState>()(
     selectedBotId: seed.bots[0]?.id ?? null,
     collapsedGroups: {},
     infoPanelOpen: true,
+    sidebarCollapsed: false,
     sidebarWidth: SIDEBAR_DEFAULT,
     addBotOpen: false,
     addBotKey: 0,
@@ -220,12 +304,31 @@ export const useBotStore = create<BotHubState>()(
     paletteQuery: '',
     paletteKey: 0,
     webSessionOpen: false,
+    settingsOpen: false,
+    settingsTab: 'overview',
 
     selectBot: (botId) =>
-      set((state) => ({
-        selectedBotId: botId,
-        bots: state.bots.map((b) => (b.id === botId && b.unread > 0 ? { ...b, unread: 0 } : b))
-      })),
+      set((state) => {
+        const targetBot = state.bots.find((b) => b.id === botId)
+        let nextAccounts = state.accounts
+        if (targetBot) {
+          for (const accId of targetBot.accountIds) {
+            const acc = nextAccounts[accId]
+            if (acc && (acc.unread ?? 0) > 0) {
+              nextAccounts = {
+                ...nextAccounts,
+                [accId]: { ...acc, unread: 0 }
+              }
+            }
+          }
+        }
+        return {
+          selectedBotId: botId,
+          settingsOpen: false,
+          accounts: nextAccounts,
+          bots: state.bots.map((b) => (b.id === botId && b.unread > 0 ? { ...b, unread: 0 } : b))
+        }
+      }),
 
     toggleGroup: (groupId) =>
       set((state) => ({
@@ -303,6 +406,8 @@ export const useBotStore = create<BotHubState>()(
 
     toggleInfoPanel: () => set((state) => ({ infoPanelOpen: !state.infoPanelOpen })),
 
+    toggleSidebarCollapsed: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
+
     setSidebarWidth: (width) =>
       set({ sidebarWidth: Math.round(Math.min(SIDEBAR_MAX, Math.max(SIDEBAR_MIN, width))) }),
 
@@ -310,6 +415,12 @@ export const useBotStore = create<BotHubState>()(
       set((state) => (open ? { addBotOpen: true, addBotKey: state.addBotKey + 1 } : { addBotOpen: false })),
 
     toggleWebSession: () => set((state) => ({ webSessionOpen: !state.webSessionOpen })),
+
+    setSettingsOpen: (open, tab) =>
+      set((state) => ({
+        settingsOpen: open,
+        settingsTab: tab ?? state.settingsTab
+      })),
 
     openPalette: (query = '') =>
       set((state) => ({ paletteOpen: true, paletteQuery: query, paletteKey: state.paletteKey + 1 })),
@@ -373,6 +484,13 @@ export const useBotStore = create<BotHubState>()(
       }))
 
       const accounts = get().accounts
+      const bridge = electronBridge()
+      if (input.platformId === 'meta-muse' && bridge?.muse?.assignProxyPool) {
+        const allMuseIds = Object.values(accounts)
+          .filter((a) => a.platformId === 'meta-muse')
+          .map((a) => a.id)
+        void bridge.muse.assignProxyPool(allMuseIds).catch(() => undefined)
+      }
       for (const id of ids) if (accounts[id]?.status === 'offline') void get().connectAccount(id)
       return bot.id
     },
@@ -391,6 +509,13 @@ export const useBotStore = create<BotHubState>()(
       }))
 
       const accounts = get().accounts
+      const bridge = electronBridge()
+      if (bot.platformId === 'meta-muse' && bridge?.muse?.assignProxyPool) {
+        const allMuseIds = Object.values(accounts)
+          .filter((a) => a.platformId === 'meta-muse')
+          .map((a) => a.id)
+        void bridge.muse.assignProxyPool(allMuseIds).catch(() => undefined)
+      }
       for (const id of newIds) if (accounts[id]?.status === 'offline') void get().connectAccount(id)
     },
 
@@ -400,6 +525,12 @@ export const useBotStore = create<BotHubState>()(
     },
 
     setBotAvatar: (botId, avatar) => patchBot(botId, () => ({ avatar })),
+
+    setBotCharacter: (botId, character) =>
+      patchBot(botId, (b) => ({
+        avatarShape: character.shape ?? b.avatarShape,
+        avatarColor: character.color ?? b.avatarColor
+      })),
 
     removeBot: async (botId) => {
       const state = get()
@@ -456,8 +587,10 @@ export const useBotStore = create<BotHubState>()(
 
     receiveMessage: (incoming) =>
       set((state) => {
-        const botId = incoming.conversationId
-        if (!state.bots.some((b) => b.id === botId)) return state
+        const botId = state.bots.some((b) => b.id === incoming.conversationId)
+          ? incoming.conversationId
+          : state.bots.find((b) => b.accountIds.includes(incoming.accountId))?.id
+        if (!botId) return state
         const list = state.messages[botId] ?? []
         const existingIdx = list.findIndex((m) => m.id === incoming.id)
         const prevText = existingIdx >= 0 ? list[existingIdx]!.text : ''
@@ -523,8 +656,10 @@ export const useBotStore = create<BotHubState>()(
 
     applyMessageDelta: (messageId, conversationId, accountId, text, widgets, tools, media, richWidgets) =>
       set((state) => {
-        const botId = conversationId
-        if (!state.bots.some((b) => b.id === botId)) return state
+        const botId = state.bots.some((b) => b.id === conversationId)
+          ? conversationId
+          : state.bots.find((b) => b.accountIds.includes(accountId))?.id
+        if (!botId) return state
         const list = state.messages[botId] ?? []
         const existingIdx = list.findIndex((m) => m.id === messageId)
         if (existingIdx >= 0) {
@@ -586,8 +721,11 @@ export const useBotStore = create<BotHubState>()(
         return { messages: { ...state.messages, [botId]: [...list, message] } }
       }),
 
-    setTyping: (botId, isTyping) =>
+    setTyping: (botIdOrAccountId, isTyping) =>
       set((state) => {
+        const botId = state.bots.some((b) => b.id === botIdOrAccountId)
+          ? botIdOrAccountId
+          : state.bots.find((b) => b.accountIds.includes(botIdOrAccountId))?.id ?? botIdOrAccountId
         if ((state.typing[botId] === true) === isTyping) return state
         const typing = { ...state.typing }
         if (isTyping) typing[botId] = true
@@ -597,7 +735,7 @@ export const useBotStore = create<BotHubState>()(
 
     setActivity: (accountId, activity) =>
       set((state) => {
-        if (!activity) {
+        if (!activity || !activity.busy || activity.code === 'idle') {
           if (!(accountId in state.activity)) return state
           const { [accountId]: _removed, ...rest } = state.activity
           return { activity: rest }
@@ -680,6 +818,103 @@ export const useBotStore = create<BotHubState>()(
       })
     },
 
+    cancelGeneration: async (botId) => {
+      const bot = get().bots.find((b) => b.id === botId)
+      if (!bot) return
+      get().setTyping(botId, false)
+      get().setActivity(bot.activeAccountId, null)
+      get().setAccountStatus(bot.activeAccountId, 'online')
+      const bridge = electronBridge()
+      if (bot.platformId === 'meta-muse' && bridge?.muse?.cancelChat) {
+        await bridge.muse.cancelChat(bot.activeAccountId, bot.activeSessionId)
+      } else if (bot.platformId === 'grok' && bot.selectedAgentId && bridge?.grok?.rpc) {
+        await bridge.grok
+          .rpc({
+            accountId: bot.activeAccountId,
+            op: 'call',
+            method: 'InterruptGrokBotAgentRun',
+            params: {
+              agent_id: bot.selectedAgentId,
+              reason: 'user_interrupt',
+              ...(bot.activeSessionId ? { session_id: bot.activeSessionId } : {})
+            }
+          })
+          .catch(() => undefined)
+      } else if (bot.platformId === 'hark' && bridge?.hark?.rpc) {
+        await Promise.all([
+          bridge.hark
+            .rpc({
+              accountId: bot.activeAccountId,
+              op: 'call',
+              method: 'POST',
+              path: '/messages/pause-agent',
+              body: bot.activeSessionId ? { conversationId: bot.activeSessionId } : {}
+            })
+            .catch(() => undefined),
+          bridge.hark
+            .rpc({
+              accountId: bot.activeAccountId,
+              op: 'call',
+              method: 'POST',
+              path: '/messages/stop-tool',
+              body: bot.activeSessionId ? { conversationId: bot.activeSessionId } : {}
+            })
+            .catch(() => undefined)
+        ])
+      } else if (bot.platformId === 'dot' && bridge?.dot?.rpc) {
+        await bridge.dot
+          .rpc({
+            accountId: bot.activeAccountId,
+            op: 'cancelTurn'
+          })
+          .catch(() => undefined)
+      }
+    },
+
+    switchMuseSession: async (botId, sessionId) => {
+      const bot = get().bots.find((b) => b.id === botId)
+      if (!bot || bot.platformId !== 'meta-muse') return
+      patchBot(botId, () => ({ activeSessionId: sessionId }))
+      const bridge = electronBridge()
+      if (!bridge?.muse?.loadSessionHistory) return
+      const rows = await bridge.muse.loadSessionHistory(bot.activeAccountId, sessionId)
+      const hydrated: ChatMessage[] = rows.map((r) => ({
+        id: r.id,
+        botId,
+        accountId: bot.activeAccountId,
+        role: r.role,
+        text: r.text,
+        createdAt: r.createdAt,
+        delivery: r.role === 'user' ? 'sent' : undefined,
+        widgets: r.widgets,
+        richWidgets: r.richWidgets,
+        tools: r.tools,
+        media: r.media
+      }))
+      set((s) => ({
+        messages: { ...s.messages, [botId]: hydrated }
+      }))
+    },
+
+    startNewMuseSession: async (botId) => {
+      const bot = get().bots.find((b) => b.id === botId)
+      if (!bot || bot.platformId !== 'meta-muse') return
+      const bridge = electronBridge()
+      let newSessionId: string | undefined
+      if (bridge?.muse?.startSession) {
+        try {
+          const res = await bridge.muse.startSession(bot.activeAccountId)
+          if (res.sessionId) newSessionId = res.sessionId
+        } catch {
+          /* ignore */
+        }
+      }
+      patchBot(botId, () => ({ activeSessionId: newSessionId }))
+      set((s) => ({
+        messages: { ...s.messages, [botId]: [] }
+      }))
+    },
+
     updateNotes: (botId, notes) => patchBot(botId, () => ({ notes })),
 
     addMemory: (botId, text) => {
@@ -704,7 +939,7 @@ export const useBotStore = create<BotHubState>()(
         }
       }),
 
-    setActiveAccount: (botId, accountId) =>
+    setActiveAccount: (botId, accountId) => {
       set((state) => {
         if (!state.bots.some((b) => b.id === botId && b.accountIds.includes(accountId))) return state
         const account = state.accounts[accountId]
@@ -716,7 +951,12 @@ export const useBotStore = create<BotHubState>()(
             ? { ...state.accounts, [accountId]: { ...account, unread: 0 } }
             : state.accounts
         }
-      }),
+      })
+      const acc = get().accounts[accountId]
+      if (acc && acc.status === 'offline') {
+        void get().connectAccount(accountId)
+      }
+    },
 
     setSelectedAgent: (botId, agentId) => {
       const trimmed = agentId.trim()
@@ -728,6 +968,53 @@ export const useBotStore = create<BotHubState>()(
         const adapter = account && adapterRegistry.get(account.platformId)
         const grok = adapter as { bindConversationAgent?: (c: string, a: string) => void } | undefined
         grok?.bindConversationAgent?.(botId, trimmed)
+        const bridge = electronBridge()
+        if (bot?.platformId === 'grok' && bridge?.grok?.rpc) {
+          void bridge.grok
+            .rpc({
+              accountId: bot.activeAccountId,
+              op: 'listTranscriptEntries',
+              agentId: trimmed,
+              sessionId: bot.activeSessionId ?? '',
+              limit: 60
+            })
+            .then((res) => {
+              if (!res.ok || !res.data || typeof res.data !== 'object') return
+              const root = res.data as Record<string, unknown>
+              const entries = (Array.isArray(root['entries']) ? root['entries'] : []) as Record<string, unknown>[]
+              const hydrated: ChatMessage[] = []
+              for (const raw of entries) {
+                let e = raw
+                if (typeof raw['body'] === 'string' && raw['body']) {
+                  try {
+                    e = { ...raw, ...(JSON.parse(atob(raw['body'] as string)) as Record<string, unknown>) }
+                  } catch {
+                    /* ignore */
+                  }
+                }
+                const msgObj = e['message'] as Record<string, unknown> | undefined
+                const text = String(e['text'] ?? e['content'] ?? msgObj?.['text'] ?? msgObj?.['content'] ?? '').trim()
+                if (!text) continue
+                const roleRaw = String(e['role'] ?? '')
+                const kindRaw = String(e['kind'] ?? e['entryKind'] ?? '')
+                const isUser = /^user$/i.test(roleRaw) || /send-message/i.test(kindRaw)
+                const rawId = String(e['id'] ?? e['message_id'] ?? hydrated.length)
+                hydrated.push({
+                  id: isUser ? `grok_u_${rawId}` : `grok_${rawId}`,
+                  botId,
+                  accountId: bot.activeAccountId,
+                  role: isUser ? 'user' : 'bot',
+                  text,
+                  createdAt: Number(e['timestampMs'] ?? e['created_at_ms'] ?? Date.now()) || Date.now(),
+                  delivery: isUser ? 'sent' : undefined
+                })
+              }
+              if (hydrated.length > 0) {
+                set((s) => ({ messages: { ...s.messages, [botId]: hydrated } }))
+              }
+            })
+            .catch(() => undefined)
+        }
       } catch {
         /* ignore */
       }
@@ -751,6 +1038,12 @@ export const useBotStore = create<BotHubState>()(
           await bridge.grok.clearAuth(accountId)
           const adapter = adapterRegistry.get('grok') as { clearAuth?: (id: string) => void }
           adapter?.clearAuth?.(accountId)
+        } else if (account.platformId === 'dot' && bridge?.dot?.clearAuth) {
+          await bridge.dot.clearAuth(accountId)
+          await bridge.webViews?.clearPartition?.(accountId)
+        } else if (account.platformId === 'hark' && bridge?.hark?.clearAuth) {
+          await bridge.hark.clearAuth(accountId)
+          await bridge.webViews?.clearPartition?.(accountId)
         } else if (bridge?.webViews?.clearPartition) {
           await bridge.webViews.clearPartition(accountId)
         }
@@ -787,6 +1080,152 @@ export const useBotStore = create<BotHubState>()(
       try {
         const status = await adapter.connect(accountId)
         patchAccount(accountId, { status, statusDetail: undefined })
+        if (account.platformId === 'hark' && status === 'online') {
+          const bridge = electronBridge()
+          const ownerBot = get().bots.find((b) => b.accountIds.includes(accountId))
+          if (ownerBot && bridge?.hark?.rpc) {
+            void bridge.hark
+              .rpc({ accountId, op: 'mainConversation' })
+              .then((res) => {
+                if (!res.ok || !res.data || typeof res.data !== 'object') return
+                const d = res.data as {
+                  conversationId?: string
+                  messages?: Array<{
+                    id: string
+                    role: string
+                    content: string
+                    createdAt?: string | number | null
+                    toolCalls?: Array<{ dispatchId: string; name: string; status: string; url?: string }>
+                    actions?: Array<{ kind: string; connector?: string; label: string }>
+                  }>
+                }
+                if (d.conversationId) {
+                  patchBot(ownerBot.id, () => ({ activeSessionId: d.conversationId }))
+                }
+                if (Array.isArray(d.messages) && d.messages.length > 0) {
+                  const hydrated: ChatMessage[] = d.messages
+                    .filter((m) => (m.content && m.content.trim()) || (m.actions && m.actions.length > 0))
+                    .map((m) => {
+                      const isUser = /^user$/i.test(m.role)
+                      const ts =
+                        typeof m.createdAt === 'number'
+                          ? m.createdAt
+                          : typeof m.createdAt === 'string'
+                            ? Date.parse(m.createdAt) || Date.now()
+                            : Date.now()
+                      const richWidgets: ChatMessage['richWidgets'] =
+                        m.actions && m.actions.length > 0
+                          ? [
+                              {
+                                kind: 'text_with_button',
+                                widgetId: `hark_act_${m.id}`,
+                                text: '',
+                                buttons: m.actions.map((a) => ({
+                                  label: a.label || `Connect ${a.connector ?? ''}`,
+                                  actionText: a.connector ? `Connect ${a.connector}` : a.label
+                                }))
+                              }
+                            ]
+                          : undefined
+                      const tools: ChatMessage['tools'] =
+                        m.toolCalls && m.toolCalls.length > 0
+                          ? m.toolCalls.map((tc) => ({
+                              id: tc.dispatchId,
+                              name: tc.name,
+                              status:
+                                tc.status === 'running'
+                                  ? 'running'
+                                  : tc.status === 'failed'
+                                    ? 'errored'
+                                    : 'completed',
+                              summary: tc.url
+                            }))
+                          : undefined
+                      return {
+                        id: isUser ? `hark_u_${m.id}` : `hark_${m.id}`,
+                        botId: ownerBot.id,
+                        accountId,
+                        role: isUser ? 'user' : 'bot',
+                        text: m.content?.trim() || '',
+                        createdAt: ts,
+                        delivery: isUser ? 'sent' : undefined,
+                        richWidgets,
+                        tools
+                      }
+                    })
+                  if (hydrated.length > 0) {
+                    set((s) => ({
+                      messages: {
+                        ...s.messages,
+                        [ownerBot.id]: mergeHydratedMessages(s.messages[ownerBot.id] ?? [], hydrated)
+                      }
+                    }))
+                  }
+                }
+              })
+              .catch(() => undefined)
+          }
+        } else if (account.platformId === 'dot' && status === 'online') {
+          const bridge = electronBridge()
+          const ownerBot =
+            get().bots.find((b) => b.activeAccountId === accountId) ??
+            get().bots.find((b) => b.accountIds.includes(accountId))
+          if (ownerBot && bridge?.dot?.rpc) {
+            void bridge.dot
+              .authStatus(accountId)
+              .then((st) => {
+                if (st.handle || st.displayName) {
+                  patchAccount(accountId, {
+                    handle: st.handle || account.handle,
+                    displayName: st.displayName || account.displayName
+                  })
+                }
+              })
+              .catch(() => undefined)
+            void bridge.dot
+              .rpc({ accountId, op: 'listRoomMessages', limit: 32 })
+              .then((res) => {
+                if (!res.ok || !res.data || typeof res.data !== 'object') return
+                const d = res.data as {
+                  roomId?: string
+                  dotId?: string
+                  messages?: Array<{
+                    id: string
+                    role: 'user' | 'bot'
+                    text: string
+                    createdAtMs: number
+                    media?: ChatMessage['media']
+                  }>
+                }
+                if (d.roomId) {
+                  patchBot(ownerBot.id, () => ({ activeSessionId: d.roomId }))
+                }
+                if (Array.isArray(d.messages) && d.messages.length > 0) {
+                  const hydrated: ChatMessage[] = d.messages
+                    .filter((m) => (m.text && m.text.trim()) || (m.media && m.media.length > 0))
+                    .map((m) => ({
+                      id: normalizeDotMsgId(m.id, m.role),
+                      botId: ownerBot.id,
+                      accountId,
+                      role: m.role,
+                      text: (m.text || '').trim(),
+                      createdAt: m.createdAtMs || Date.now(),
+                      delivery: m.role === 'user' ? 'sent' : undefined,
+                      ...(m.media && m.media.length > 0 ? { media: m.media } : {})
+                    }))
+                  if (hydrated.length > 0) {
+                    set((s) => ({
+                      messages: {
+                        ...s.messages,
+                        [ownerBot.id]: mergeHydratedMessages(s.messages[ownerBot.id] ?? [], hydrated)
+                      }
+                    }))
+                  }
+                }
+              })
+              .catch(() => undefined)
+          }
+        }
       } catch (error) {
         patchAccount(accountId, { status: 'error', statusDetail: errorMessage(error) })
       } finally {
@@ -843,7 +1282,53 @@ export const useBotStore = create<BotHubState>()(
       }
     },
 
-    setGrokAccessToken: async (accountId, accessToken, accountSlot, machineId) => {
+    openHarkLogin: async (accountId) => {
+      const account = get().accounts[accountId]
+      const adapter = account && adapterRegistry.get(account.platformId)
+      if (!account || !adapter || account.pending) return
+      if (account.platformId !== 'hark' || !adapter.openLogin) {
+        await get().connectAccount(accountId)
+        return
+      }
+      const bot = get().bots.find((b) => b.accountIds.includes(accountId))
+      patchAccount(accountId, { pending: true, statusDetail: '在弹出的窗口完成 Hark 登录…' })
+      try {
+        const status = await adapter.openLogin(accountId, bot?.id)
+        patchAccount(accountId, {
+          status,
+          statusDetail: status === 'offline' ? '在弹出的窗口完成 Hark 登录' : undefined
+        })
+      } catch (error) {
+        patchAccount(accountId, { status: 'error', statusDetail: errorMessage(error) })
+      } finally {
+        patchAccount(accountId, { pending: false })
+      }
+    },
+
+    openDotLogin: async (accountId) => {
+      const account = get().accounts[accountId]
+      const adapter = account && adapterRegistry.get(account.platformId)
+      if (!account || !adapter || account.pending) return
+      if (account.platformId !== 'dot' || !adapter.openLogin) {
+        await get().connectAccount(accountId)
+        return
+      }
+      const bot = get().bots.find((b) => b.accountIds.includes(accountId))
+      patchAccount(accountId, { pending: true, statusDetail: '在弹出的窗口完成 ChatGPT Dot 登录…' })
+      try {
+        const status = await adapter.openLogin(accountId, bot?.id)
+        patchAccount(accountId, {
+          status,
+          statusDetail: status === 'offline' ? '在弹出的窗口完成 ChatGPT 登录或导入凭据' : undefined
+        })
+      } catch (error) {
+        patchAccount(accountId, { status: 'error', statusDetail: errorMessage(error) })
+      } finally {
+        patchAccount(accountId, { pending: false })
+      }
+    },
+
+    setGrokAccessToken: async (accountId, accessToken, accountSlot, machineId, refreshToken) => {
       const account = get().accounts[accountId]
       const adapter = account && adapterRegistry.get(account.platformId)
       if (!account || account.platformId !== 'grok') return
@@ -851,7 +1336,7 @@ export const useBotStore = create<BotHubState>()(
       try {
         const bridge = electronBridge()
         if (bridge?.grok?.setAccessToken) {
-          await bridge.grok.setAccessToken({ accountId, accessToken, accountSlot, machineId })
+          await bridge.grok.setAccessToken({ accountId, accessToken, refreshToken, accountSlot, machineId })
         }
         const grok = adapter as {
           setAuth?: (s: {
@@ -884,6 +1369,32 @@ export const useBotStore = create<BotHubState>()(
       } finally {
         patchAccount(accountId, { pending: false })
       }
+    },
+
+    clearAllCredentials: async () => {
+      const bridge = electronBridge()
+      const allAccounts = Object.values(get().accounts)
+      for (const acc of allAccounts) {
+        await get().signOutAccount(acc.id).catch(() => undefined)
+      }
+      await bridge?.dot?.clearAuth?.('*').catch(() => undefined)
+      await bridge?.grok?.clearAuth?.('*').catch(() => undefined)
+      await bridge?.muse?.clearProxyPool?.().catch(() => undefined)
+    },
+
+    resetWorkspace: async () => {
+      await get().clearAllCredentials()
+      const fresh = createSeed()
+      set({
+        groups: fresh.groups,
+        bots: fresh.bots,
+        accounts: fresh.accounts,
+        messages: fresh.messages,
+        typing: {},
+        activity: {},
+        selectedBotId: null,
+        collapsedGroups: {}
+      })
     }
   }
   },
@@ -897,6 +1408,7 @@ export const useBotStore = create<BotHubState>()(
       selectedBotId: state.selectedBotId,
       collapsedGroups: state.collapsedGroups,
       infoPanelOpen: state.infoPanelOpen,
+      sidebarCollapsed: state.sidebarCollapsed,
       sidebarWidth: state.sidebarWidth
     })
   }

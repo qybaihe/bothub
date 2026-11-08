@@ -38,7 +38,16 @@ function ConversationIntro({
   return (
     <div className="flex min-h-0 flex-1 animate-veil-in flex-col items-center justify-center gap-5 px-8 pb-6 text-center">
       <div className="flex flex-col items-center gap-3">
-        <BotAvatar emoji={bot.emoji} seed={bot.id} avatar={bot.avatar} platformId={bot.platformId} size="lg" />
+        <BotAvatar
+          emoji={bot.emoji}
+          seed={bot.id}
+          avatar={bot.avatar}
+          avatarShape={bot.avatarShape}
+          avatarColor={bot.avatarColor}
+          platformId={bot.platformId}
+          followPointer
+          size="lg"
+        />
         <h2 className="text-[17px] leading-6 font-medium tracking-tight text-ink">{bot.name}</h2>
       </div>
       {needsMuseLogin && onMuseLogin ? (
@@ -65,9 +74,12 @@ export function ChatArea() {
   const typing = useBotStore((s) => (s.selectedBotId ? s.typing[s.selectedBotId] === true : false))
   const sendMessage = useBotStore((s) => s.sendMessage)
   const retryMessage = useBotStore((s) => s.retryMessage)
+  const cancelGeneration = useBotStore((s) => s.cancelGeneration)
   const connectAccount = useBotStore((s) => s.connectAccount)
   const openMuseLogin = useBotStore((s) => s.openMuseLogin)
   const openGrokLogin = useBotStore((s) => s.openGrokLogin)
+  const openHarkLogin = useBotStore((s) => s.openHarkLogin)
+  const openDotLogin = useBotStore((s) => s.openDotLogin)
   const webSessionOpen = useBotStore((s) => s.webSessionOpen)
   const hasBots = useBotStore((s) => s.bots.length > 0)
   const setAddBotOpen = useBotStore((s) => s.setAddBotOpen)
@@ -88,9 +100,14 @@ export function ChatArea() {
     },
     [botId, retryMessage]
   )
+  const onCancel = useCallback(() => {
+    if (botId) void cancelGeneration(botId)
+  }, [botId, cancelGeneration])
   const onConnect = useCallback((accountId: string) => void connectAccount(accountId), [connectAccount])
   const onMuseLogin = useCallback((accountId: string) => void openMuseLogin(accountId), [openMuseLogin])
   const onGrokLogin = useCallback((accountId: string) => void openGrokLogin(accountId), [openGrokLogin])
+  const onHarkLogin = useCallback((accountId: string) => void openHarkLogin(accountId), [openHarkLogin])
+  const onDotLogin = useCallback((accountId: string) => void openDotLogin(accountId), [openDotLogin])
 
   if (!bot) {
     return (
@@ -143,10 +160,14 @@ export function ChatArea() {
             key={bot.id}
             bot={bot}
             account={activeAccount}
+            typing={typing}
             onSend={onSend}
+            onCancel={onCancel}
             onConnect={onConnect}
             onMuseLogin={onMuseLogin}
             onGrokLogin={onGrokLogin}
+            onHarkLogin={onHarkLogin}
+            onDotLogin={onDotLogin}
             hideNotice={needsMuseLogin && messages.length === 0 && !typing}
           />
         </>

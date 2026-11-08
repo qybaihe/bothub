@@ -105,8 +105,18 @@ export function MessageList({ bot, messages, accounts, typing, onRetry }: Messag
               <li className={cn('group/msg', isFirstInRun && !newDay ? 'mt-3' : 'mt-1')}>
                 <div className="flex items-start gap-2.5">
                   {isBot && (
-                    <span className="w-7 shrink-0">
-                      {isFirstInRun && <BotAvatar emoji={bot.emoji} seed={bot.id} avatar={bot.avatar} platformId={bot.platformId} size="sm" />}
+                    <span className="mt-0.5 w-7 shrink-0">
+                      {isFirstInRun && (
+                        <BotAvatar
+                          emoji={bot.emoji}
+                          seed={bot.id}
+                          avatar={bot.avatar}
+                          avatarShape={bot.avatarShape}
+                          avatarColor={bot.avatarColor}
+                          platformId={bot.platformId}
+                          size="sm"
+                        />
+                      )}
                     </span>
                   )}
                   <div className="min-w-0 flex-1">

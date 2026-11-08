@@ -1,15 +1,13 @@
-import { useEffect, useState, type KeyboardEvent } from 'react'
-import { Check, Plus, RefreshCw, Search } from 'lucide-react'
+import { type KeyboardEvent } from 'react'
+import { PanelLeft, Plus, Search, Settings } from 'lucide-react'
+import { GrokBotMark } from '@/components/ui/GrokBotMark'
 import { IconButton } from '@/components/ui/IconButton'
-import { Menu, MenuContent, MenuItem, MenuLabel, MenuSeparator, MenuTrigger } from '@/components/ui/Menu'
-import { useT } from '@/lib/i18n'
-import { usePrefsStore, type Locale, type ThemePref } from '@/store/prefsStore'
-import { getBridge, runtimePlatform } from '@/lib/bridge'
+import { t } from '@/lib/i18n'
+import { runtimePlatform } from '@/lib/bridge'
 import { cn } from '@/lib/cn'
 import { shortcutLabel } from '@/lib/shortcuts'
 import { useBotStore } from '@/store/botStore'
 import { BotList } from './BotList'
-import { t } from '@/lib/i18n'
 
 interface SidebarProps {
   onAddBot: () => void
@@ -17,96 +15,37 @@ interface SidebarProps {
 
 function BrandMark() {
   return (
-    <span className="grid size-6 place-items-center rounded-[7px] bg-ink" aria-hidden>
-      <svg viewBox="0 0 16 16" className="size-3.5 text-canvas" fill="none">
-        <rect x="2.5" y="4" width="11" height="8.5" rx="3" stroke="currentColor" strokeWidth="1.6" />
-        <circle cx="6.2" cy="8.25" r="1" fill="currentColor" />
-        <circle cx="9.8" cy="8.25" r="1" fill="currentColor" />
-        <path d="M8 4V2" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-      </svg>
+    <span className="grid size-6 place-items-center" aria-hidden>
+      <GrokBotMark seed="bothub-brand" shape="blob" color="black" sizePx={22} followPointer />
     </span>
-  )
-}
-
-/** The brand doubles as the app menu (updates, version). */
-function BrandMenu() {
-  const [version, setVersion] = useState('')
-  const [checking, setChecking] = useState(false)
-  const updates = getBridge()?.updates
-  const t = useT()
-  const theme = usePrefsStore((s) => s.theme)
-  const setTheme = usePrefsStore((s) => s.setTheme)
-  const locale = usePrefsStore((s) => s.locale)
-  const setLocale = usePrefsStore((s) => s.setLocale)
-  const THEMES: ReadonlyArray<[ThemePref, string]> = [
-    ['system', 'Match system'],
-    ['light', 'Light'],
-    ['dark', 'Dark']
-  ]
-  const LOCALES: ReadonlyArray<[Locale, string]> = [
-    ['zh', '简体中文'],
-    ['en', 'English']
-  ]
-
-  useEffect(() => {
-    if (!updates) return
-    void updates.version().then(setVersion)
-    return updates.onEvent((event) => setChecking(event.type === 'checking'))
-  }, [updates])
-
-  return (
-    <Menu>
-      <MenuTrigger
-        className="no-drag press -ml-1 flex h-8 min-w-0 items-center gap-2 rounded-full pr-2.5 pl-1 hover:bg-hover data-[state=open]:bg-hover"
-        aria-label={t('BotHub menu')}
-      >
-        <BrandMark />
-        <span className="truncate text-[15px] font-semibold tracking-tight text-ink">BotHub</span>
-      </MenuTrigger>
-      <MenuContent align="start" className="min-w-48">
-        <MenuLabel>{t('Appearance')}</MenuLabel>
-        {THEMES.map(([id, label]) => (
-          <MenuItem key={id} onSelect={() => setTheme(id)}>
-            <Check aria-hidden className={cn(theme !== id && 'invisible')} />
-            {t(label)}
-          </MenuItem>
-        ))}
-        <MenuSeparator />
-        <MenuLabel>{t('Language')}</MenuLabel>
-        {LOCALES.map(([id, label]) => (
-          <MenuItem key={id} onSelect={() => {
-            if (id === locale) return
-            setLocale(id)
-            window.location.reload()
-          }}>
-            <Check aria-hidden className={cn(locale !== id && 'invisible')} />
-            {label}
-          </MenuItem>
-        ))}
-        <MenuSeparator />
-        <MenuItem
-          disabled={checking || !updates}
-          onSelect={() => {
-            setChecking(true)
-            void updates?.check()
-          }}
-        >
-          <RefreshCw className={cn(checking && 'animate-spin')} aria-hidden />
-          {t('Check for updates')}
-        </MenuItem>
-        {version ? (
-          <>
-            <MenuSeparator />
-            <MenuItem disabled>BotHub {version}</MenuItem>
-          </>
-        ) : null}
-      </MenuContent>
-    </Menu>
   )
 }
 
 export function Sidebar({ onAddBot }: SidebarProps) {
   const openPalette = useBotStore((s) => s.openPalette)
+  const sidebarCollapsed = useBotStore((s) => s.sidebarCollapsed)
+  const toggleSidebarCollapsed = useBotStore((s) => s.toggleSidebarCollapsed)
+  const settingsOpen = useBotStore((s) => s.settingsOpen)
+  const setSettingsOpen = useBotStore((s) => s.setSettingsOpen)
+  const selectedPlatformId = useBotStore(
+    (s) => s.bots.find((b) => b.id === s.selectedBotId)?.platformId
+  )
+  const totalAccountCount = useBotStore((s) => Object.keys(s.accounts).length)
+  const dotAccountCount = useBotStore(
+    (s) => Object.values(s.accounts).filter((a) => a.platformId === 'dot').length
+  )
+  const museAccountCount = useBotStore(
+    (s) => Object.values(s.accounts).filter((a) => a.platformId === 'meta-muse').length
+  )
+
+  const defaultSettingsTab =
+    selectedPlatformId === 'dot'
+      ? 'dot-accounts'
+      : selectedPlatformId === 'grok'
+        ? 'grok-accounts'
+        : selectedPlatformId === 'hark'
+          ? 'hark-accounts'
+          : 'muse-accounts'
 
   // Typing while the sidebar has focus starts a search.
   const typeToSearch = (event: KeyboardEvent<HTMLDivElement>) => {
@@ -117,16 +56,53 @@ export function Sidebar({ onAddBot }: SidebarProps) {
     openPalette(event.key)
   }
 
+  if (sidebarCollapsed) {
+    return (
+      <div className="flex min-h-0 flex-1 flex-col items-center" onKeyDown={typeToSearch}>
+        <div className="drag-region h-[42px] w-full shrink-0" />
+        <div className="flex min-h-0 w-full flex-1 flex-col items-center px-1.5 pt-1 pb-2">
+          <BotList />
+        </div>
+        <div className="no-drag flex shrink-0 flex-col items-center gap-1.5 pb-3 pt-1">
+          <IconButton
+            round
+            label={t('Expand sidebar')}
+            onClick={toggleSidebarCollapsed}
+          >
+            <PanelLeft />
+          </IconButton>
+          <IconButton round label={t('New bot')} shortcut={shortcutLabel('N')} onClick={onAddBot}>
+            <Plus />
+          </IconButton>
+          <IconButton
+            round
+            active={settingsOpen}
+            label="设置与 Muse 账号池"
+            onClick={() => setSettingsOpen(!settingsOpen)}
+          >
+            <Settings />
+          </IconButton>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="flex min-h-0 flex-1 flex-col" onKeyDown={typeToSearch}>
       <header
         className={cn(
-          'drag-region flex h-[60px] shrink-0 items-center gap-2 px-3 pt-2',
-          runtimePlatform === 'darwin' && 'pl-[80px]'
+          'drag-region flex h-[54px] shrink-0 items-center gap-1.5 px-3 pt-1.5',
+          runtimePlatform === 'darwin' && 'pl-[78px]'
         )}
       >
-        <BrandMenu />
-        <div className="no-drag ml-auto flex shrink-0 items-center gap-1">
+        <div className="no-drag ml-auto flex shrink-0 items-center gap-0.5">
+          <IconButton
+            round
+            label={t('Collapse sidebar')}
+            onClick={toggleSidebarCollapsed}
+          >
+            <PanelLeft />
+          </IconButton>
           <IconButton round label={t('Search')} shortcut={shortcutLabel('K')} onClick={() => openPalette()}>
             <Search />
           </IconButton>
@@ -136,9 +112,33 @@ export function Sidebar({ onAddBot }: SidebarProps) {
         </div>
       </header>
 
-      <div className="flex min-h-0 flex-1 flex-col px-2 pt-1 pb-2">
+      <div className="flex min-h-0 flex-1 flex-col px-2 pt-0.5 pb-2">
         <BotList />
       </div>
+
+      <footer className="no-drag flex shrink-0 items-center justify-between gap-1.5 border-t border-ink/[0.06] px-2.5 py-2">
+        <button
+          type="button"
+          onClick={() => setSettingsOpen(!settingsOpen, settingsOpen ? undefined : defaultSettingsTab)}
+          className={cn(
+            'press flex h-9 min-w-0 flex-1 items-center gap-2 rounded-full px-2 text-left transition-colors',
+            settingsOpen ? 'bg-active text-ink' : 'hover:bg-hover text-ink'
+          )}
+        >
+          <BrandMark />
+          <div className="min-w-0 flex-1">
+            <span className="block truncate text-[13.5px] leading-4 font-semibold tracking-tight text-ink">
+              设置 · 账号与代理池
+            </span>
+            <span className="block truncate text-[11px] leading-3.5 text-ink-muted">
+              {totalAccountCount > 0
+                ? `已接入 ${totalAccountCount} 个账号（Dot ${dotAccountCount} · Muse ${museAccountCount}）`
+                : '点击管理 Dot / Muse / Grok / Hark 账号'}
+            </span>
+          </div>
+          <Settings className="size-4 shrink-0 text-ink-secondary" aria-hidden />
+        </button>
+      </footer>
     </div>
   )
 }

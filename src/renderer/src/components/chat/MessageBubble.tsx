@@ -1,11 +1,12 @@
 import { memo, useEffect, useState } from 'react'
-import { AlertCircle, Check, Clock3, FileText, Image as ImageIcon, Loader2, RotateCw, Wrench } from 'lucide-react'
+import { AlertCircle, Check, Clock3, Copy, Download, ExternalLink, FileText, Image as ImageIcon, Loader2, Maximize2, RotateCw, Wrench } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { formatBytes, formatClock } from '@/lib/format'
 import { useBotStore } from '@/store/botStore'
 import type { ChatMediaPart, ChatMessage, ChatOptionWidget, ChatRichWidget, ChatToolCall } from '@/types'
 import { getBridge } from '@/lib/bridge'
 import { MarkdownText } from './MarkdownText'
+import { NativeDocumentDialog, type NativeDocumentTarget } from './NativeDocumentDialog'
 import { t } from '@/lib/i18n'
 
 interface MessageBubbleProps {
@@ -255,41 +256,165 @@ function WorkspaceAV({
   )
 }
 
-function MediaParts({ parts, accountId }: { parts: ChatMediaPart[]; accountId?: string }) {
+function MediaParts({
+  parts,
+  accountId,
+  onOpenDoc
+}: {
+  parts: ChatMediaPart[]
+  accountId?: string
+  onOpenDoc?: (target: NativeDocumentTarget) => void
+}) {
+  const [downloadingKey, setDownloadingKey] = useState<string | null>(null)
   if (!parts.length) return null
+
+  const handleDirectDownload = async (part: ChatMediaPart) => {
+    if (!accountId) return
+    const key = part.path || part.name || ''
+    setDownloadingKey(key)
+    try {
+      const bridge = getBridge()
+      const rawPath = (part.path || '').trim()
+      const isHttpUrl = /^https?:\/\//i.test(rawPath)
+      const isDotFile = isHttpUrl || /^(CalpicoFile_|file_|sediment:\/\/|dotfile:\/\/|dotatt:\/\/)/i.test(rawPath)
+
+      let dataBase64 = ''
+      let mimeType = part.mimeType || 'application/octet-stream'
+      let filename = part.name || (!isHttpUrl ? rawPath.split('/').pop() : undefined) || 'attachment'
+
+      if (isDotFile && bridge?.dot?.rpc) {
+        const res = await bridge.dot.rpc({
+          accountId,
+          op: 'downloadFile',
+          url: isHttpUrl ? rawPath : undefined,
+          fileId: !isHttpUrl ? rawPath.replace(/^(sediment|dotfile|dotatt):\/\//i, '') : undefined,
+          name: part.name
+        })
+        if (res.ok && res.data && typeof res.data === 'object') {
+          const d = res.data as { dataBase64: string; mimeType: string; filename?: string; name?: string }
+          dataBase64 = d.dataBase64
+          mimeType = d.mimeType || mimeType
+          filename = d.filename || d.name || filename
+        }
+      } else if (bridge?.muse?.previewWorkspaceFile && rawPath.startsWith('workspace/')) {
+        const res = await bridge.muse.previewWorkspaceFile(accountId, rawPath)
+        dataBase64 = res.dataBase64
+        mimeType = res.mimeType || mimeType
+      }
+
+      if (dataBase64) {
+        const bin = atob(dataBase64)
+        const bytes = new Uint8Array(bin.length)
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i)
+        const blob = new Blob([bytes], { type: mimeType })
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = filename
+        a.click()
+        setTimeout(() => URL.revokeObjectURL(url), 2000)
+      } else if (isHttpUrl) {
+        window.open(rawPath, '_blank', 'noopener,noreferrer')
+      }
+    } finally {
+      setDownloadingKey(null)
+    }
+  }
+
   return (
     <ul className="mb-1.5 flex max-w-[78%] flex-col gap-1.5" aria-label={t('Media')}>
-      {parts.map((part) => (
-        <li
-          key={part.path}
-          className="overflow-hidden rounded-xl border border-line bg-surface shadow-soft"
-        >
-          {looksLikeImage(part) ? (
-            <WorkspaceImage part={part} accountId={accountId} />
-          ) : looksLikeAudio(part) ? (
-            <WorkspaceAV part={part} accountId={accountId} kind="audio" />
-          ) : looksLikeVideo(part) ? (
-            <WorkspaceAV part={part} accountId={accountId} kind="video" />
-          ) : (
-            <div className="flex items-center gap-2 px-2.5 py-2 text-[12px]">
-              <span className="grid size-7 place-items-center rounded-lg bg-accent-50 text-accent-600">
-                <FileText className="size-4" aria-hidden />
-              </span>
-              <span className="min-w-0">
-                <span className="block max-w-56 truncate font-medium text-ink">{part.name || part.path}</span>
-                <span className="block truncate text-caption text-ink-muted" title={part.path}>
-                  {part.path}
-                </span>
-              </span>
-            </div>
-          )}
-        </li>
-      ))}
+      {parts.map((part) => {
+        const isHttpUrl = isHttp(part.path)
+        const subtitle = isHttpUrl
+          ? part.mimeType || '可预览 / 下载文件'
+          : part.path
+        const key = part.path || part.name || 'part'
+        return (
+          <li
+            key={key}
+            className="overflow-hidden rounded-xl border border-line bg-surface shadow-soft"
+          >
+            {looksLikeImage(part) ? (
+              <WorkspaceImage part={part} accountId={accountId} />
+            ) : looksLikeAudio(part) ? (
+              <WorkspaceAV part={part} accountId={accountId} kind="audio" />
+            ) : looksLikeVideo(part) ? (
+              <WorkspaceAV part={part} accountId={accountId} kind="video" />
+            ) : (
+              <div className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-[12px]">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (accountId && onOpenDoc) {
+                      onOpenDoc({
+                        accountId,
+                        title: part.name || (!isHttpUrl ? part.path.split('/').pop() : undefined) || 'Document',
+                        path: part.path,
+                        mimeType: part.mimeType
+                      })
+                    }
+                  }}
+                  className="flex min-w-0 flex-1 items-center gap-2 text-left hover:opacity-85"
+                >
+                  <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-accent-50 text-accent-600">
+                    <FileText className="size-4" aria-hidden />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block max-w-56 truncate font-medium text-ink">
+                      {part.name || part.path}
+                    </span>
+                    <span className="block truncate text-caption text-ink-muted" title={subtitle}>
+                      {subtitle}
+                    </span>
+                  </span>
+                </button>
+                <div className="flex shrink-0 items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (accountId && onOpenDoc) {
+                        onOpenDoc({
+                          accountId,
+                          title: part.name || (!isHttpUrl ? part.path.split('/').pop() : undefined) || 'Document',
+                          path: part.path,
+                          mimeType: part.mimeType
+                        })
+                      }
+                    }}
+                    className="inline-flex items-center gap-1 rounded-full bg-hover px-2 py-0.5 text-[11px] font-medium text-accent-600 hover:bg-active"
+                  >
+                    <Maximize2 className="size-3" /> 预览
+                  </button>
+                  <button
+                    type="button"
+                    disabled={downloadingKey === key}
+                    onClick={() => void handleDirectDownload(part)}
+                    className="inline-flex items-center gap-1 rounded-full bg-accent-600 px-2.5 py-0.5 text-[11px] font-medium text-white hover:bg-accent-700 disabled:opacity-50"
+                  >
+                    <Download className="size-3" /> {downloadingKey === key ? '下载中…' : '下载'}
+                  </button>
+                </div>
+              </div>
+            )}
+          </li>
+        )
+      })}
     </ul>
   )
 }
 
-function RichWidgets({ widgets }: { widgets: ChatRichWidget[] }) {
+function RichWidgets({
+  widgets,
+  botId,
+  accountId,
+  onOpenDoc
+}: {
+  widgets: ChatRichWidget[]
+  botId: string
+  accountId: string
+  onOpenDoc: (target: NativeDocumentTarget) => void
+}) {
+  const sendMessage = useBotStore((s) => s.sendMessage)
   if (!widgets.length) return null
   return (
     <ul className="mb-1.5 flex max-w-[85%] flex-col gap-2" aria-label={t('Widgets')}>
@@ -420,10 +545,26 @@ function RichWidgets({ widgets }: { widgets: ChatRichWidget[] }) {
         if (w.kind === 'html') {
           return (
             <li key={w.widgetId} className="overflow-hidden rounded-xl border border-line bg-surface shadow-soft">
-              <p className="border-b border-line px-2.5 py-1.5 text-[12px] font-medium text-ink-secondary">
-                {t('HTML widget')}
-                {w.downloadable ? ` · ${t('Downloadable')}` : ''}
-              </p>
+              <div className="flex items-center justify-between border-b border-line px-2.5 py-1.5 text-[12px]">
+                <span className="font-medium text-ink-secondary">
+                  {t('HTML widget')}
+                  {w.downloadable ? ` · ${t('Downloadable')}` : ''}
+                </span>
+                <button
+                  type="button"
+                  onClick={() =>
+                    onOpenDoc({
+                      accountId,
+                      title: t('HTML widget'),
+                      html: w.html,
+                      mimeType: 'text/html'
+                    })
+                  }
+                  className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-medium text-accent-600 hover:bg-hover"
+                >
+                  <Maximize2 className="size-3" /> 原生打开
+                </button>
+              </div>
               <iframe
                 title={t('HTML widget')}
                 sandbox=""
@@ -435,12 +576,29 @@ function RichWidgets({ widgets }: { widgets: ChatRichWidget[] }) {
         }
         if (w.kind === 'slides') {
           return (
-            <li key={w.widgetId} className="rounded-xl border border-line bg-surface px-2.5 py-2 shadow-soft">
-              <p className="text-[13px] font-medium text-ink">{w.label}</p>
-              <p className="text-[12px] text-ink-muted">
-                {t('Slides')} · {w.slug}
-                {w.path ? ` · ${w.path}` : ''}
-              </p>
+            <li key={w.widgetId} className="flex items-center justify-between gap-2 rounded-xl border border-line bg-surface px-3 py-2 shadow-soft">
+              <div className="min-w-0">
+                <p className="truncate text-[13px] font-medium text-ink">{w.label}</p>
+                <p className="truncate text-[12px] text-ink-muted">
+                  {t('Slides')} · {w.slug}
+                  {w.path ? ` · ${w.path}` : ''}
+                </p>
+              </div>
+              {w.path && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    onOpenDoc({
+                      accountId,
+                      title: w.label,
+                      path: w.path
+                    })
+                  }
+                  className="inline-flex shrink-0 items-center gap-1 rounded-full bg-hover px-2.5 py-1 text-[11px] font-medium text-accent-600 hover:bg-active"
+                >
+                  <Maximize2 className="size-3" /> 原生打开
+                </button>
+              )}
             </li>
           )
         }
@@ -476,6 +634,188 @@ function RichWidgets({ widgets }: { widgets: ChatRichWidget[] }) {
               <p className="mt-1.5 text-[11px] text-ink-muted">
                 {t('Read-only — image_options persist shape not confirmed in muse.ai JS')}
               </p>
+            </li>
+          )
+        }
+        if (w.kind === 'text_with_button') {
+          return (
+            <li key={w.widgetId} className="rounded-xl border border-line bg-surface p-3 shadow-soft">
+              {w.text ? (
+                <div className="mb-2 text-[13px] leading-5 text-ink">
+                  <MarkdownText text={w.text} />
+                </div>
+              ) : null}
+              {w.buttons.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {w.buttons.map((b, i) =>
+                    b.url ? (
+                      <a
+                        key={`${b.label}-${i}`}
+                        href={b.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="rounded-full bg-accent-600 px-3 py-1 text-[12px] font-medium text-white hover:bg-accent-700"
+                      >
+                        {b.label}
+                      </a>
+                    ) : (
+                      <button
+                        key={`${b.label}-${i}`}
+                        type="button"
+                        onClick={() => void sendMessage(botId, b.actionText || b.label)}
+                        className="rounded-full border border-line-strong bg-surface px-3 py-1 text-[12px] font-medium text-ink hover:bg-hover"
+                      >
+                        {b.label}
+                      </button>
+                    )
+                  )}
+                </div>
+              )}
+            </li>
+          )
+        }
+        if (w.kind === 'generic_list') {
+          return (
+            <li key={w.widgetId} className="rounded-xl border border-line bg-surface p-2.5 shadow-soft">
+              {w.title && <p className="mb-1.5 text-[12px] font-medium text-ink-secondary">{w.title}</p>}
+              <ul className="divide-y divide-line text-[12px]">
+                {w.items.map((it) => (
+                  <li key={it.id} className="flex items-center justify-between gap-2 py-1.5 first:pt-0 last:pb-0">
+                    <span className="min-w-0">
+                      <span className="block truncate font-medium text-ink">{it.title}</span>
+                      {it.subtitle && <span className="block truncate text-ink-muted">{it.subtitle}</span>}
+                    </span>
+                    {it.url ? (
+                      <a
+                        href={it.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="shrink-0 rounded-full border border-line px-2.5 py-0.5 text-[11px] text-accent-600 hover:bg-hover"
+                      >
+                        {t('Open link')}
+                      </a>
+                    ) : it.sendText ? (
+                      <button
+                        type="button"
+                        onClick={() => void sendMessage(botId, it.sendText!)}
+                        className="shrink-0 rounded-full border border-line-strong px-2.5 py-0.5 text-[11px] font-medium text-ink hover:bg-hover"
+                      >
+                        {t('Send')}
+                      </button>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            </li>
+          )
+        }
+        if (w.kind === 'voice_options') {
+          return (
+            <li key={w.widgetId} className="rounded-xl border border-line bg-surface p-2.5 shadow-soft">
+              <p className="mb-1.5 text-[12px] font-medium text-ink-secondary">{t('Voice options')}</p>
+              <div className="flex flex-wrap gap-1.5">
+                {w.voices.map((v) => (
+                  <button
+                    key={v.id}
+                    type="button"
+                    onClick={() => void sendMessage(botId, v.name)}
+                    className={cn(
+                      'rounded-full border px-3 py-1 text-[12px] transition-colors',
+                      v.selected
+                        ? 'border-accent-600 bg-accent-50 font-medium text-accent-600'
+                        : 'border-line-strong bg-surface text-ink hover:bg-hover'
+                    )}
+                    title={v.description}
+                  >
+                    {v.selected ? `✓ ${v.name}` : v.name}
+                  </button>
+                ))}
+              </div>
+            </li>
+          )
+        }
+        if (w.kind === 'markdown') {
+          return (
+            <li key={w.widgetId} className="overflow-hidden rounded-xl border border-line bg-surface shadow-soft">
+              <div className="flex items-center justify-between border-b border-line px-3 py-1.5 text-[12px]">
+                <span className="truncate font-medium text-ink">
+                  📄 {w.title || w.path?.split('/').pop() || 'Markdown 文档'}
+                </span>
+                <button
+                  type="button"
+                  onClick={() =>
+                    onOpenDoc({
+                      accountId,
+                      title: w.title || w.path?.split('/').pop() || 'Markdown 文档',
+                      markdown: w.markdown || undefined,
+                      path: w.path,
+                      mimeType: 'text/markdown'
+                    })
+                  }
+                  className="inline-flex shrink-0 items-center gap-1 rounded-full bg-hover px-2.5 py-0.5 text-[11px] font-medium text-accent-600 hover:bg-active"
+                >
+                  <Maximize2 className="size-3" /> 原生打开
+                </button>
+              </div>
+              {w.markdown && (
+                <div className="max-h-56 overflow-y-auto p-3 text-[13px] leading-relaxed text-ink">
+                  <MarkdownText
+                    text={w.markdown}
+                    onFileLinkClick={(path, label) =>
+                      onOpenDoc({ accountId, title: label, path })
+                    }
+                  />
+                </div>
+              )}
+            </li>
+          )
+        }
+        if (w.kind === 'hotel_results') {
+          return (
+            <li key={w.widgetId} className="rounded-xl border border-line bg-surface p-2.5 shadow-soft">
+              <p className="mb-1.5 text-[12px] font-medium text-ink-secondary">酒店推荐</p>
+              <ul className="flex flex-col gap-1.5 text-[12px]">
+                {w.hotels.map((h, i) => (
+                  <li key={`${h.name}-${i}`} className="flex items-center justify-between gap-2 rounded-lg bg-hover/40 px-2.5 py-1.5">
+                    <span className="min-w-0">
+                      <span className="block truncate font-medium text-ink">{h.name}</span>
+                      <span className="block truncate text-[11px] text-ink-muted">
+                        {[h.rating && `★ ${h.rating}`, h.price, h.location].filter(Boolean).join(' · ')}
+                      </span>
+                    </span>
+                    {h.url && (
+                      <a
+                        href={h.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex shrink-0 items-center gap-0.5 text-[11px] font-medium text-accent-600 hover:underline"
+                      >
+                        查看 <ExternalLink className="size-3" />
+                      </a>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </li>
+          )
+        }
+        if (w.kind === 'idea_cards') {
+          return (
+            <li key={w.widgetId} className="rounded-xl border border-line bg-surface p-2.5 shadow-soft">
+              <p className="mb-1.5 text-[12px] font-medium text-ink-secondary">灵感卡片</p>
+              <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+                {w.cards.map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => void sendMessage(botId, c.prompt || c.title)}
+                    className="flex flex-col items-start rounded-lg border border-line bg-hover/30 p-2 text-left transition-colors hover:bg-hover"
+                  >
+                    <span className="text-[12.5px] font-medium text-ink">{c.title}</span>
+                    {c.subtitle && <span className="mt-0.5 line-clamp-2 text-[11px] text-ink-muted">{c.subtitle}</span>}
+                  </button>
+                ))}
+              </div>
             </li>
           )
         }
@@ -573,12 +913,40 @@ export const MessageBubble = memo(function MessageBubble({
   const tools = (!mine && message.tools) || []
   const media = (!mine && message.media) || []
   const rich = (!mine && message.richWidgets) || []
+  const [docTarget, setDocTarget] = useState<NativeDocumentTarget | null>(null)
+  const [copiedMsg, setCopiedMsg] = useState(false)
+  const isLongMarkdownReport =
+    !mine &&
+    message.text.length > 420 &&
+    (/(^|\n)#{1,4}\s+|\n\|.+\|\n|```/.test(message.text) || message.text.length > 900)
+  const reportTitleMatch = !mine ? /^(?:---[\s\S]*?---\s*)?#+\s+(.+)$/m.exec(message.text) : null
+  const reportTitle = reportTitleMatch?.[1]?.replace(/[*`]/g, '').trim() || 'Markdown 报告'
+
+  const copyMessageText = () => {
+    if (!message.text) return
+    void navigator.clipboard.writeText(message.text).then(
+      () => {
+        setCopiedMsg(true)
+        setTimeout(() => setCopiedMsg(false), 1600)
+      },
+      () => {}
+    )
+  }
 
   return (
     <div className={cn('flex flex-col', mine ? 'items-end' : 'items-start')}>
       {!mine && tools.length > 0 && <ToolChips tools={tools} />}
-      {!mine && rich.length > 0 && <RichWidgets widgets={rich} />}
-      {!mine && media.length > 0 && <MediaParts parts={media} accountId={message.accountId} />}
+      {!mine && rich.length > 0 && (
+        <RichWidgets
+          widgets={rich}
+          botId={message.botId}
+          accountId={message.accountId}
+          onOpenDoc={setDocTarget}
+        />
+      )}
+      {!mine && media.length > 0 && (
+        <MediaParts parts={media} accountId={message.accountId} onOpenDoc={setDocTarget} />
+      )}
       {message.attachments && message.attachments.length > 0 && (
         <ul className={cn('mb-1 flex max-w-[78%] flex-wrap gap-1.5', mine && 'justify-end')}>
           {message.attachments.map((file) => (
@@ -607,19 +975,55 @@ export const MessageBubble = memo(function MessageBubble({
             message.delivery === 'failed' && 'bg-status-error/10 text-ink ring-1 ring-status-error/30'
           )}
         >
-          {mine ? message.text : <MarkdownText text={message.text} />}
+          {isLongMarkdownReport && (
+            <div className="mb-2 flex items-center justify-between gap-2 border-b border-line pb-1.5 text-[12px]">
+              <span className="inline-flex min-w-0 items-center gap-1.5 truncate font-medium text-ink-secondary">
+                <FileText className="size-3.5 shrink-0 text-accent-600" />
+                <span className="truncate">{reportTitle}</span>
+              </span>
+              <button
+                type="button"
+                onClick={() =>
+                  setDocTarget({
+                    accountId: message.accountId,
+                    title: reportTitle,
+                    markdown: message.text,
+                    mimeType: 'text/markdown'
+                  })
+                }
+                className="inline-flex shrink-0 items-center gap-1 rounded-full bg-surface px-2.5 py-0.5 text-[11px] font-medium text-accent-600 shadow-hairline hover:bg-hover"
+              >
+                <Maximize2 className="size-3" /> 原生打开阅读
+              </button>
+            </div>
+          )}
+          {mine ? (
+            message.text
+          ) : (
+            <MarkdownText
+              text={message.text}
+              onFileLinkClick={(path, label) =>
+                setDocTarget({
+                  accountId: message.accountId,
+                  title: label || path.split('/').pop() || 'Document',
+                  path
+                })
+              }
+            />
+          )}
         </div>
       )}
+
+      <NativeDocumentDialog target={docTarget} onClose={() => setDocTarget(null)} />
 
       {optionWidgets.map((w) => (
         <OptionChips key={w.widgetId || w.options.join('|')} message={message} widget={w} />
       ))}
 
-      {(isLastInRun || message.delivery === 'failed') && (
+      {(isLastInRun || message.delivery === 'failed' || !mine) && (
         <div
           className={cn(
-            'mt-1 flex h-4 items-center gap-1.5 px-2 text-[11px] text-ink-muted transition-opacity duration-150',
-            // Time and delivery stay out of the way until the message is hovered.
+            'mt-1 flex h-5 items-center gap-2 px-1.5 text-[11px] text-ink-muted transition-opacity duration-150',
             message.delivery === 'failed' || message.delivery === 'sending'
               ? 'opacity-100'
               : 'opacity-0 group-hover/msg:opacity-100 group-focus-within/msg:opacity-100'
@@ -630,7 +1034,39 @@ export const MessageBubble = memo(function MessageBubble({
           <time dateTime={new Date(message.createdAt).toISOString()} className="tabular-nums">
             {formatClock(message.createdAt)}
           </time>
-          {mine && <DeliveryState message={message} onRetry={onRetry} />}
+          {mine ? (
+            <DeliveryState message={message} onRetry={onRetry} />
+          ) : (
+            message.text && (
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={copyMessageText}
+                  title={t('Copy')}
+                  className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] text-ink-secondary hover:bg-hover hover:text-ink"
+                >
+                  {copiedMsg ? <Check className="size-3 text-status-online" /> : <Copy className="size-3" />}
+                  <span>{copiedMsg ? '已复制' : t('Copy')}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setDocTarget({
+                      accountId: message.accountId,
+                      title: reportTitle,
+                      markdown: message.text,
+                      mimeType: 'text/markdown'
+                    })
+                  }
+                  title="作为文档打开"
+                  className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] text-ink-secondary hover:bg-hover hover:text-ink"
+                >
+                  <Maximize2 className="size-3" />
+                  <span>展开阅读</span>
+                </button>
+              </div>
+            )
+          )}
         </div>
       )}
     </div>

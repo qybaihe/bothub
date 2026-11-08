@@ -1,4 +1,4 @@
-import { ChevronRight, Globe, PanelRight, Pin, PinOff } from 'lucide-react'
+import { ChevronRight, Globe, MessageSquarePlus, PanelRight, Pin, PinOff, RefreshCw } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { PaneHeader } from '@/components/layout/PaneHeader'
 import { BotAvatar } from '@/components/ui/Avatar'
@@ -10,7 +10,6 @@ import { shortcutLabel } from '@/lib/shortcuts'
 import { useBotStore } from '@/store/botStore'
 import { adapterRegistry } from '@adapters/registry'
 import type { Bot, BotAccount } from '@/types'
-import { AccountSwitcher } from './AccountSwitcher'
 import { t } from '@/lib/i18n'
 
 interface ChatHeaderProps {
@@ -79,14 +78,17 @@ function AgentPicker({ bot }: { bot: Bot }) {
   )
 }
 
-export function ChatHeader({ bot, accounts }: ChatHeaderProps) {
+export function ChatHeader({ bot, accounts: _accounts }: ChatHeaderProps) {
   const allAccounts = useBotStore((s) => s.accounts)
   const infoOpen = useBotStore((s) => s.infoPanelOpen)
   const toggleInfoPanel = useBotStore((s) => s.toggleInfoPanel)
-  const setActiveAccount = useBotStore((s) => s.setActiveAccount)
   const webSessionOpen = useBotStore((s) => s.webSessionOpen)
   const toggleWebSession = useBotStore((s) => s.toggleWebSession)
   const togglePinBot = useBotStore((s) => s.togglePinBot)
+  const startNewMuseSession = useBotStore((s) => s.startNewMuseSession)
+  const connectAccount = useBotStore((s) => s.connectAccount)
+  const typing = useBotStore((s) => s.typing[bot.id] === true)
+  const activeAccount = allAccounts[bot.activeAccountId]
 
   const status = getBotStatus(bot, allAccounts)
   const activity = useBotStore((s) => s.activity[bot.activeAccountId])
@@ -127,8 +129,12 @@ export function ChatHeader({ bot, accounts }: ChatHeaderProps) {
           emoji={bot.emoji}
           seed={bot.id}
           avatar={bot.avatar}
+          avatarShape={bot.avatarShape}
+          avatarColor={bot.avatarColor}
           platformId={bot.platformId}
           status={status}
+          isWorking={typing || Boolean(activity?.busy)}
+          followPointer
           size="xs"
           ringClassName="ring-main"
         />
@@ -152,15 +158,22 @@ export function ChatHeader({ bot, accounts }: ChatHeaderProps) {
       </button>
 
       <div className="flex min-w-0 flex-1 items-center justify-end gap-1">
-        {accounts.length > 1 && (
-          <AccountSwitcher
-            bot={bot}
-            accounts={accounts}
-            onSelect={(accountId) => setActiveAccount(bot.id, accountId)}
-            onManage={() => {
-              if (!infoOpen) toggleInfoPanel()
-            }}
-          />
+        {bot.platformId === 'meta-muse' && (
+          <IconButton
+            label="开启新对话"
+            onClick={() => void startNewMuseSession(bot.id)}
+          >
+            <MessageSquarePlus />
+          </IconButton>
+        )}
+        {bot.activeAccountId && (
+          <IconButton
+            label="同步最新对话与连接状态"
+            disabled={activeAccount?.pending}
+            onClick={() => void connectAccount(bot.activeAccountId)}
+          >
+            <RefreshCw className={cn(activeAccount?.pending && 'animate-spin')} />
+          </IconButton>
         )}
         <IconButton label={bot.pinned ? t('Unpin from sidebar') : t('Pin to sidebar')} active={bot.pinned === true} onClick={() => togglePinBot(bot.id)}>
           {bot.pinned ? <PinOff /> : <Pin />}

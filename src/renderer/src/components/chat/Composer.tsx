@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type DragEvent, type KeyboardEvent } from 'react'
 import type { AttachmentMeta } from '@adapters/types'
 import { createId } from '@shared/id'
-import { ArrowUp, FileText, Loader2, LogIn, Plus, PlugZap, X } from 'lucide-react'
+import { ArrowUp, FileText, Loader2, LogIn, Plus, PlugZap, Square, X } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { IconButton } from '@/components/ui/IconButton'
 import { cn } from '@/lib/cn'
@@ -12,10 +12,14 @@ import { t } from '@/lib/i18n'
 interface ComposerProps {
   bot: Bot
   account: BotAccount | undefined
+  typing?: boolean
   onSend: (text: string, attachments: AttachmentMeta[]) => void
+  onCancel?: () => void
   onConnect: (accountId: string) => void
   onMuseLogin?: (accountId: string) => void
   onGrokLogin?: (accountId: string) => void
+  onHarkLogin?: (accountId: string) => void
+  onDotLogin?: (accountId: string) => void
   /** The empty conversation already shows its own sign-in action. */
   hideNotice?: boolean
 }
@@ -57,16 +61,22 @@ function ConnectionNotice({
   account,
   onConnect,
   onMuseLogin,
-  onGrokLogin
+  onGrokLogin,
+  onHarkLogin,
+  onDotLogin
 }: {
   account: BotAccount
   onConnect: () => void
   onMuseLogin?: () => void
   onGrokLogin?: () => void
+  onHarkLogin?: () => void
+  onDotLogin?: () => void
 }) {
   const isError = account.status === 'error'
   const isMuse = account.platformId === 'meta-muse'
   const isGrok = account.platformId === 'grok'
+  const isHark = account.platformId === 'hark'
+  const isDot = account.platformId === 'dot'
   return (
     <div
       className={cn(
@@ -75,7 +85,7 @@ function ConnectionNotice({
       )}
       role="status"
     >
-      {isMuse ? (
+      {isMuse || isHark || isDot ? (
         <LogIn className="size-4 shrink-0 text-accent-600" aria-hidden />
       ) : (
         <PlugZap className="size-4 shrink-0 text-ink-muted" aria-hidden />
@@ -87,7 +97,11 @@ function ConnectionNotice({
             ? '登录 Muse 后即可发消息'
             : isGrok
               ? '登录 Grok Bot 后即可发消息'
-              : '账号未连接'}
+              : isHark
+                ? '登录 Hark 后即可发消息'
+                : isDot
+                  ? '登录 ChatGPT Dot 或在右侧导入 AT / RT 后即可发消息'
+                  : '账号未连接'}
       </span>
       {isMuse && onMuseLogin && !isError ? (
         <>
@@ -97,6 +111,26 @@ function ConnectionNotice({
           </Button>
           <Button size="sm" variant="ghost" onClick={onConnect} disabled={account.pending}>
             已完成登录
+          </Button>
+        </>
+      ) : isHark && onHarkLogin && !isError ? (
+        <>
+          <Button size="sm" variant="primary" onClick={onHarkLogin} disabled={account.pending}>
+            {account.pending && <Loader2 className="animate-spin" aria-hidden />}
+            {account.pending ? '登录中…' : '使用 Hark 登录'}
+          </Button>
+          <Button size="sm" variant="ghost" onClick={onConnect} disabled={account.pending}>
+            刷新会话
+          </Button>
+        </>
+      ) : isDot && onDotLogin && !isError ? (
+        <>
+          <Button size="sm" variant="primary" onClick={onDotLogin} disabled={account.pending}>
+            {account.pending && <Loader2 className="animate-spin" aria-hidden />}
+            {account.pending ? '登录中…' : '使用 Dot 登录'}
+          </Button>
+          <Button size="sm" variant="ghost" onClick={onConnect} disabled={account.pending}>
+            刷新连接
           </Button>
         </>
       ) : isGrok && onGrokLogin ? (
@@ -119,7 +153,7 @@ function ConnectionNotice({
   )
 }
 
-export function Composer({ bot, account, onSend, onConnect, onMuseLogin, onGrokLogin, hideNotice = false }: ComposerProps) {
+export function Composer({ bot, account, typing = false, onSend, onCancel, onConnect, onMuseLogin, onGrokLogin, onHarkLogin, onDotLogin, hideNotice = false }: ComposerProps) {
   const [text, setText] = useState('')
   const [attachments, setAttachments] = useState<AttachmentMeta[]>([])
   const [dragging, setDragging] = useState(false)
@@ -187,6 +221,8 @@ export function Composer({ bot, account, onSend, onConnect, onMuseLogin, onGrokL
             onConnect={() => onConnect(account.id)}
             onMuseLogin={onMuseLogin ? () => onMuseLogin(account.id) : undefined}
             onGrokLogin={onGrokLogin ? () => onGrokLogin(account.id) : undefined}
+            onHarkLogin={onHarkLogin ? () => onHarkLogin(account.id) : undefined}
+            onDotLogin={onDotLogin ? () => onDotLogin(account.id) : undefined}
           />
         )}
 
@@ -267,19 +303,31 @@ export function Composer({ bot, account, onSend, onConnect, onMuseLogin, onGrokL
               aria-label={`Message ${bot.name}`}
               className="block max-h-[200px] min-h-8 flex-1 resize-none bg-transparent px-1 py-[5px] text-[14px] leading-[22px] text-ink outline-none placeholder:text-ink-muted"
             />
-            <button
-              type="button"
-              onClick={submit}
-              disabled={!canSend}
-              aria-label={t('Send message')}
-              title={t('Send (Enter)')}
-              className={cn(
-                'press-icon grid size-8 shrink-0 place-items-center rounded-full',
-                canSend ? 'bg-accent-600 text-white hover:bg-accent-700' : 'bg-hover text-ink-faint'
-              )}
-            >
-              <ArrowUp className="size-4" strokeWidth={2.25} />
-            </button>
+            {typing && onCancel && !hasContent ? (
+              <button
+                type="button"
+                onClick={onCancel}
+                aria-label={t('Stop generating')}
+                title={t('Stop generating')}
+                className="press-icon grid size-8 shrink-0 place-items-center rounded-full bg-ink text-canvas hover:bg-ink/85"
+              >
+                <Square className="size-3.5 fill-current" />
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={submit}
+                disabled={!canSend}
+                aria-label={t('Send message')}
+                title={t('Send (Enter)')}
+                className={cn(
+                  'press-icon grid size-8 shrink-0 place-items-center rounded-full',
+                  canSend ? 'bg-accent-600 text-white hover:bg-accent-700' : 'bg-hover text-ink-faint'
+                )}
+              >
+                <ArrowUp className="size-4" strokeWidth={2.25} />
+              </button>
+            )}
           </div>
         </div>
       </div>

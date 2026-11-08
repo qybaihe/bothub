@@ -34,14 +34,20 @@ export interface Bot {
   id: string
   name: string
   emoji: string
-  /** Optional photo (data URL); replaces the platform mark. */
+  /** Optional photo (data URL); replaces the animated bot character. */
   avatar?: string
+  /** Grok Bot-style animated character shape (`blob`, `squircle`, `sparkle`, …). */
+  avatarShape?: string
+  /** Grok Bot-style animated character color (`blue`, `violet`, `green`, …). */
+  avatarColor?: string
   description: string
   platformId: PlatformId
   groupId: string
   accountIds: string[]
   /** Account used for new messages. Always one of `accountIds`. */
   activeAccountId: string
+  /** Active Muse thread / session id (`session_id`). */
+  activeSessionId?: string
   /** Grok Bot agent UUID to talk to (optional; defaults to first agent). */
   selectedAgentId?: string
   memory: MemoryItem[]
@@ -114,6 +120,40 @@ export type ChatRichWidget =
       selectedPath?: string | null
       selectedIndices?: number[]
       baseVersion: number
+    }
+  | {
+      kind: 'text_with_button'
+      widgetId: string
+      text: string
+      buttons: Array<{ label: string; actionText?: string; url?: string; command?: string }>
+    }
+  | {
+      kind: 'generic_list'
+      widgetId: string
+      title?: string
+      items: Array<{ id: string; title: string; subtitle?: string; sendText?: string; url?: string }>
+    }
+  | {
+      kind: 'voice_options'
+      widgetId: string
+      voices: Array<{ id: string; name: string; description?: string; selected?: boolean }>
+    }
+  | {
+      kind: 'markdown'
+      widgetId: string
+      title?: string
+      markdown: string
+      path?: string
+    }
+  | {
+      kind: 'hotel_results'
+      widgetId: string
+      hotels: Array<{ name: string; price?: string; rating?: string; url?: string; imageUrl?: string; location?: string }>
+    }
+  | {
+      kind: 'idea_cards'
+      widgetId: string
+      cards: Array<{ id: string; title: string; subtitle?: string; prompt?: string }>
     }
 
 export interface ChatOptionWidget {

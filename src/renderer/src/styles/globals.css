@@ -15,39 +15,39 @@
   --text-caption: 0.75rem;
   --text-caption--line-height: 1rem;
 
-  /* Neutrals */
-  --color-canvas: #f7f7f7;
-  --color-main: #fcfcfc;
-  --color-bubble: #eeeeee;
-  --color-bubble-user: #070707;
-  --color-hover: rgb(119 119 119 / 0.09);
-  --color-active: rgb(119 119 119 / 0.17);
+  /* Neutrals (aligned with Grok Bot Sand Light) */
+  --color-canvas: #f5f5f5;
+  --color-main: #ffffff;
+  --color-bubble: rgb(28 28 28 / 0.06);
+  --color-bubble-user: #1c1c1c;
+  --color-hover: rgb(28 28 28 / 0.06);
+  --color-active: rgb(28 28 28 / 0.09);
   --color-surface: #ffffff;
-  --color-surface-hover: rgb(119 119 119 / 0.09);
-  --color-sunken: rgb(20 20 20 / 0.06);
-  --color-line: rgb(20 20 20 / 0.08);
-  --color-line-strong: rgb(20 20 20 / 0.15);
-  --color-ink: #141414;
-  --color-ink-secondary: rgb(20 20 20 / 0.6);
-  --color-ink-muted: rgb(20 20 20 / 0.45);
-  --color-ink-faint: rgb(20 20 20 / 0.28);
+  --color-surface-hover: rgb(28 28 28 / 0.06);
+  --color-sunken: rgb(28 28 28 / 0.04);
+  --color-line: rgb(28 28 28 / 0.08);
+  --color-line-strong: rgb(28 28 28 / 0.14);
+  --color-ink: #1c1c1c;
+  --color-ink-secondary: rgb(28 28 28 / 0.68);
+  --color-ink-muted: rgb(28 28 28 / 0.52);
+  --color-ink-faint: rgb(28 28 28 / 0.34);
 
-  /* Accent — iris (the only brand color) */
-  --color-accent-50: #f1f4ff;
-  --color-accent-100: #e4eaff;
-  --color-accent-200: #cbd5ff;
-  --color-accent-300: #a6b6ff;
-  --color-accent-400: #7a90fe;
-  --color-accent-500: #6079fe;
-  --color-accent-600: #4d6bfe;
-  --color-accent-700: #3b57e6;
+  /* Accent — Grok Bot Sand blue */
+  --color-accent-50: #eff6ff;
+  --color-accent-100: #dbeafe;
+  --color-accent-200: #bfdbfe;
+  --color-accent-300: #93c5fd;
+  --color-accent-400: #4d9bff;
+  --color-accent-500: #1e86fc;
+  --color-accent-600: #1680f3;
+  --color-accent-700: #126fd4;
 
-  /* Status — Idle green / Running blue / Action-required orange / Error red */
-  --color-status-online: #00c972;
-  --color-status-busy: #3b82f6;
-  --color-status-attention: #ff9800;
-  --color-status-offline: #a5a5af;
-  --color-status-error: #e02135;
+  /* Status — Grok Bot Sand status palette */
+  --color-status-online: #14c16f;
+  --color-status-busy: #1e86fc;
+  --color-status-attention: #f59312;
+  --color-status-offline: #959595;
+  --color-status-error: #e72e3b;
   /* Darker status inks for text on tinted backgrounds (AA contrast) */
   --color-status-online-ink: #17784f;
   --color-status-busy-ink: #1d4ed8;
@@ -89,6 +89,10 @@
   --animate-mark-pop: mark-pop 430ms var(--ease-spring-pop) both;
   --animate-typing: typing 1.2s ease-in-out infinite;
   --animate-shimmer: shimmer 1.6s linear infinite;
+  --animate-grok-breathe: grok-breathe 3.8s ease-in-out infinite;
+  --animate-grok-working: grok-working 1.8s ease-in-out infinite;
+  --animate-grok-poke: grok-poke 640ms var(--ease-spring-pop) both;
+  --animate-grok-orbit: grok-orbit 1.4s ease-in-out infinite;
 
   /* Keyframes animate transform/opacity only; positioned elements use the
      independent translate property, so the two never fight. */
@@ -176,6 +180,58 @@
     }
     to {
       background-position: -50% 0;
+    }
+  }
+  @keyframes grok-breathe {
+    0%,
+    100% {
+      transform: translateY(0) scale(1);
+    }
+    50% {
+      transform: translateY(-1.2px) scale(1.02, 0.985);
+    }
+  }
+  @keyframes grok-working {
+    0%,
+    100% {
+      transform: translateY(0) rotate(0deg) scale(1);
+    }
+    25% {
+      transform: translateY(-2px) rotate(-6deg) scale(1.04, 0.96);
+    }
+    50% {
+      transform: translateY(0.5px) rotate(0deg) scale(0.97, 1.03);
+    }
+    75% {
+      transform: translateY(-2px) rotate(6deg) scale(1.04, 0.96);
+    }
+  }
+  @keyframes grok-poke {
+    0% {
+      transform: translateY(0) scale(1, 1) rotate(0deg);
+    }
+    20% {
+      transform: translateY(2px) scale(1.12, 0.88) rotate(-8deg);
+    }
+    45% {
+      transform: translateY(-6px) scale(0.93, 1.09) rotate(180deg);
+    }
+    75% {
+      transform: translateY(1.5px) scale(1.04, 0.96) rotate(365deg);
+    }
+    100% {
+      transform: translateY(0) scale(1, 1) rotate(360deg);
+    }
+  }
+  @keyframes grok-orbit {
+    0%,
+    100% {
+      transform: translateY(0) scale(0.92);
+      opacity: 0.7;
+    }
+    50% {
+      transform: translateY(-3px) scale(1.12);
+      opacity: 1;
     }
   }
 }
@@ -292,28 +348,28 @@
 
 :root[data-theme='dark'] {
   color-scheme: dark;
-  --color-canvas: #141415;
-  --color-main: #1b1b1d;
-  --color-bubble: #2a2a2d;
-  --color-bubble-user: #ececec;
-  --color-hover: rgb(255 255 255 / 0.07);
-  --color-active: rgb(255 255 255 / 0.13);
-  --color-surface: #222225;
-  --color-surface-hover: rgb(255 255 255 / 0.07);
-  --color-sunken: rgb(255 255 255 / 0.06);
-  --color-line: rgb(255 255 255 / 0.08);
-  --color-line-strong: rgb(255 255 255 / 0.16);
-  --color-ink: #ececec;
-  --color-ink-secondary: rgb(236 236 236 / 0.68);
-  --color-ink-muted: rgb(236 236 236 / 0.48);
-  --color-ink-faint: rgb(236 236 236 / 0.3);
-  --color-accent-50: rgb(96 121 254 / 0.12);
-  --color-accent-100: rgb(96 121 254 / 0.2);
-  --color-status-online-ink: #4ade80;
-  --color-status-busy-ink: #7aa7ff;
-  --color-status-attention-ink: #ffb74d;
-  --color-status-offline-ink: #a5a5af;
-  --color-status-error-ink: #ff7b85;
+  --color-canvas: #0e0e0e;
+  --color-main: #161616;
+  --color-bubble: rgb(245 245 245 / 0.06);
+  --color-bubble-user: #f5f5f5;
+  --color-hover: rgb(245 245 245 / 0.06);
+  --color-active: rgb(245 245 245 / 0.10);
+  --color-surface: #1f1f1f;
+  --color-surface-hover: rgb(245 245 245 / 0.06);
+  --color-sunken: rgb(245 245 245 / 0.05);
+  --color-line: rgb(245 245 245 / 0.08);
+  --color-line-strong: rgb(245 245 245 / 0.14);
+  --color-ink: #f5f5f5;
+  --color-ink-secondary: rgb(245 245 245 / 0.68);
+  --color-ink-muted: rgb(245 245 245 / 0.50);
+  --color-ink-faint: rgb(245 245 245 / 0.32);
+  --color-accent-50: rgb(24 132 252 / 0.12);
+  --color-accent-100: rgb(24 132 252 / 0.22);
+  --color-status-online-ink: #29cb78;
+  --color-status-busy-ink: #4d9bff;
+  --color-status-attention-ink: #fb9500;
+  --color-status-offline-ink: #959595;
+  --color-status-error-ink: #ff6463;
   --shadow-hairline: 0 0 0 1px rgb(255 255 255 / 0.05);
   --shadow-float: 0 2px 10px -1px rgb(0 0 0 / 0.5), 0 0 0 0.5px rgb(255 255 255 / 0.06);
   --shadow-card: 0 2px 10px -1px rgb(0 0 0 / 0.45);

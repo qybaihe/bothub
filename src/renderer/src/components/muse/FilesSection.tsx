@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { File, FileCode, FileImage, FileText, Pin, PinOff, Search } from 'lucide-react'
+import { Download, File, FileCode, FileImage, FileText, Pin, PinOff, Search, Trash2 } from 'lucide-react'
 import type { MuseFileEntryView } from '@shared/ipc'
 import { EmptyLine, Section } from '@/components/info/Section'
+import { Button } from '@/components/ui/Button'
 import { RefreshButton } from '@/components/muse/RefreshButton'
 import { getBridge } from '@/lib/bridge'
 import { cn } from '@/lib/cn'
@@ -63,7 +64,132 @@ function loadPins(accountId: string): Set<string> {
   }
 }
 
-/** Grok-like Library: search, filter chips, local pins, inline detail. Read-only (no fs read RPC wired). */
+function decodeBase64Utf8(b64: string): string {
+  try {
+    const bin = atob(b64)
+    const bytes = new Uint8Array(bin.length)
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i)
+    return new TextDecoder('utf-8', { fatal: false }).decode(bytes)
+  } catch {
+    return ''
+  }
+}
+
+function InlineFilePreview({ accountId, file }: { accountId: string; file: MuseFileEntryView }) {
+  const [loading, setLoading] = useState(false)
+  const [preview, setPreview] = useState<{ mimeType: string; dataBase64?: string; text?: string } | null>(null)
+  const [err, setErr] = useState<string>()
+
+  const load = useCallback(async () => {
+    const muse = getBridge()?.muse
+    if (!muse) return
+    const path = file.path || (file.id.includes('/') ? file.id : '')
+    if (!path) {
+      setErr(t('Preview unavailable'))
+      return
+    }
+    setLoading(true)
+    setErr(undefined)
+    try {
+      if (muse.previewWorkspaceFile) {
+        const res = await muse.previewWorkspaceFile(accountId, path)
+        const mt = (res.mimeType || file.mimeType || '').toLowerCase()
+        const isText =
+          mt.startsWith('text/') ||
+          mt.includes('json') ||
+          mt.includes('xml') ||
+          mt.includes('javascript') ||
+          /\.(md|txt|json|py|ts|tsx|js|jsx|sh|yaml|yml|toml|html|css|csv|log)$/i.test(file.name)
+        setPreview({
+          mimeType: res.mimeType || file.mimeType || 'application/octet-stream',
+          dataBase64: res.dataBase64,
+          text: isText ? decodeBase64Utf8(res.dataBase64).slice(0, 60_000) : undefined
+        })
+        return
+      }
+      if (muse.rpc) {
+        const raw = await muse.rpc({ accountId, method: 'fs.read', params: { path } })
+        const o = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {}
+        const content = typeof o['content'] === 'string' ? (o['content'] as string) : typeof o['text'] === 'string' ? (o['text'] as string) : ''
+        const b64 = typeof o['data_base64'] === 'string' ? (o['data_base64'] as string) : undefined
+        setPreview({
+          mimeType: file.mimeType || 'text/plain',
+          dataBase64: b64,
+          text: content || (b64 ? decodeBase64Utf8(b64).slice(0, 60_000) : JSON.stringify(raw, null, 2).slice(0, 20_000))
+        })
+      }
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e))
+    } finally {
+      setLoading(false)
+    }
+  }, [accountId, file.id, file.mimeType, file.name, file.path])
+
+  useEffect(() => {
+    void load()
+  }, [load])
+
+  const downloadFile = () => {
+    if (!preview?.dataBase64 && !preview?.text) return
+    let blob: Blob
+    if (preview.dataBase64) {
+      const bin = atob(preview.dataBase64)
+      const bytes = new Uint8Array(bin.length)
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i)
+      blob = new Blob([bytes], { type: preview.mimeType || 'application/octet-stream' })
+    } else {
+      blob = new Blob([preview.text || ''], { type: 'text/plain;charset=utf-8' })
+    }
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = file.name || 'download'
+    a.click()
+    setTimeout(() => URL.revokeObjectURL(url), 2000)
+  }
+
+  if (loading) {
+    return <p className="col-span-2 pt-1 text-ink-muted">{t('Loading preview…')}</p>
+  }
+  if (err || !preview) {
+    return <p className="col-span-2 pt-1 text-ink-muted">{err || t('Preview unavailable')}</p>
+  }
+
+  const mt = preview.mimeType.toLowerCase()
+  return (
+    <div className="col-span-2 mt-1.5 flex flex-col gap-1.5 border-t border-line pt-2">
+      <div className="flex items-center justify-between">
+        <span className="text-[11px] font-medium text-ink-secondary">{t('Preview')}</span>
+        <button
+          type="button"
+          onClick={downloadFile}
+          className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-medium text-accent-600 hover:bg-surface"
+        >
+          <Download className="size-3" /> {t('Download')}
+        </button>
+      </div>
+      {mt.startsWith('image/') && preview.dataBase64 ? (
+        <img
+          src={`data:${preview.mimeType};base64,${preview.dataBase64}`}
+          alt={file.name}
+          className="max-h-56 max-w-full rounded-lg border border-line bg-surface object-contain"
+        />
+      ) : mt.startsWith('audio/') && preview.dataBase64 ? (
+        <audio controls src={`data:${preview.mimeType};base64,${preview.dataBase64}`} className="w-full" />
+      ) : mt.startsWith('video/') && preview.dataBase64 ? (
+        <video controls src={`data:${preview.mimeType};base64,${preview.dataBase64}`} className="max-h-56 w-full rounded-lg bg-black" />
+      ) : preview.text ? (
+        <pre className="max-h-56 overflow-auto rounded-lg border border-line bg-surface p-2 font-mono text-[11px] leading-4 whitespace-pre-wrap text-ink">
+          {preview.text}
+        </pre>
+      ) : (
+        <p className="text-ink-muted">{t('Binary file — click Download to save')}</p>
+      )}
+    </div>
+  )
+}
+
+/** Muse Library & Artifacts: search (local + fs.search), filter chips, remote/local pins, inline preview, and delete. */
 export function FilesSection({ accountId }: { accountId: string }) {
   const [items, setItems] = useState<MuseFileEntryView[]>([])
   const [loading, setLoading] = useState(false)
@@ -72,6 +198,8 @@ export function FilesSection({ accountId }: { accountId: string }) {
   const [filter, setFilter] = useState<Filter>('all')
   const [open, setOpen] = useState<string | null>(null)
   const [pins, setPins] = useState<Set<string>>(() => loadPins(accountId))
+  const [confirmDelete, setConfirmDelete] = useState<string>()
+  const [busyKey, setBusyKey] = useState<string>()
   const status = useBotStore((s) => s.accounts[accountId]?.status)
 
   const refresh = useCallback(async () => {
@@ -104,15 +232,54 @@ export function FilesSection({ accountId }: { accountId: string }) {
 
   const keyOf = (f: MuseFileEntryView) => f.source + ':' + f.id
   const isPinned = (f: MuseFileEntryView) => f.pinned || pins.has(keyOf(f))
-  const togglePin = (f: MuseFileEntryView) => {
+  const togglePin = async (f: MuseFileEntryView) => {
+    const muse = getBridge()?.muse
+    const k = keyOf(f)
+    const nextPinned = !isPinned(f)
+    if (f.source === 'artifact' && muse?.rpc) {
+      try {
+        await muse.rpc({
+          accountId,
+          method: 'artifacts.pin',
+          params: { id: f.id, artifact_id: f.id, pinned: nextPinned }
+        })
+        await refresh()
+      } catch {
+        /* fall back to local pin */
+      }
+    }
     setPins((prev) => {
       const next = new Set(prev)
-      const k = keyOf(f)
       if (next.has(k)) next.delete(k)
       else next.add(k)
       localStorage.setItem(PIN_KEY(accountId), JSON.stringify([...next]))
       return next
     })
+  }
+
+  const removeFile = async (f: MuseFileEntryView) => {
+    const k = keyOf(f)
+    if (confirmDelete !== k) {
+      setConfirmDelete(k)
+      return
+    }
+    const muse = getBridge()?.muse
+    if (!muse?.rpc) return
+    setBusyKey(k)
+    setError(undefined)
+    try {
+      if (f.source === 'artifact') {
+        await muse.rpc({ accountId, method: 'artifacts.remove', params: { id: f.id, artifact_id: f.id } })
+      } else if (f.path) {
+        await muse.rpc({ accountId, method: 'fs.delete', params: { path: f.path } })
+      }
+      setConfirmDelete(undefined)
+      await refresh()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setBusyKey(undefined)
+    }
   }
 
   const visible = useMemo(() => {
@@ -191,10 +358,9 @@ export function FilesSection({ accountId }: { accountId: string }) {
                   </button>
                   <button
                     type="button"
-                    onClick={() => togglePin(f)}
-                    disabled={f.pinned}
+                    onClick={() => void togglePin(f)}
                     aria-label={pinned ? t('Unpin') : t('Pin')}
-                    title={f.pinned ? t('Pinned in Muse') : pinned ? t('Unpin (local)') : t('Pin (local)')}
+                    title={f.pinned ? t('Pinned in Muse') : pinned ? t('Unpin') : t('Pin')}
                     className={cn(
                       'press-icon grid size-7 shrink-0 place-items-center rounded-full transition-opacity hover:bg-hover',
                       pinned ? 'text-accent-600' : 'text-ink-muted opacity-0 group-hover/file:opacity-100 focus-visible:opacity-100'
@@ -202,6 +368,19 @@ export function FilesSection({ accountId }: { accountId: string }) {
                   >
                     {pinned ? <Pin className="size-3.5" /> : <PinOff className="size-3.5" />}
                   </button>
+                  {(f.source === 'artifact' || f.path) && (
+                    <Button
+                      size="sm"
+                      variant={confirmDelete === k ? 'danger-confirm' : 'ghost'}
+                      disabled={busyKey === k}
+                      onClick={() => void removeFile(f)}
+                      className={cn(
+                        confirmDelete !== k && 'opacity-0 group-hover/file:opacity-100 focus-visible:opacity-100'
+                      )}
+                    >
+                      {confirmDelete === k ? t('Confirm') : <Trash2 className="size-3.5" />}
+                    </Button>
+                  )}
                 </div>
                 {expanded && (
                   <dl className="mx-3 mb-2.5 grid animate-veil-in grid-cols-[auto_1fr] gap-x-3 gap-y-1 rounded-lg bg-hover px-3 py-2 text-[11px]">
@@ -217,7 +396,7 @@ export function FilesSection({ accountId }: { accountId: string }) {
                         </dd>
                       </>
                     )}
-                    <dt className="col-span-2 pt-1 text-ink-muted">{t('Preview isn’t available yet — open it in Muse.')}</dt>
+                    <InlineFilePreview accountId={accountId} file={f} />
                   </dl>
                 )}
               </li>

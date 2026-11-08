@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/Button"
 import { TextInput } from "@/components/ui/Field"
 import { RefreshButton } from "@/components/muse/RefreshButton"
 import { getBridge } from "@/lib/bridge"
+import { cn } from "@/lib/cn"
 import { useBotStore } from "@/store/botStore"
 
 function formatTime(ms: number | null): string {
@@ -28,7 +29,13 @@ export function SessionsSection({ accountId }: { accountId: string }) {
   const [renameId, setRenameId] = useState<string>()
   const [renameTitle, setRenameTitle] = useState("")
   const [showArchived, setShowArchived] = useState(false)
+  const [searchQuery, setSearchQuery] = useState("")
+  const [searchHits, setSearchHits] = useState<Array<{ id: string; sessionId?: string; text: string }> | null>(null)
+  const [searching, setSearching] = useState(false)
   const status = useBotStore((s) => s.accounts[accountId]?.status)
+  const bot = useBotStore((s) => s.bots.find((b) => b.id === s.selectedBotId))
+  const switchMuseSession = useBotStore((s) => s.switchMuseSession)
+  const startNewMuseSession = useBotStore((s) => s.startNewMuseSession)
 
   const refresh = useCallback(async () => {
     const muse = getBridge()?.muse
@@ -93,6 +100,42 @@ export function SessionsSection({ accountId }: { accountId: string }) {
     setConfirmOp(op)
   }
 
+  const runChatSearch = async () => {
+    const q = searchQuery.trim()
+    if (!q) {
+      setSearchHits(null)
+      return
+    }
+    const muse = getBridge()?.muse
+    if (!muse?.rpc) return
+    setSearching(true)
+    setError(undefined)
+    try {
+      const raw = await muse.rpc({ accountId, method: "chat.search", params: { query: q, limit: 20 } })
+      const o = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {}
+      const list = (o["results"] ?? o["items"] ?? o["messages"] ?? (Array.isArray(raw) ? raw : [])) as unknown
+      const hits: Array<{ id: string; sessionId?: string; text: string }> = []
+      if (Array.isArray(list)) {
+        for (const r of list.slice(0, 20)) {
+          if (!r || typeof r !== "object") continue
+          const row = r as Record<string, unknown>
+          const text = String(row["snippet"] ?? row["text"] ?? row["content"] ?? row["display_text"] ?? "").slice(0, 180)
+          if (!text) continue
+          hits.push({
+            id: String(row["id"] ?? row["message_id"] ?? hits.length),
+            sessionId: typeof row["session_id"] === "string" ? (row["session_id"] as string) : undefined,
+            text
+          })
+        }
+      }
+      setSearchHits(hits)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setSearching(false)
+    }
+  }
+
   return (
     <Section
       title="会话"
@@ -100,12 +143,84 @@ export function SessionsSection({ accountId }: { accountId: string }) {
       action={<RefreshButton loading={loading} onClick={() => void refresh()} />}
     >
       {error && <p className="pb-1 text-[12px] text-status-error">{error}</p>}
-      <div className="mb-2 flex items-center justify-between gap-2">
-        <p className="text-[11px] text-ink-muted">置顶 / 重命名安全；归档与删除需二次确认。</p>
-        <Button size="sm" onClick={() => setShowArchived((v) => !v)}>
-          {showArchived ? "隐藏已归档" : "显示已归档"}
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-1.5">
+        <p className="text-[11px] text-ink-muted">点击打开并加载历史；归档与删除需二次确认。</p>
+        <div className="flex gap-1">
+          {bot && (
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled={Boolean(busyId)}
+              onClick={() => {
+                setBusyId("__new__")
+                void startNewMuseSession(bot.id).finally(() => {
+                  setBusyId(undefined)
+                  void refresh()
+                })
+              }}
+            >
+              + 新对话
+            </Button>
+          )}
+          <Button size="sm" onClick={() => setShowArchived((v) => !v)}>
+            {showArchived ? "隐藏已归档" : "显示已归档"}
+          </Button>
+        </div>
+      </div>
+      <div className="mb-2 flex gap-1.5">
+        <TextInput
+          value={searchQuery}
+          onChange={(e) => {
+            setSearchQuery(e.target.value)
+            if (!e.target.value.trim()) setSearchHits(null)
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") void runChatSearch()
+          }}
+          placeholder="搜索聊天内容 (chat.search)…"
+          aria-label="搜索聊天内容"
+          className="h-7 flex-1 text-[12px]"
+        />
+        <Button size="sm" variant="secondary" disabled={searching} onClick={() => void runChatSearch()}>
+          搜索
         </Button>
       </div>
+      {searchHits && (
+        <div className="mb-2 rounded-lg border border-line bg-surface p-2 text-[12px]">
+          <div className="mb-1 flex items-center justify-between">
+            <span className="font-medium text-ink-secondary">搜索结果 ({searchHits.length})</span>
+            <button
+              type="button"
+              onClick={() => setSearchHits(null)}
+              className="text-[11px] text-ink-muted hover:text-ink"
+            >
+              关闭
+            </button>
+          </div>
+          {searchHits.length === 0 ? (
+            <p className="text-ink-muted">无匹配聊天记录</p>
+          ) : (
+            <ul className="flex flex-col gap-1">
+              {searchHits.map((h) => (
+                <li key={h.id} className="flex items-center justify-between gap-2 rounded bg-hover px-2 py-1">
+                  <span className="min-w-0 truncate text-ink">{h.text}</span>
+                  {h.sessionId && bot && (
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        setBusyId(h.sessionId!)
+                        void switchMuseSession(bot.id, h.sessionId!).finally(() => setBusyId(undefined))
+                      }}
+                    >
+                      打开
+                    </Button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
       {visible.length === 0 ? (
         <EmptyLine>{loading ? "加载会话…" : "暂无会话"}</EmptyLine>
       ) : (
@@ -114,8 +229,17 @@ export function SessionsSection({ accountId }: { accountId: string }) {
             const confirmingArchive = confirmId === item.id && confirmOp === "archive"
             const confirmingDelete = confirmId === item.id && confirmOp === "delete"
             const renaming = renameId === item.id
+            const isActive = bot?.activeSessionId === item.id
             return (
-              <li key={item.id} className="rounded-lg border border-line/60 bg-surface/40 p-2.5">
+              <li
+                key={item.id}
+                className={cn(
+                  "rounded-lg border p-2.5 transition-colors",
+                  isActive
+                    ? "border-accent-600/60 bg-accent-50/30"
+                    : "border-line/60 bg-surface/40"
+                )}
+              >
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     {renaming ? (
@@ -152,12 +276,26 @@ export function SessionsSection({ accountId }: { accountId: string }) {
                     )}
                     <p className="mt-0.5 text-[11px] text-ink-muted">
                       {formatTime(item.updatedAtMs)}
+                      {isActive ? " · 当前会话" : ""}
                       {item.pinned ? " · 置顶" : ""}
                       {item.archived ? " · 已归档" : ""}
                     </p>
                   </div>
                 </div>
                 <div className="mt-2 flex flex-wrap gap-1.5">
+                  {bot && (
+                    <Button
+                      size="sm"
+                      variant={isActive ? "secondary" : "primary"}
+                      disabled={busyId === item.id}
+                      onClick={() => {
+                        setBusyId(item.id)
+                        void switchMuseSession(bot.id, item.id).finally(() => setBusyId(undefined))
+                      }}
+                    >
+                      {isActive ? "刷新历史" : "打开对话"}
+                    </Button>
+                  )}
                   <Button
                     size="sm"
                     disabled={busyId === item.id}

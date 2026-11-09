@@ -23,6 +23,7 @@
     "electron.vite.config.ts",
     "vite.web.config.mts",
     "vite.shared.mts",
+    "vitest.config.mts",
     "src/main/**/*",
     "src/preload/**/*",
     "src/shared/**/*"

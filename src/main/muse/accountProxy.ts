@@ -67,17 +67,32 @@ export type MuseProxyView = {
   hasPassword: boolean
 }
 
+/** A proxy is configured but cannot be read (keychain/safeStorage). Never go direct silently. */
+export class ProxyConfigUnreadableError extends Error {
+  constructor(detail?: string) {
+    super(`代理配置无法读取（系统钥匙串/加密不可用${detail ? `：${detail}` : ""}），已阻止直连；请重新保存该账号的代理`)
+    this.name = "ProxyConfigUnreadableError"
+  }
+}
+
+/** Unreachable proxy used to block a partition whose real proxy cannot be read. */
+const BLOCKING_PROXY_RULE = "http://127.0.0.1:9"
+
 export async function loadProxyConfig(accountId: string): Promise<MuseProxyConfig> {
   const entry = readStore()[accountId]
   if (!entry?.enc) return { mode: "direct" }
+  let available = false
   try {
-    const available = await safeStorage.isAsyncEncryptionAvailable()
-    if (!available) return { mode: "direct" }
-    const decrypted = await safeStorage.decryptStringAsync(Buffer.from(entry.enc, "base64"))
-    const parsed = JSON.parse(decrypted.result) as MuseProxyConfig
-    return normalize(parsed)
+    available = await safeStorage.isAsyncEncryptionAvailable()
   } catch {
-    return { mode: "direct" }
+    available = false
+  }
+  if (!available) throw new ProxyConfigUnreadableError()
+  try {
+    const decrypted = await safeStorage.decryptStringAsync(Buffer.from(entry.enc, "base64"))
+    return normalize(JSON.parse(decrypted.result) as MuseProxyConfig)
+  } catch (err) {
+    throw new ProxyConfigUnreadableError(err instanceof Error ? err.message : undefined)
   }
 }
 
@@ -108,8 +123,8 @@ async function saveProxyConfigUnlocked(accountId: string, input: MuseProxyConfig
   }
   // Keep previous password when UI sends empty password + has existing.
   if (!next.password) {
-    const prev = await loadProxyConfig(accountId)
-    if (prev.password) next.password = prev.password
+    const prev = await loadProxyConfig(accountId).catch(() => null)
+    if (prev?.password) next.password = prev.password
   }
   const available = await safeStorage.isAsyncEncryptionAvailable()
   if (!available) {
@@ -150,8 +165,15 @@ function proxyUrl(cfg: MuseProxyConfig): string | null {
 }
 
 export async function applyProxyToPartition(accountId: string, cfg?: MuseProxyConfig): Promise<void> {
-  const c = cfg ?? (await loadProxyConfig(accountId))
   const ses = electronSession.fromPartition(partitionForAccount(accountId))
+  let c: MuseProxyConfig
+  try {
+    c = cfg ?? (await loadProxyConfig(accountId))
+  } catch (err) {
+    // Fail closed: an unreadable proxy must not turn into the real IP.
+    await ses.setProxy({ proxyRules: BLOCKING_PROXY_RULE, proxyBypassRules: "" })
+    throw err
+  }
   if (c.mode === "direct") {
     await ses.setProxy({ mode: "direct" })
     return
@@ -390,4 +412,16 @@ export async function releaseProxyPoolAccount(accountId: string): Promise<void> 
     return true
   })
   if (held) await clearProxyConfig(accountId)
+}
+
+/**
+ * Apply every stored account proxy before any window or request runs.
+ * Partitions start direct after a restart; Hark (no connect step) used to
+ * stay direct until the proxy was saved again.
+ */
+export async function applyAllStoredProxies(log: (msg: string, err: unknown) => void = console.warn): Promise<void> {
+  const ids = Object.keys(readStore())
+  await Promise.all(
+    ids.map((id) => applyProxyToPartition(id).catch((err) => log(`[proxy] ${id} not applied`, err)))
+  )
 }

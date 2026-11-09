@@ -6,6 +6,7 @@ import { registerUpdaterIpc, startAutoUpdater } from './updater'
 import { registerGrokIpc } from './grok/grokIpc'
 import { registerHarkIpc } from './hark/harkIpc'
 import { registerDotIpc } from './dot/dotIpc'
+import { applyAllStoredProxies } from './muse/accountProxy'
 
 const isMac = process.platform === 'darwin'
 let mainWindow: BrowserWindow | null = null
@@ -100,8 +101,10 @@ app.on('before-quit', () => {
   quitting = true
 })
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   if (!gotLock) return
+  // Before any partition loads: otherwise the first requests go direct.
+  await Promise.race([applyAllStoredProxies(), new Promise((r) => setTimeout(r, 5_000))])
   registerWebViewIpc()
   registerMuseIpc()
   registerUpdaterIpc()

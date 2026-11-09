@@ -143,30 +143,6 @@ export function SessionsSection({ accountId }: { accountId: string }) {
       action={<RefreshButton loading={loading} onClick={() => void refresh()} />}
     >
       {error && <p className="pb-1 text-[12px] text-status-error">{error}</p>}
-      <div className="mb-2 flex flex-wrap items-center justify-between gap-1.5">
-        <p className="text-[11px] text-ink-muted">点击打开并加载历史；归档与删除需二次确认。</p>
-        <div className="flex gap-1">
-          {bot && (
-            <Button
-              size="sm"
-              variant="secondary"
-              disabled={Boolean(busyId)}
-              onClick={() => {
-                setBusyId("__new__")
-                void startNewMuseSession(bot.id).finally(() => {
-                  setBusyId(undefined)
-                  void refresh()
-                })
-              }}
-            >
-              + 新对话
-            </Button>
-          )}
-          <Button size="sm" onClick={() => setShowArchived((v) => !v)}>
-            {showArchived ? "隐藏已归档" : "显示已归档"}
-          </Button>
-        </div>
-      </div>
       <div className="mb-2 flex gap-1.5">
         <TextInput
           value={searchQuery}
@@ -177,13 +153,34 @@ export function SessionsSection({ accountId }: { accountId: string }) {
           onKeyDown={(e) => {
             if (e.key === "Enter") void runChatSearch()
           }}
-          placeholder="搜索聊天内容 (chat.search)…"
+          placeholder="搜索聊天内容…"
           aria-label="搜索聊天内容"
           className="h-7 flex-1 text-[12px]"
         />
         <Button size="sm" variant="secondary" disabled={searching} onClick={() => void runChatSearch()}>
           搜索
         </Button>
+        {bot && (
+          <Button
+            size="sm"
+            variant="secondary"
+            disabled={Boolean(busyId)}
+            onClick={() => {
+              setBusyId("__new__")
+              void startNewMuseSession(bot.id).finally(() => {
+                setBusyId(undefined)
+                void refresh()
+              })
+            }}
+          >
+            + 新建
+          </Button>
+        )}
+        {items.some((s) => s.archived) && (
+          <Button size="sm" variant="ghost" onClick={() => setShowArchived((v) => !v)}>
+            {showArchived ? "隐藏归档" : "已归档"}
+          </Button>
+        )}
       </div>
       {searchHits && (
         <div className="mb-2 rounded-lg border border-line bg-surface p-2 text-[12px]">

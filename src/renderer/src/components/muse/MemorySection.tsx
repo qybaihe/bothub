@@ -98,7 +98,7 @@ export function MemorySection({ accountId }: { accountId: string }) {
       count={hits.length || undefined}
       action={<RefreshButton loading={loading} onClick={() => void runSearch(query)} />}
     >
-      <div className="flex flex-col gap-2 px-3 pb-2 pt-1">
+      <div className="flex flex-col gap-2">
         <div className="flex gap-1.5">
           <input
             value={query}
@@ -108,11 +108,8 @@ export function MemorySection({ accountId }: { accountId: string }) {
             }}
             placeholder={t('Search memory…')}
             aria-label={t('Search memory…')}
-            className="min-w-0 flex-1 rounded-lg border border-line bg-surface px-2.5 py-1.5 text-[13px] text-ink outline-none placeholder:text-ink-muted"
+            className="h-7 min-w-0 flex-1 rounded-lg border border-line bg-surface px-2.5 text-[12px] text-ink outline-none placeholder:text-ink-muted"
           />
-          <Button size="sm" variant="secondary" disabled={loading} onClick={() => void runSearch(query)}>
-            {t('Refresh')}
-          </Button>
           <Button size="sm" variant="secondary" disabled={busy || loading} onClick={() => void consolidate()}>
             {t('Consolidate')}
           </Button>
@@ -123,11 +120,11 @@ export function MemorySection({ accountId }: { accountId: string }) {
         ) : hits.length === 0 ? (
           <EmptyLine>{t('No memory hits')}</EmptyLine>
         ) : (
-          <ul className="flex flex-col gap-1.5">
+          <ul className="divide-y divide-line">
             {hits.map((h) => (
-              <li key={h.id} className="rounded-lg border border-line bg-surface px-2.5 py-2">
-                <p className="text-[13px] font-medium text-ink">{h.title}</p>
-                {h.snippet ? <p className="mt-0.5 text-[12px] text-ink-secondary">{h.snippet}</p> : null}
+              <li key={h.id} className="py-1.5">
+                <p className="text-[12.5px] font-medium text-ink">{h.title}</p>
+                {h.snippet ? <p className="mt-0.5 text-[11.5px] text-ink-secondary">{h.snippet}</p> : null}
               </li>
             ))}
           </ul>

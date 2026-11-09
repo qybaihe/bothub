@@ -116,7 +116,7 @@ export function GoalsSection({ accountId }: { accountId: string }) {
       count={items.length || undefined}
       action={<RefreshButton loading={loading} onClick={() => void refresh()} />}
     >
-      <div className="flex flex-col gap-2 px-3 pb-2 pt-1">
+      <div className="flex flex-col gap-2">
         <div className="flex gap-1.5">
           <TextInput
             value={prompt}
@@ -124,7 +124,7 @@ export function GoalsSection({ accountId }: { accountId: string }) {
             onKeyDown={(e) => {
               if (e.key === 'Enter') void submitGoalPrompt()
             }}
-            placeholder="添加长期目标 (goal_prompt)…"
+            placeholder="添加长期目标…"
             aria-label="Goal prompt"
             className="h-7 flex-1 text-[12px]"
           />
@@ -138,13 +138,12 @@ export function GoalsSection({ accountId }: { accountId: string }) {
         ) : items.length === 0 ? (
           <EmptyLine>暂无长期目标</EmptyLine>
         ) : (
-          <ul className="flex flex-col gap-1.5">
+          <ul className="divide-y divide-line">
             {items.map((g) => (
-              <li key={g.id} className="flex items-start justify-between gap-2 rounded-lg border border-line bg-surface px-2.5 py-2">
+              <li key={g.id} className="flex items-start justify-between gap-2 py-1.5">
                 <div className="min-w-0">
-                  <p className="truncate text-[13px] font-medium text-ink">{g.title}</p>
-                  {g.description && <p className="mt-0.5 text-[12px] text-ink-secondary">{g.description}</p>}
-                  {g.status && <p className="mt-0.5 text-[11px] text-ink-muted">{g.status}</p>}
+                  <p className="truncate text-[12.5px] font-medium text-ink">{g.title}</p>
+                  {g.description && <p className="mt-0.5 text-[11.5px] text-ink-secondary">{g.description}</p>}
                 </div>
                 <Button size="sm" variant="ghost" disabled={busy} onClick={() => void removeGoal(g.id)}>
                   {t('Delete')}

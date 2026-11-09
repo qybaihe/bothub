@@ -163,93 +163,91 @@ export function DotCredentialsAndQuotaSection({
 
   return (
     <Section
-      title="Dot 账号凭据与速率配额 (chatgpt.com/dots)"
+      title="账号与配额"
       action={<RefreshButton loading={loading} onClick={() => void refresh()} />}
     >
-      <div className="flex flex-col gap-2.5 px-3 pb-2.5 pt-1 text-[12px]">
+      <div className="flex flex-col gap-2.5 text-[12px]">
         {error && <p className="text-status-error">{error}</p>}
         {hint && <p className="text-status-online-ink">{hint}</p>}
 
-        <div className="flex flex-col gap-2 rounded-lg bg-surface p-2.5">
-          <div className="flex items-center justify-between gap-2">
-            <span className="truncate text-[13px] font-medium text-ink">
-              {authInfo?.signedIn
-                ? `${authInfo.handle || authInfo.displayName || 'Dot'}`
-                : '未登录 ChatGPT Dot'}
+        <div className="flex items-center justify-between gap-2">
+          <span className="truncate text-[13px] font-medium text-ink">
+            {authInfo?.signedIn
+              ? `${authInfo.handle || authInfo.displayName || 'Dot'}`
+              : '未登录'}
+          </span>
+          {authInfo?.planType && (
+            <span className="rounded-full bg-accent-600/12 px-2 py-0.5 text-[10.5px] font-medium uppercase text-accent-600">
+              {authInfo.planType}
             </span>
-            {authInfo?.planType && (
-              <span className="rounded-full bg-accent-600/15 px-2 py-0.5 font-mono text-[10.5px] font-semibold uppercase text-accent-600">
-                {authInfo.planType}
-              </span>
+          )}
+        </div>
+
+        {rateLimits && (
+          <div className="flex flex-col gap-2">
+            {typeof rateLimits.primaryUsedPct === 'number' && (
+              <div>
+                <div className="flex justify-between text-[11.5px]">
+                  <span className="text-ink-secondary">5 小时额度</span>
+                  <span className="tabular-nums text-ink">{rateLimits.primaryUsedPct}%</span>
+                </div>
+                <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-hover">
+                  <div
+                    className="h-full rounded-full bg-ink/75"
+                    style={{ width: `${Math.min(100, rateLimits.primaryUsedPct)}%` }}
+                  />
+                </div>
+              </div>
+            )}
+            {typeof rateLimits.secondaryUsedPct === 'number' && (
+              <div>
+                <div className="flex justify-between text-[11.5px]">
+                  <span className="text-ink-secondary">周度额度</span>
+                  <span className="tabular-nums text-ink">{rateLimits.secondaryUsedPct}%</span>
+                </div>
+                <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-hover">
+                  <div
+                    className="h-full rounded-full bg-accent-600"
+                    style={{ width: `${Math.min(100, rateLimits.secondaryUsedPct)}%` }}
+                  />
+                </div>
+              </div>
             )}
           </div>
+        )}
 
-          {rateLimits && (
-            <div className="flex flex-col gap-1.5 pt-1">
-              {typeof rateLimits.primaryUsedPct === 'number' && (
-                <div>
-                  <div className="flex justify-between text-[11.5px]">
-                    <span className="text-ink-secondary">5h 窗口已用 (Primary)</span>
-                    <span className="font-mono text-ink">{rateLimits.primaryUsedPct}%</span>
-                  </div>
-                  <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-hover">
-                    <div
-                      className="h-full rounded-full bg-ink/75"
-                      style={{ width: `${Math.min(100, rateLimits.primaryUsedPct)}%` }}
-                    />
-                  </div>
-                </div>
-              )}
-              {typeof rateLimits.secondaryUsedPct === 'number' && (
-                <div>
-                  <div className="flex justify-between text-[11.5px]">
-                    <span className="text-ink-secondary">7d 周额度已用 (Weekly)</span>
-                    <span className="font-mono text-ink">{rateLimits.secondaryUsedPct}%</span>
-                  </div>
-                  <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-hover">
-                    <div
-                      className="h-full rounded-full bg-accent-600"
-                      style={{ width: `${Math.min(100, rateLimits.secondaryUsedPct)}%` }}
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          <div className="mt-1 flex flex-wrap gap-1.5">
-            <Button
-              size="sm"
-              variant="primary"
-              disabled={busy}
-              onClick={() => void openDotLogin(accountId)}
-            >
-              <LogIn className="size-3.5" /> 网页登录 Dot
-            </Button>
-            <Button
-              size="sm"
-              variant="secondary"
-              disabled={busy}
-              onClick={() => setShowTokenBox((v) => !v)}
-            >
-              <KeyRound className="size-3.5" /> 导入 AT / RT 凭据
-            </Button>
-          </div>
+        <div className="flex flex-wrap gap-1.5">
+          <Button
+            size="sm"
+            variant="primary"
+            disabled={busy}
+            onClick={() => void openDotLogin(accountId)}
+          >
+            <LogIn className="size-3.5" /> 网页登录
+          </Button>
+          <Button
+            size="sm"
+            variant="secondary"
+            disabled={busy}
+            onClick={() => setShowTokenBox((v) => !v)}
+          >
+            <KeyRound className="size-3.5" /> 导入凭据
+          </Button>
         </div>
 
         {showTokenBox && (
-          <div className="flex flex-col gap-1.5 rounded-lg border border-line bg-surface p-2.5">
+          <div className="flex flex-col gap-1.5 border-t border-line pt-2.5">
             <textarea
               value={rawTokenInput}
               onChange={(e) => setRawTokenInput(e.target.value)}
-              placeholder="粘贴 ChatGPT access_token (eyJ...)、refresh_token (rt_...) 或 JSON (auth.json)…"
+              placeholder="粘贴 access_token、refresh_token 或 auth.json…"
               rows={3}
-              className="w-full rounded border border-line bg-transparent p-2 font-mono text-[11px] text-ink outline-none"
+              className="w-full rounded-lg border border-line bg-transparent p-2 font-mono text-[11px] text-ink outline-none"
             />
             <TextInput
               value={refreshTokenInput}
               onChange={(e) => setRefreshTokenInput(e.target.value)}
-              placeholder="可选：单独粘贴 refresh_token (rt_...) 用于自动续期"
+              placeholder="可选：refresh_token (rt_...)"
               aria-label="Refresh Token"
               className="h-7 font-mono text-[11px]"
             />
@@ -261,7 +259,7 @@ export function DotCredentialsAndQuotaSection({
                   onChange={(e) => setAutoMigrateMemory(e.target.checked)}
                   className="size-3 accent-accent-600"
                 />
-                更换账号时自动迁移当前 Dot 记忆
+                自动迁移当前记忆
               </label>
             )}
             <Button
@@ -270,7 +268,7 @@ export function DotCredentialsAndQuotaSection({
               disabled={busy || (!rawTokenInput.trim() && !refreshTokenInput.trim())}
               onClick={() => void handleImportRaw()}
             >
-              {busy ? '正在验证并连接…' : '保存并连接 Dot'}
+              {busy ? '连接中…' : '保存并连接'}
             </Button>
           </div>
         )}
@@ -398,7 +396,7 @@ export function DotOrbitProfilesSection({
       })
       if (res.ok) {
         setNewDotName('')
-        setHint('已创建新的 Dot 分身 (/backend-api/tbo)')
+        setHint('已创建新的 Dot 实例')
         await refresh()
       } else {
         setError(res.message)
@@ -438,19 +436,18 @@ export function DotOrbitProfilesSection({
 
   return (
     <Section
-      title="Dot 实例管理 (Orbit / Aeon)"
-      count={dots.length || undefined}
+      title="Dot 实例"
+      count={dots.length > 1 ? dots.length : undefined}
       action={<RefreshButton loading={loading} onClick={() => void refresh()} />}
     >
-      <div className="flex flex-col gap-2.5 px-3 pb-2.5 pt-1 text-[12px]">
+      <div className="flex flex-col gap-2 text-[12px]">
         {error && <p className="text-status-error">{error}</p>}
         {hint && <p className="text-ink-secondary">{hint}</p>}
 
-        {/* Dot Profiles List */}
         {dots.length === 0 ? (
-          <EmptyLine>暂无 Dot 实例，点击下方新建或发送消息自动初始化</EmptyLine>
+          <EmptyLine>暂无实例，发送消息自动初始化</EmptyLine>
         ) : (
-          <ul className="flex flex-col gap-1.5">
+          <ul className="flex flex-col gap-1">
             {dots.map((d) => {
               const isSelected = d.id === activeDotId
               return (
@@ -458,65 +455,67 @@ export function DotOrbitProfilesSection({
                   key={d.id}
                   className={
                     isSelected
-                      ? 'rounded-lg border border-accent-600/50 bg-accent-600/5 p-2.5'
-                      : 'rounded-lg border border-line bg-surface p-2.5'
+                      ? 'flex items-center justify-between gap-2 rounded-lg bg-accent-600/8 px-2.5 py-1.5'
+                      : 'flex items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 hover:bg-hover'
                   }
                 >
-                  <div className="flex items-center justify-between gap-2">
-                    <button
-                      type="button"
-                      onClick={() => void selectDotProfile(d.id)}
-                      className="flex min-w-0 flex-1 items-center gap-1.5 text-left"
+                  <button
+                    type="button"
+                    onClick={() => void selectDotProfile(d.id)}
+                    className="flex min-w-0 flex-1 items-center gap-1.5 text-left"
+                  >
+                    <span
+                      className={
+                        isSelected
+                          ? 'size-1.5 shrink-0 rounded-full bg-accent-600'
+                          : 'size-1.5 shrink-0 rounded-full bg-ink-muted/40'
+                      }
+                    />
+                    <span className="truncate font-medium text-ink">{d.displayName}</span>
+                    {d.isPaused && (
+                      <span className="rounded bg-hover px-1.5 py-0.5 text-[10px] text-ink-muted">
+                        已暂停
+                      </span>
+                    )}
+                  </button>
+                  <div className="flex items-center gap-0.5">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      disabled={busy}
+                      onClick={() => void handlePauseResume(d.id, d.isPaused)}
+                      title={d.isPaused ? '恢复运行' : '暂停'}
                     >
-                      <span className="truncate font-medium text-ink">{d.displayName}</span>
-                      {isSelected && (
-                        <span className="rounded bg-accent-600/15 px-1.5 py-0.5 text-[10px] font-medium text-accent-600">
-                          当前
-                        </span>
-                      )}
-                    </button>
-                    <div className="flex items-center gap-1">
+                      {d.isPaused ? <Play className="size-3.5" /> : <Pause className="size-3.5" />}
+                    </Button>
+                    {dots.length > 1 && (
                       <Button
                         size="sm"
                         variant="ghost"
                         disabled={busy}
-                        onClick={() => void handlePauseResume(d.id, d.isPaused)}
-                        title={d.isPaused ? '恢复运行' : '暂停当前轮次'}
+                        onClick={() => void handleDeleteDot(d.id)}
+                        title={t('Delete')}
                       >
-                        {d.isPaused ? <Play className="size-3.5" /> : <Pause className="size-3.5" />}
+                        <Trash2 className="size-3.5 text-status-error" />
                       </Button>
-                      {dots.length > 1 && (
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          disabled={busy}
-                          onClick={() => void handleDeleteDot(d.id)}
-                          title={t('Delete')}
-                        >
-                          <Trash2 className="size-3.5 text-status-error" />
-                        </Button>
-                      )}
-                    </div>
+                    )}
                   </div>
-                  <p className="mt-1 truncate font-mono text-[10.5px] text-ink-muted">
-                    Room: {d.messagingRoomId.slice(0, 18)}…
-                  </p>
                 </li>
               )
             })}
           </ul>
         )}
 
-        <div className="flex gap-1.5">
+        <div className="flex gap-1.5 pt-0.5">
           <TextInput
             value={newDotName}
             onChange={(e) => setNewDotName(e.target.value)}
-            placeholder="新 Dot 名称 (如 Research Dot)…"
+            placeholder="新实例名称…"
             aria-label="New Dot name"
             className="h-7 flex-1 text-[12px]"
           />
           <Button size="sm" variant="secondary" disabled={busy} onClick={() => void handleCreateDot()}>
-            <Plus className="size-3.5" /> 新建 Dot
+            <Plus className="size-3.5" /> 新建
           </Button>
         </div>
       </div>
@@ -604,10 +603,10 @@ export function DotGoalAndThreadsSection({ accountId }: { accountId: string }) {
     try {
       if (goal.trim()) {
         await dotBridge.rpc({ accountId, op: 'setGoal', goal: goal.trim() })
-        setHint('已保存 Dot 长期目标 (thread/goal/set)')
+        setHint('已保存长期目标')
       } else {
         await dotBridge.rpc({ accountId, op: 'clearGoal' })
-        setHint('已清除 Dot 目标')
+        setHint('已清除目标')
       }
     } finally {
       setBusy(false)
@@ -619,11 +618,7 @@ export function DotGoalAndThreadsSection({ accountId }: { accountId: string }) {
     if (!dotBridge?.rpc) return
     setBusy(true)
     setError(undefined)
-    setHint(
-      mode === 'deep'
-        ? '正在请求 Dot (aeon) 完整盘点并导出 # Dot 记忆快照（约需 25–40 秒）…'
-        : '正在提取当前 Dot 记忆快照…'
-    )
+    setHint(mode === 'deep' ? '正在深度整理记忆快照…' : '正在提取记忆快照…')
     try {
       const res = await dotBridge.rpc({ accountId, op: 'exportMemory', mode })
       if (res.ok && res.data && typeof res.data === 'object') {
@@ -635,9 +630,7 @@ export function DotGoalAndThreadsSection({ accountId }: { accountId: string }) {
         }
         if (d.markdown) {
           updateSnapshotText(d.markdown)
-          setHint(
-            `已提取 ${d.sourceHandle || accountId} 的记忆快照（Room 消息 ${d.roomMessagesCount ?? 0} 条 · 全局记忆 ${d.globalMemoriesCount ?? 0} 条），可一键注入任意新账号`
-          )
+          setHint(`已提取记忆快照（${d.globalMemoriesCount ?? 0} 条记忆）`)
         }
       } else if (!res.ok) {
         setError(res.message)
@@ -654,7 +647,7 @@ export function DotGoalAndThreadsSection({ accountId }: { accountId: string }) {
     if (!dotBridge?.rpc || !memorySnapshot.trim()) return
     setBusy(true)
     setError(undefined)
-    setHint('正在将 # Dot 记忆快照 注入目标 Dot 的 Calpico Room 与长期目标…')
+    setHint('正在注入记忆快照…')
     try {
       const res = await dotBridge.rpc({
         accountId: destAccountId,
@@ -664,7 +657,7 @@ export function DotGoalAndThreadsSection({ accountId }: { accountId: string }) {
         botId: destBotId
       })
       if (res.ok) {
-        setHint('记忆迁移完成！Dot 已将身份、项目栈、偏好与上下文写入新账号长期记忆')
+        setHint('记忆迁移完成')
       } else {
         setError(res.message)
       }
@@ -679,22 +672,27 @@ export function DotGoalAndThreadsSection({ accountId }: { accountId: string }) {
 
   return (
     <Section
-      title="Dot 跨号记忆迁移与长期目标 (Memory & Goal)"
-      count={threads.length || undefined}
+      title="长期目标与记忆"
       action={<RefreshButton loading={loading} onClick={() => void refresh()} />}
     >
-      <div className="flex flex-col gap-2.5 px-3 pb-2.5 pt-1 text-[12px]">
+      <div className="flex flex-col gap-2.5 text-[12px]">
         {error && <p className="text-status-error">{error}</p>}
         {hint && <p className="text-status-online-ink">{hint}</p>}
 
-        {/* Cross-account Memory Snapshot & Migration */}
-        <div className="flex flex-col gap-1.5 rounded-lg border border-line bg-surface p-2.5">
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-[11.5px] font-medium text-ink">
-              跨账号记忆快照 (`# Dot 记忆快照`)
-            </span>
-            <span className="text-[10.5px] text-ink-muted">全局共享 · 换号可一键注入</span>
-          </div>
+        <div className="flex gap-1.5">
+          <TextInput
+            value={goal}
+            onChange={(e) => setGoal(e.target.value)}
+            placeholder="设置长期目标…"
+            aria-label="Dot goal"
+            className="h-7 flex-1 text-[12px]"
+          />
+          <Button size="sm" variant="secondary" disabled={busy} onClick={() => void saveGoal()}>
+            <Target className="size-3.5" /> 保存
+          </Button>
+        </div>
+
+        <div className="flex flex-col gap-1.5 border-t border-line pt-2">
           <div className="flex flex-wrap gap-1.5">
             <Button
               size="sm"
@@ -702,7 +700,7 @@ export function DotGoalAndThreadsSection({ accountId }: { accountId: string }) {
               disabled={busy}
               onClick={() => void handleExportMemory('fast')}
             >
-              提取当前记忆 (秒级)
+              提取记忆
             </Button>
             <Button
               size="sm"
@@ -710,32 +708,34 @@ export function DotGoalAndThreadsSection({ accountId }: { accountId: string }) {
               disabled={busy}
               onClick={() => void handleExportMemory('deep')}
             >
-              <Sparkles className="size-3.5" /> 让 Dot 深度整理快照
+              <Sparkles className="size-3.5" /> 深度整理
             </Button>
-            <Button
-              size="sm"
-              variant="primary"
-              disabled={busy || !memorySnapshot.trim()}
-              onClick={() => void handleImportMemoryTo(accountId, currentBot?.id)}
-            >
-              注入记忆到当前账号
-            </Button>
+            {memorySnapshot.trim() && (
+              <Button
+                size="sm"
+                variant="primary"
+                disabled={busy}
+                onClick={() => void handleImportMemoryTo(accountId, currentBot?.id)}
+              >
+                注入当前账号
+              </Button>
+            )}
           </div>
 
           <textarea
             value={memorySnapshot}
             onChange={(e) => updateSnapshotText(e.target.value)}
-            placeholder="点击“提取当前记忆”生成 # Dot 记忆快照（含身份、技术栈、回复偏好、目标与上下文），切换新账号或新建 Dot Bot 后点击“注入记忆到当前账号”即可完成跨号记忆迁移…"
-            rows={6}
-            className="mt-1 w-full rounded border border-line bg-transparent p-2 font-mono text-[11px] leading-[15px] text-ink outline-none"
+            placeholder="提取后可在此编辑记忆快照，或一键迁移至新账号…"
+            rows={memorySnapshot.trim() ? 5 : 2}
+            className="w-full rounded-lg border border-line bg-transparent p-2 font-mono text-[11px] leading-[15px] text-ink outline-none"
           />
 
           {otherDotBots.length > 0 && memorySnapshot.trim() && (
-            <div className="mt-1 flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5">
               <select
                 value={targetBotId || otherDotBots[0]?.id || ''}
                 onChange={(e) => setTargetBotId(e.target.value)}
-                className="h-7 min-w-0 flex-1 rounded border border-line bg-main px-2 text-[11.5px] text-ink outline-none"
+                className="h-7 min-w-0 flex-1 rounded-lg border border-line bg-main px-2 text-[11.5px] text-ink outline-none"
               >
                 {otherDotBots.map((b) => (
                   <option key={b.id} value={b.id}>
@@ -755,36 +755,20 @@ export function DotGoalAndThreadsSection({ accountId }: { accountId: string }) {
                   }
                 }}
               >
-                一键跨 Bot 迁移
+                迁移
               </Button>
             </div>
           )}
         </div>
 
-        <div className="flex gap-1.5">
-          <TextInput
-            value={goal}
-            onChange={(e) => setGoal(e.target.value)}
-            placeholder="设置此 Dot 的长期目标 (thread/goal/set)…"
-            aria-label="Dot goal"
-            className="h-7 flex-1 text-[12px]"
-          />
-          <Button size="sm" variant="secondary" disabled={busy} onClick={() => void saveGoal()}>
-            <Target className="size-3.5" /> 保存
-          </Button>
-        </div>
-
         {threads.length > 0 && (
-          <ul className="flex flex-col gap-1">
-            {threads.map((th) => (
+          <ul className="flex flex-col gap-1 border-t border-line pt-2">
+            {threads.slice(0, 6).map((th) => (
               <li
                 key={th.id}
-                className="flex items-center justify-between rounded bg-surface px-2.5 py-1.5 text-[11.5px]"
+                className="truncate rounded-md px-2 py-1 text-[12px] text-ink-secondary hover:bg-hover"
               >
-                <span className="truncate font-mono text-ink">{th.title}</span>
-                <span className="ml-2 shrink-0 font-mono text-[10px] text-ink-muted">
-                  {th.id.slice(0, 8)}
-                </span>
+                {th.title}
               </li>
             ))}
           </ul>
@@ -905,18 +889,18 @@ export function DotLibrarySection({ accountId }: { accountId: string }) {
 
   return (
     <Section
-      title="Dot 动态页面与资料库 (Dynamic Pages & Library)"
+      title="页面与文件"
       count={nodes.length || undefined}
       action={<RefreshButton loading={loading} onClick={() => void refresh()} />}
     >
-      <div className="flex flex-col gap-2 px-3 pb-2.5 pt-1 text-[12px]">
+      <div className="flex flex-col gap-2 text-[12px]">
         {error && <p className="text-status-error">{error}</p>}
 
         <div className="flex gap-1.5">
           <TextInput
             value={newPageTitle}
             onChange={(e) => setNewPageTitle(e.target.value)}
-            placeholder="新建 Dynamic Page 标题 (/backend-api/pages)…"
+            placeholder="新建页面标题…"
             aria-label="New Dynamic Page title"
             className="h-7 flex-1 text-[12px]"
           />
@@ -926,7 +910,7 @@ export function DotLibrarySection({ accountId }: { accountId: string }) {
             disabled={busy || !newPageTitle.trim()}
             onClick={() => void handleCreatePage()}
           >
-            <Plus className="size-3.5" /> 新建页面
+            <Plus className="size-3.5" /> 新建
           </Button>
         </div>
 
@@ -940,12 +924,7 @@ export function DotLibrarySection({ accountId }: { accountId: string }) {
                   <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-hover text-ink-secondary">
                     <FileText className="size-4" />
                   </span>
-                  <div className="min-w-0">
-                    <p className="truncate font-medium text-ink">{n.title}</p>
-                    <p className="truncate font-mono text-[11px] text-ink-muted">
-                      {n.kind} · {n.id}
-                    </p>
-                  </div>
+                  <p className="truncate font-medium text-ink">{n.title}</p>
                 </div>
                 {(n.id.startsWith('file_') ||
                   n.id.startsWith('libfile_') ||
@@ -962,7 +941,7 @@ export function DotLibrarySection({ accountId }: { accountId: string }) {
                           platformId: 'dot'
                         })
                       }
-                      title="在右侧画布预览文件"
+                      title="预览文件"
                     >
                       <Eye className="size-3.5" />
                     </Button>

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Monitor, Play, RefreshCw, Square } from 'lucide-react'
-import { EmptyLine, Section } from '@/components/info/Section'
+import { Section } from '@/components/info/Section'
 import { Button } from '@/components/ui/Button'
 import { TextInput } from '@/components/ui/Field'
 import { RefreshButton } from '@/components/muse/RefreshButton'
@@ -166,7 +166,7 @@ export function ComputerSection({ accountId }: { accountId: string }) {
       title={t('Computer')}
       action={<RefreshButton loading={loading} onClick={() => void refresh()} />}
     >
-      <div className="flex flex-col gap-3 px-3 pb-3 pt-1">
+      <div className="flex flex-col gap-2.5">
         {/* Grok Bot-style Computer Screen Stage */}
         <div className="relative overflow-hidden rounded-xl border border-line bg-ink/[0.04] p-3">
           {previewDataUrl ? (
@@ -183,7 +183,7 @@ export function ComputerSection({ accountId }: { accountId: string }) {
               )}
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center gap-2 py-5 text-center">
+            <div className="flex flex-col items-center justify-center gap-2 py-4 text-center">
               <span className="grid size-9 place-items-center rounded-xl bg-surface text-ink-secondary shadow-soft">
                 <Monitor className="size-4.5" aria-hidden />
               </span>
@@ -191,11 +191,11 @@ export function ComputerSection({ accountId }: { accountId: string }) {
                 <p className="text-[13px] font-medium text-ink">
                   Muse Cloud VM · <span className="font-mono text-[12px] text-status-online-ink">{vmHealth}</span>
                 </p>
-                <p className="mt-0.5 text-[11.5px] text-ink-muted">
-                  {ctx?.status
-                    ? `当前状态：${ctx.status}${ctx.title ? ` · ${ctx.title}` : ''}`
-                    : '当 Muse 执行浏览器或电脑任务时，实时画面与上下文会显示在这里'}
-                </p>
+                {ctx?.status && (
+                  <p className="mt-0.5 text-[11.5px] text-ink-muted">
+                    {ctx.status}{ctx.title ? ` · ${ctx.title}` : ''}
+                  </p>
+                )}
               </div>
               <Button size="sm" variant="secondary" onClick={toggleWebSession}>
                 {webSessionOpen ? t('Back to conversation') : t('Show web session')}
@@ -207,16 +207,13 @@ export function ComputerSection({ accountId }: { accountId: string }) {
         {error && <p className="text-[12px] text-status-error">{error}</p>}
         {hint && <p className="text-[12px] text-ink-secondary">{hint}</p>}
 
-        {/* Browser / Computer Task Controls (`browser_task.*` / `browser.lease`) */}
+        {/* Browser / Computer Task Controls */}
         <div className="flex flex-col gap-1.5">
-          <p className="text-[11px] font-semibold tracking-wide text-ink-muted uppercase">
-            远程浏览器任务 (browser_task.*)
-          </p>
           <div className="flex gap-1.5">
             <TextInput
               value={manualTaskId}
               onChange={(e) => setManualTaskId(e.target.value)}
-              placeholder={ctx?.taskId || 'Task ID (可选，自动从 context 获取)'}
+              placeholder={ctx?.taskId || 'Task ID (可选)'}
               aria-label="Browser task ID"
               className="h-7 flex-1 font-mono text-[11.5px]"
             />
@@ -224,7 +221,7 @@ export function ComputerSection({ accountId }: { accountId: string }) {
               size="sm"
               variant="secondary"
               disabled={busy}
-              onClick={() => void runTaskOp('browser.lease', '已请求浏览器租约 (browser.lease)')}
+              onClick={() => void runTaskOp('browser.lease', '已请求浏览器租约')}
             >
               <Play className="size-3" /> 租用
             </Button>
@@ -271,17 +268,9 @@ export function ComputerSection({ accountId }: { accountId: string }) {
 
         {/* Context / Task JSON snapshot */}
         {(taskDetail || (ctx && Object.keys(ctx.raw).length > 0)) && (
-          <div>
-            <p className="mb-1 text-[11px] font-semibold tracking-wide text-ink-muted uppercase">
-              运行上下文 (computer.context)
-            </p>
-            <pre className="max-h-40 overflow-auto rounded-lg bg-surface p-2 font-mono text-[11px] text-ink-secondary">
-              {JSON.stringify(taskDetail ?? ctx?.raw, null, 2)}
-            </pre>
-          </div>
-        )}
-        {!taskDetail && (!ctx || Object.keys(ctx.raw).length === 0) && (
-          <EmptyLine>当前无活跃的远程浏览器任务</EmptyLine>
+          <pre className="max-h-40 overflow-auto rounded-lg bg-hover/60 p-2 font-mono text-[11px] text-ink-secondary">
+            {JSON.stringify(taskDetail ?? ctx?.raw, null, 2)}
+          </pre>
         )}
       </div>
     </Section>

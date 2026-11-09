@@ -94,18 +94,15 @@ export function ProxySection({ accountId }: { accountId: string }) {
       title={t('Account proxy')}
       action={<RefreshButton loading={loading} onClick={() => void refresh()} />}
     >
-      {error && <p className="px-3 pt-2 text-[12px] text-status-error">{error}</p>}
-      {hint && <p className="px-3 pt-2 text-[12px] text-ink-secondary">{hint}</p>}
-      <div className="flex flex-col gap-2 px-3 pb-2 pt-1">
-        <p className="text-[11px] text-ink-muted">
-          {t('BotHub-local egress for this Muse account (login + Noise). Not a Muse server setting.')}
-        </p>
+      {error && <p className="pb-1 text-[12px] text-status-error">{error}</p>}
+      {hint && <p className="pb-1 text-[12px] text-ink-secondary">{hint}</p>}
+      <div className="flex flex-col gap-2">
         <label className="flex flex-col gap-1 text-[12px]">
           <span className="font-medium text-ink">{t('Mode')}</span>
           <select
             value={mode}
             onChange={(e) => setMode(e.target.value as MuseProxyMode)}
-            className="rounded-lg border border-line bg-surface px-2 py-1.5 text-[13px] text-ink"
+            className="rounded-lg border border-line bg-surface px-2 py-1 text-[12.5px] text-ink"
           >
             {MODES.map((m) => (
               <option key={m.value} value={m.value}>
@@ -116,14 +113,16 @@ export function ProxySection({ accountId }: { accountId: string }) {
         </label>
         {mode !== 'direct' && (
           <>
-            <label className="flex flex-col gap-1 text-[12px]">
-              <span className="font-medium text-ink">{t('Host')}</span>
-              <TextInput value={host} onChange={(e) => setHost(e.target.value)} placeholder="127.0.0.1" />
-            </label>
-            <label className="flex flex-col gap-1 text-[12px]">
-              <span className="font-medium text-ink">{t('Port')}</span>
-              <TextInput value={port} onChange={(e) => setPort(e.target.value)} placeholder="7890" />
-            </label>
+            <div className="grid grid-cols-[1fr_84px] gap-1.5">
+              <label className="flex flex-col gap-1 text-[12px]">
+                <span className="font-medium text-ink">{t('Host')}</span>
+                <TextInput value={host} onChange={(e) => setHost(e.target.value)} placeholder="127.0.0.1" />
+              </label>
+              <label className="flex flex-col gap-1 text-[12px]">
+                <span className="font-medium text-ink">{t('Port')}</span>
+                <TextInput value={port} onChange={(e) => setPort(e.target.value)} placeholder="7890" />
+              </label>
+            </div>
             <label className="flex flex-col gap-1 text-[12px]">
               <span className="font-medium text-ink">{t('Username (optional)')}</span>
               <TextInput value={username} onChange={(e) => setUsername(e.target.value)} autoComplete="off" />

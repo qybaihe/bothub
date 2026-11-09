@@ -84,7 +84,6 @@ export function SharedAgentsSection({ accountId }: { accountId: string }) {
   const [loading, setLoading] = useState(false)
   const [unavailable, setUnavailable] = useState(false)
   const [error, setError] = useState<string>()
-  const [caps, setCaps] = useState<Caps | null>(null)
   const [agents, setAgents] = useState<SharedAgentRow[]>([])
 
   const refresh = useCallback(async () => {
@@ -103,14 +102,12 @@ export function SharedAgentsSection({ accountId }: { accountId: string }) {
         const msg = err instanceof Error ? err.message : String(err)
         if (/404|not.?found|unsupported|unknown.?method|class|retired/i.test(msg)) {
           setUnavailable(true)
-          setCaps(null)
           setAgents([])
           return
         }
         throw err
       }
       const c = parseCaps(capsRaw)
-      setCaps(c)
       if (!c.supported || c.retiredHint) {
         setUnavailable(true)
         setAgents([])
@@ -138,53 +135,21 @@ export function SharedAgentsSection({ accountId }: { accountId: string }) {
   return (
     <Section
       title={t('Shared Agents')}
+      count={agents.length || undefined}
       action={<RefreshButton onClick={() => void refresh()} loading={loading} />}
     >
-      {error ? <p className="mb-2 px-3 text-[12px] text-status-error-ink">{error}</p> : null}
-      {unavailable ? (
-        <EmptyLine>{t('Shared Agents unavailable')}</EmptyLine>
+      {error ? <p className="mb-1 text-[12px] text-status-error-ink">{error}</p> : null}
+      {unavailable || agents.length === 0 ? (
+        <EmptyLine>{unavailable ? t('Shared Agents unavailable') : t('No shared agent definitions')}</EmptyLine>
       ) : (
-        <div className="flex flex-col gap-3 px-3 pb-3">
-          <p className="text-[11px] text-ink-muted">
-            {t('Personal hatch_vm session — capabilities/list only')}
-          </p>
-          {caps ? (
-            <p className="text-[12px] text-ink-secondary">
-              {caps.remoteGrant
-                ? t('remote_grant_v1 reported')
-                : t('remote_grant_v1 not reported')}
-              {caps.flags.length ? ` · ${caps.flags.slice(0, 6).join(', ')}` : ''}
-            </p>
-          ) : null}
-          <div>
-            <p className="mb-1.5 text-[11px] font-semibold tracking-wide text-ink-muted uppercase">
-              {t('Definitions')}
-            </p>
-            {agents.length === 0 ? (
-              <EmptyLine>{t('No shared agent definitions')}</EmptyLine>
-            ) : (
-              <ul className="flex flex-col gap-1.5">
-                {agents.map((a) => (
-                  <li
-                    key={a.id}
-                    className="rounded-lg bg-surface px-2.5 py-2 text-[12px] text-ink"
-                  >
-                    <span className="font-medium">{a.name}</span>
-                    {a.state ? <span className="text-ink-muted"> · {a.state}</span> : null}
-                    <span className="mt-0.5 block truncate font-mono text-[11px] text-ink-muted">
-                      {a.id}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-          <p className="rounded-lg border border-dashed border-line px-2.5 py-2 text-[11px] text-ink-muted">
-            {t(
-              'Remote open/send needs Noise connectionClass=shared_agent + Msg3 ticket — ticket bootstrap not captured; connect UI withheld'
-            )}
-          </p>
-        </div>
+        <ul className="divide-y divide-line">
+          {agents.map((a) => (
+            <li key={a.id} className="py-1.5 text-[12px] text-ink">
+              <span className="font-medium">{a.name}</span>
+              {a.state ? <span className="text-ink-muted"> · {a.state}</span> : null}
+            </li>
+          ))}
+        </ul>
       )}
     </Section>
   )

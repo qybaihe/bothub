@@ -87,8 +87,14 @@ function BotHero({ bot }: { bot: Bot }) {
   const typing = useBotStore((s) => s.typing[bot.id] === true)
   const [editing, setEditing] = useState(false)
   const [avatarEditorOpen, setAvatarEditorOpen] = useState(false)
+  const PLATFORM_DISPLAY: Record<string, string> = {
+    'meta-muse': 'Muse',
+    grok: 'Grok Bot',
+    hark: 'Hark',
+    dot: 'Dot'
+  }
   const status = getBotStatus(bot, accounts)
-  const platform = bot.platformId === 'meta-muse' ? 'Muse' : bot.platformId
+  const platform = PLATFORM_DISPLAY[bot.platformId] ?? bot.platformId
 
   return (
     <div className="flex items-center gap-3 px-4 pb-3">
@@ -277,18 +283,18 @@ export function InfoPanel() {
                   {bot.platformId === 'hark' && bot.activeAccountId && (
                     <ProxySection accountId={bot.activeAccountId} />
                   )}
-                  <Section title={t('Local notes (BotHub)')} count={bot.memory.length}>
-                    <MemoryEditor bot={bot} />
-                  </Section>
-                  <Section title={t('Notes')} flush>
-                    <textarea
-                      value={bot.notes}
-                      onChange={(event) => updateNotes(bot.id, event.target.value)}
-                      placeholder={t('Private notes')}
-                      aria-label={t('Notes')}
-                      rows={3}
-                      className="block w-full resize-none bg-transparent px-3 py-2 text-[13px] leading-[18px] text-ink outline-none placeholder:text-ink-muted"
-                    />
+                  <Section title={t('Notes')} count={bot.memory.length || undefined}>
+                    <div className="flex flex-col gap-2">
+                      <MemoryEditor bot={bot} />
+                      <textarea
+                        value={bot.notes}
+                        onChange={(event) => updateNotes(bot.id, event.target.value)}
+                        placeholder={t('Private notes')}
+                        aria-label={t('Notes')}
+                        rows={2}
+                        className="block w-full resize-none border-t border-line pt-2 bg-transparent text-[12.5px] leading-[18px] text-ink outline-none placeholder:text-ink-muted"
+                      />
+                    </div>
                   </Section>
                 </SectionsCollapsed>
               </>

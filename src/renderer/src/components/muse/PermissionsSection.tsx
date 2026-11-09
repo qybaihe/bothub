@@ -262,44 +262,44 @@ export function PermissionsSection({ accountId }: { accountId: string }) {
       count={state.activeGrants.length || state.rows.length || undefined}
       action={<RefreshButton loading={loading} onClick={() => void refresh()} />}
     >
-      {error && <p className="px-3 pt-2 text-[12px] text-status-error">{error}</p>}
-      {hint && <p className="px-3 pt-2 text-[12px] text-ink-secondary">{hint}</p>}
+      {error && <p className="pb-1 text-[12px] text-status-error">{error}</p>}
+      {hint && <p className="pb-1 text-[12px] text-ink-secondary">{hint}</p>}
       {unavailable && !canWrite ? (
-        <div className="px-3 pb-2">
-          <EmptyLine>{t('Permissions unavailable')}</EmptyLine>
-        </div>
+        <EmptyLine>{t('Permissions unavailable')}</EmptyLine>
       ) : (
-        <div className="flex flex-col gap-2.5 px-3 pb-2.5 pt-1">
-          <label className="flex flex-col gap-1 text-[12px]">
-            <span className="font-medium text-ink">{t('Network default')}</span>
-            <select
-              value={network}
-              onChange={(e) => setNetwork(e.target.value as typeof network)}
-              className="rounded-lg border border-line bg-surface px-2 py-1.5 text-[13px] text-ink"
-            >
-              <option value="">{t('Permissions unavailable')}</option>
-              {MODES.map((m) => (
-                <option key={m.value} value={m.value}>
-                  {m.label()}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="flex flex-col gap-1 text-[12px]">
-            <span className="font-medium text-ink">{t('Connector default')}</span>
-            <select
-              value={connector}
-              onChange={(e) => setConnector(e.target.value as typeof connector)}
-              className="rounded-lg border border-line bg-surface px-2 py-1.5 text-[13px] text-ink"
-            >
-              <option value="">{t('Permissions unavailable')}</option>
-              {MODES.map((m) => (
-                <option key={m.value} value={m.value}>
-                  {m.label()}
-                </option>
-              ))}
-            </select>
-          </label>
+        <div className="flex flex-col gap-2.5">
+          <div className="grid grid-cols-2 gap-2">
+            <label className="flex flex-col gap-1 text-[12px]">
+              <span className="font-medium text-ink">{t('Network default')}</span>
+              <select
+                value={network}
+                onChange={(e) => setNetwork(e.target.value as typeof network)}
+                className="rounded-lg border border-line bg-surface px-2 py-1 text-[12px] text-ink"
+              >
+                <option value="">{t('Permissions unavailable')}</option>
+                {MODES.map((m) => (
+                  <option key={m.value} value={m.value}>
+                    {m.label()}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1 text-[12px]">
+              <span className="font-medium text-ink">{t('Connector default')}</span>
+              <select
+                value={connector}
+                onChange={(e) => setConnector(e.target.value as typeof connector)}
+                className="rounded-lg border border-line bg-surface px-2 py-1 text-[12px] text-ink"
+              >
+                <option value="">{t('Permissions unavailable')}</option>
+                {MODES.map((m) => (
+                  <option key={m.value} value={m.value}>
+                    {m.label()}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
           <Button
             size="sm"
             variant="secondary"
@@ -309,14 +309,11 @@ export function PermissionsSection({ accountId }: { accountId: string }) {
             {t('Save permissions')}
           </Button>
 
-          {/* VM Egress Policy (tproxy / mitm / sni_rejection) */}
-          <div className="mt-1 rounded-lg border border-line bg-surface/60 p-2 text-[12px]">
-            <p className="mb-1.5 text-[11px] font-semibold tracking-wide text-ink-muted uppercase">
-              {t('Muse VM Egress Policy')}
-            </p>
-            <div className="flex flex-col gap-1.5">
+          {/* VM Egress Policy */}
+          <div className="rounded-lg bg-hover/60 p-2 text-[12px]">
+            <div className="flex flex-col gap-1">
               <div className="flex items-center justify-between gap-2">
-                <span className="text-ink">Transparent Proxy (tproxy)</span>
+                <span className="text-ink">Transparent Proxy</span>
                 <Button
                   size="sm"
                   variant="ghost"
@@ -370,56 +367,46 @@ export function PermissionsSection({ accountId }: { accountId: string }) {
           </div>
 
           {/* Add network rule */}
-          <div className="flex flex-col gap-1.5">
-            <span className="text-[11px] font-semibold tracking-wide text-ink-muted uppercase">
-              {t('Network host rules')}
-            </span>
-            <div className="flex gap-1.5">
-              <TextInput
-                value={ruleHost}
-                onChange={(e) => setRuleHost(e.target.value)}
-                placeholder="example.com"
-                aria-label="Host"
-                className="h-7 flex-1 text-[12px]"
-              />
-              <select
-                value={ruleMode}
-                onChange={(e) => setRuleMode(e.target.value as typeof ruleMode)}
-                className="rounded-lg border border-line bg-surface px-2 text-[12px] text-ink"
-              >
-                <option value="allow">allow</option>
-                <option value="ask">ask</option>
-                <option value="deny">deny</option>
-              </select>
-              <Button size="sm" variant="secondary" disabled={saving || !ruleHost.trim()} onClick={addNetworkRule}>
-                {t('Add')}
-              </Button>
-            </div>
+          <div className="flex gap-1.5">
+            <TextInput
+              value={ruleHost}
+              onChange={(e) => setRuleHost(e.target.value)}
+              placeholder="添加域名规则 (example.com)"
+              aria-label="Host"
+              className="h-7 flex-1 text-[12px]"
+            />
+            <select
+              value={ruleMode}
+              onChange={(e) => setRuleMode(e.target.value as typeof ruleMode)}
+              className="rounded-lg border border-line bg-surface px-2 text-[12px] text-ink"
+            >
+              <option value="allow">allow</option>
+              <option value="ask">ask</option>
+              <option value="deny">deny</option>
+            </select>
+            <Button size="sm" variant="secondary" disabled={saving || !ruleHost.trim()} onClick={addNetworkRule}>
+              {t('Add')}
+            </Button>
           </div>
 
           {/* Active grants */}
           {state.activeGrants.length > 0 && (
-            <div>
-              <p className="mb-1 text-[11px] font-semibold tracking-wide text-ink-muted uppercase">
-                {t('Active grants')}
-              </p>
-              <ul className="flex flex-col gap-1">
-                {state.activeGrants.map((g) => (
-                  <li key={g.id} className="flex items-center justify-between gap-2 rounded-lg bg-surface px-2.5 py-1.5 text-[12px]">
-                    <span className="min-w-0 truncate text-ink">
-                      {g.label}
-                      {g.scope ? <span className="text-ink-muted"> · {g.scope}</span> : null}
-                    </span>
-                    <Button size="sm" variant="ghost" disabled={saving} onClick={() => revokeGrant(g)}>
-                      {t('Revoke')}
-                    </Button>
-                  </li>
-                ))}
-              </ul>
-            </div>
+            <ul className="divide-y divide-line">
+              {state.activeGrants.map((g) => (
+                <li key={g.id} className="flex items-center justify-between gap-2 py-1.5 text-[12px]">
+                  <span className="min-w-0 truncate text-ink">
+                    {g.label}
+                    {g.scope ? <span className="text-ink-muted"> · {g.scope}</span> : null}
+                  </span>
+                  <Button size="sm" variant="ghost" disabled={saving} onClick={() => revokeGrant(g)}>
+                    {t('Revoke')}
+                  </Button>
+                </li>
+              ))}
+            </ul>
           )}
 
-          <div className="flex justify-end pt-1">
+          <div className="flex justify-end">
             <Button
               size="sm"
               variant={confirmReset ? 'danger-confirm' : 'ghost'}

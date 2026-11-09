@@ -31,12 +31,6 @@ export function Sidebar({ onAddBot }: SidebarProps) {
     (s) => s.bots.find((b) => b.id === s.selectedBotId)?.platformId
   )
   const totalAccountCount = useBotStore((s) => Object.keys(s.accounts).length)
-  const dotAccountCount = useBotStore(
-    (s) => Object.values(s.accounts).filter((a) => a.platformId === 'dot').length
-  )
-  const museAccountCount = useBotStore(
-    (s) => Object.values(s.accounts).filter((a) => a.platformId === 'meta-muse').length
-  )
 
   const defaultSettingsTab =
     selectedPlatformId === 'dot'
@@ -127,14 +121,14 @@ export function Sidebar({ onAddBot }: SidebarProps) {
         >
           <BrandMark />
           <div className="min-w-0 flex-1">
-            <span className="block truncate text-[13.5px] leading-4 font-semibold tracking-tight text-ink">
-              设置 · 账号与代理池
+            <span className="block truncate text-[13px] leading-4 font-semibold tracking-tight text-ink">
+              设置与账号
             </span>
-            <span className="block truncate text-[11px] leading-3.5 text-ink-muted">
-              {totalAccountCount > 0
-                ? `已接入 ${totalAccountCount} 个账号（Dot ${dotAccountCount} · Muse ${museAccountCount}）`
-                : '点击管理 Dot / Muse / Grok / Hark 账号'}
-            </span>
+            {totalAccountCount > 0 && (
+              <span className="block truncate text-[11px] leading-3.5 text-ink-muted">
+                {totalAccountCount} 个已连接账号
+              </span>
+            )}
           </div>
           <Settings className="size-4 shrink-0 text-ink-secondary" aria-hidden />
         </button>

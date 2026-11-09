@@ -63,6 +63,15 @@ npm run build        # 編譯正式環境建置產物至 out/
 npm run dist         # 使用 electron-builder 打包 macOS arm64 dmg 與 zip
 ```
 
+## 協定與介面文件
+
+四大平台適配器的底層傳輸協定、鑑權流程與介面規範位於 [`docs/`](./docs/README.md) 目錄：
+
+- **OpenAI Dot (`chatgpt.com/dots`)**：[`docs/dot/protocol.md`](./docs/dot/protocol.md)
+- **Meta Muse (`muse.ai`)**：[`docs/museai/protocol.md`](./docs/museai/protocol.md)
+- **xAI Grok Bot (`grok.com`)**：[`docs/grokbot-protocol/protocol.md`](./docs/grokbot-protocol/protocol.md)
+- **Hark (`hark.com`)**：[`docs/hark/protocol.md`](./docs/hark/protocol.md)
+
 ## 開源授權
 
 基於 [MIT License](./LICENSE) 開源。

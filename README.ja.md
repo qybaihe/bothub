@@ -63,6 +63,15 @@ npm run build        # out/ へ本番ビルドを出力
 npm run dist         # electron-builder で macOS arm64 dmg / zip をパッケージング
 ```
 
+## プロトコル・API ドキュメント
+
+各プラットフォームアダプターのプロトコル仕様および API リファレンスは [`docs/`](./docs/README.md) に収録されています：
+
+- **OpenAI Dot (`chatgpt.com/dots`)**: [`docs/dot/protocol.md`](./docs/dot/protocol.md)
+- **Meta Muse (`muse.ai`)**: [`docs/museai/protocol.md`](./docs/museai/protocol.md)
+- **xAI Grok Bot (`grok.com`)**: [`docs/grokbot-protocol/protocol.md`](./docs/grokbot-protocol/protocol.md)
+- **Hark (`hark.com`)**: [`docs/hark/protocol.md`](./docs/hark/protocol.md)
+
 ## ライセンス
 
 [MIT License](./LICENSE)

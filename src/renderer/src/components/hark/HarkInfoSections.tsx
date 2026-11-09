@@ -90,19 +90,19 @@ export function HarkBillingSection({ accountId }: { accountId: string }) {
 
   return (
     <Section
-      title="额度与套餐 (Billing)"
+      title="套餐与额度"
       action={<RefreshButton loading={loading} onClick={() => void refresh()} />}
     >
-      <div className="flex flex-col gap-2.5 px-3 pb-2.5 pt-1 text-[12px]">
+      <div className="flex flex-col gap-2 text-[12px]">
         {error && <p className="text-status-error">{error}</p>}
         {!summary && !profile ? (
           <EmptyLine>{loading ? '正在加载用量…' : '登录后展示套餐与额度'}</EmptyLine>
         ) : (
-          <div className="flex flex-col gap-2 rounded-lg bg-surface p-2.5">
-            <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between gap-2">
               <span className="text-[13px] font-medium text-ink">{planName}</span>
               {profile && (
-                <span className="truncate text-[11px] text-ink-muted">
+                <span className="truncate text-[11.5px] text-ink-muted">
                   {str(profile['email'] || profile['name'])}
                 </span>
               )}
@@ -111,8 +111,8 @@ export function HarkBillingSection({ accountId }: { accountId: string }) {
             {dailyLimit > 0 && (
               <div>
                 <div className="flex justify-between text-[11.5px]">
-                  <span className="text-ink-secondary">今日额度 (Daily)</span>
-                  <span className="font-mono text-ink">
+                  <span className="text-ink-secondary">今日额度</span>
+                  <span className="tabular-nums text-ink">
                     {fmtTokens(dailyUsed)} / {fmtTokens(dailyLimit)} ({dailyPct}%)
                   </span>
                 </div>
@@ -125,8 +125,8 @@ export function HarkBillingSection({ accountId }: { accountId: string }) {
             {poolLimit > 0 && (
               <div>
                 <div className="flex justify-between text-[11.5px]">
-                  <span className="text-ink-secondary">周期总额度 (Pool)</span>
-                  <span className="font-mono text-ink">
+                  <span className="text-ink-secondary">周期额度</span>
+                  <span className="tabular-nums text-ink">
                     {fmtTokens(poolUsed)} / {fmtTokens(poolLimit)} ({poolPct}%)
                   </span>
                 </div>
@@ -223,11 +223,11 @@ export function HarkHomeCardsSection({ accountId, botId }: { accountId: string; 
 
   return (
     <Section
-      title="Hark 智能建议卡片 (Home Cards)"
+      title="智能建议"
       count={cards.length || undefined}
       action={<RefreshButton loading={loading} onClick={() => void refresh()} />}
     >
-      <div className="flex flex-col gap-1.5 px-3 pb-2.5 pt-1 text-[12px]">
+      <div className="flex flex-col gap-1.5 text-[12px]">
         {cards.map((c) => (
           <div key={c.id} className="rounded-lg border border-line bg-surface p-2.5">
             <p className="font-medium text-ink">{c.title}</p>
@@ -240,7 +240,7 @@ export function HarkHomeCardsSection({ accountId, botId }: { accountId: string; 
                   disabled={busyId === c.id}
                   onClick={() => void sendMessage(botId, c.taskPrompt!)}
                 >
-                  在对话中执行
+                  执行
                 </Button>
               )}
               <Button
@@ -266,7 +266,6 @@ export function HarkHomeCardsSection({ accountId, botId }: { accountId: string; 
 export function HarkConversationsSection({ accountId, botId }: { accountId: string; botId: string }) {
   const status = useBotStore((s) => s.accounts[accountId]?.status)
   const connectAccount = useBotStore((s) => s.connectAccount)
-  const [convs, setConvs] = useState<Array<{ id: string; title: string; updatedAt: string }>>([])
   const [query, setQuery] = useState('')
   const [hits, setHits] = useState<Array<{ id: string; text: string }> | null>(null)
   const [loading, setLoading] = useState(false)
@@ -278,27 +277,9 @@ export function HarkConversationsSection({ accountId, botId }: { accountId: stri
     setLoading(true)
     setError(undefined)
     try {
-      const raw = await callHark(accountId, '/conversations')
-      const o = asObj(raw) || {}
-      const list =
-        (Array.isArray(o['conversations']) && o['conversations']) ||
-        (Array.isArray(o['items']) && o['items']) ||
-        (Array.isArray(raw) ? raw : [])
-      setConvs(
-        list
-          .slice(0, 20)
-          .map((c) => {
-            const r = asObj(c) || {}
-            return {
-              id: str(r['id'] ?? r['conversationId']),
-              title: str(r['title'] ?? 'Main conversation') || 'Main conversation',
-              updatedAt: str(r['updatedAt'] ?? r['createdAt'])
-            }
-          })
-          .filter((x) => x.id)
-      )
+      await callHark(accountId, '/conversations')
     } catch {
-      setConvs([])
+      /* ignore */
     } finally {
       setLoading(false)
     }
@@ -315,7 +296,7 @@ export function HarkConversationsSection({ accountId, botId }: { accountId: stri
     try {
       await callHark(accountId, '/conversations/clear', { method: 'POST', body: {} })
       useBotStore.setState((s) => ({ messages: { ...s.messages, [botId]: [] } }))
-      setHint('已清空当前 Hark 会话上下文 (/conversations/clear)')
+      setHint('已清空当前会话上下文')
       await refresh()
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
@@ -360,17 +341,16 @@ export function HarkConversationsSection({ accountId, botId }: { accountId: stri
 
   return (
     <Section
-      title="Hark 会话与搜索"
-      count={convs.length || undefined}
+      title="会话与搜索"
       action={<RefreshButton loading={loading} onClick={() => void refresh()} />}
     >
-      <div className="flex flex-col gap-2 px-3 pb-2.5 pt-1 text-[12px]">
+      <div className="flex flex-col gap-2 text-[12px]">
         {error && <p className="text-status-error">{error}</p>}
         {hint && <p className="text-ink-secondary">{hint}</p>}
 
         <div className="flex gap-1.5">
           <Button size="sm" variant="secondary" disabled={busy} onClick={() => void connectAccount(accountId)}>
-            同步最新消息
+            同步消息
           </Button>
           <Button size="sm" variant="ghost" disabled={busy} onClick={() => void clearConversation()}>
             清空上下文
@@ -387,7 +367,7 @@ export function HarkConversationsSection({ accountId, botId }: { accountId: stri
             onKeyDown={(e) => {
               if (e.key === 'Enter') void runSearch()
             }}
-            placeholder="搜索历史消息 (/search/messages)…"
+            placeholder="搜索历史消息…"
             aria-label="Search Hark messages"
             className="h-7 flex-1 text-[12px]"
           />
@@ -495,14 +475,14 @@ export function HarkScheduledTasksSection({ accountId }: { accountId: string }) 
 
   return (
     <Section
-      title="定时任务 (Scheduled Tasks)"
+      title="定时任务"
       count={tasks.length || undefined}
       action={<RefreshButton loading={loading} onClick={() => void refresh()} />}
     >
-      <div className="flex flex-col gap-2 px-3 pb-2.5 pt-1 text-[12px]">
+      <div className="flex flex-col gap-2 text-[12px]">
         {error && <p className="text-status-error">{error}</p>}
         {tasks.length === 0 ? (
-          <EmptyLine>暂无定时任务（在对话中让 Hark 定时执行即可创建）</EmptyLine>
+          <EmptyLine>暂无定时任务</EmptyLine>
         ) : (
           <ul className="flex flex-col gap-1.5">
             {tasks.map((task) => (
@@ -756,10 +736,12 @@ export function HarkConnectorsSection({ accountId }: { accountId: string }) {
     }
   }
 
+  const connectedCount = connectors.filter((c) => c.connected).length
+
   return (
     <Section
-      title="连接器与账号绑定 (Connectors)"
-      count={connectors.length || undefined}
+      title="连接器与频道"
+      count={connectedCount || undefined}
       flush={connectors.length > 0}
       action={<RefreshButton loading={loading} onClick={() => void refresh()} />}
     >
@@ -767,42 +749,33 @@ export function HarkConnectorsSection({ accountId }: { accountId: string }) {
       {hint && <p className="px-3 pt-2 text-[12px] text-ink-secondary">{hint}</p>}
 
       {connectors.length === 0 ? (
-        <div className="px-3 pb-2">
-          <EmptyLine>暂无连接器数据</EmptyLine>
-        </div>
+        <EmptyLine>暂无连接器</EmptyLine>
       ) : (
         <ul className="divide-y divide-line">
           {connectors.map((c) => {
             const firstAcc = c.accounts[0]
             return (
-              <li key={c.id} className="flex items-center justify-between gap-2.5 px-3 py-2.5">
+              <li key={c.id} className="flex items-center justify-between gap-2.5 px-3 py-2">
                 <div className="flex min-w-0 items-center gap-2.5">
                   <ConnectorIcon id={c.id} name={c.displayName} iconUrl={c.iconUrl} />
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5">
                       <span className="truncate text-[13px] font-medium text-ink">{c.displayName}</span>
-                      <span
-                        className={
-                          c.connected
-                            ? 'rounded bg-status-online/10 px-1.5 text-[10.5px] leading-4 text-status-online-ink'
-                            : 'rounded bg-sunken px-1.5 text-[10.5px] leading-4 text-ink-muted'
-                        }
-                      >
-                        {c.connected ? '已连接' : c.configured ? '未连接' : '高级'}
-                      </span>
+                      {c.connected && (
+                        <span className="rounded bg-status-online/12 px-1.5 text-[10px] leading-4 font-medium text-status-online-ink">
+                          已连接
+                        </span>
+                      )}
                     </div>
-                    {c.capabilities.length > 0 && (
-                      <p className="truncate text-[11px] text-ink-muted">
-                        {firstAcc?.email ? `${firstAcc.email} · ` : ''}
-                        {c.capabilities.join(', ')}
-                      </p>
+                    {firstAcc?.email && (
+                      <p className="truncate text-[11px] text-ink-muted">{firstAcc.email}</p>
                     )}
                   </div>
                 </div>
                 {c.connected && firstAcc ? (
                   <Button
                     size="sm"
-                    variant="danger"
+                    variant="ghost"
                     disabled={busyId === c.id}
                     onClick={() => void disconnectProvider(c.id, firstAcc.accountId)}
                   >
@@ -811,7 +784,7 @@ export function HarkConnectorsSection({ accountId }: { accountId: string }) {
                 ) : (
                   <Button
                     size="sm"
-                    variant={c.configured ? 'primary' : 'secondary'}
+                    variant="secondary"
                     disabled={busyId === c.id}
                     onClick={() => void connectProvider(c)}
                   >
@@ -825,36 +798,31 @@ export function HarkConnectorsSection({ accountId }: { accountId: string }) {
       )}
 
       {/* Channel Bindings (Slack / Telegram) + Managed Credentials */}
-      <div className="border-t border-line bg-sunken/30 px-3 py-2.5 text-[12px]">
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-[11px] font-semibold tracking-wide text-ink-muted uppercase">
-            消息频道与站点凭据
-          </span>
-          <div className="flex flex-wrap gap-1.5">
-            <Button
-              size="sm"
-              variant="secondary"
-              disabled={busyId === 'chan_slack'}
-              onClick={() => void connectChannel('slack')}
-              className="inline-flex items-center gap-1.5"
-            >
-              <ConnectorIcon id="slack" name="Slack" className="size-4 border-0 bg-transparent shadow-none" />
-              绑定 Slack
-            </Button>
-            <Button
-              size="sm"
-              variant="secondary"
-              disabled={busyId === 'chan_telegram'}
-              onClick={() => void connectChannel('telegram')}
-              className="inline-flex items-center gap-1.5"
-            >
-              <ConnectorIcon id="telegram" name="Telegram" className="size-4 border-0 bg-transparent shadow-none" />
-              绑定 Telegram
-            </Button>
-            <Button size="sm" variant="ghost" onClick={() => setShowAddCred((v) => !v)}>
-              <KeyRound className="size-3.5" /> 站点登录
-            </Button>
-          </div>
+      <div className="border-t border-line bg-sunken/20 px-3 py-2 text-[12px]">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <Button
+            size="sm"
+            variant="secondary"
+            disabled={busyId === 'chan_slack'}
+            onClick={() => void connectChannel('slack')}
+            className="inline-flex items-center gap-1.5"
+          >
+            <ConnectorIcon id="slack" name="Slack" className="size-4 border-0 bg-transparent shadow-none" />
+            Slack
+          </Button>
+          <Button
+            size="sm"
+            variant="secondary"
+            disabled={busyId === 'chan_telegram'}
+            onClick={() => void connectChannel('telegram')}
+            className="inline-flex items-center gap-1.5"
+          >
+            <ConnectorIcon id="telegram" name="Telegram" className="size-4 border-0 bg-transparent shadow-none" />
+            Telegram
+          </Button>
+          <Button size="sm" variant="ghost" onClick={() => setShowAddCred((v) => !v)}>
+            <KeyRound className="size-3.5" /> 站点凭据
+          </Button>
         </div>
 
         {showAddCred && (
@@ -877,7 +845,7 @@ export function HarkConnectorsSection({ accountId }: { accountId: string }) {
               type="password"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
-              placeholder="密码 (Secured by Hark)"
+              placeholder="登录密码"
               aria-label="Login password"
               className="h-7 text-[12px]"
             />
@@ -887,7 +855,7 @@ export function HarkConnectorsSection({ accountId }: { accountId: string }) {
               disabled={busyId === 'add_cred' || !newDomain.trim() || !newEmail.trim() || !newPassword}
               onClick={() => void saveManagedCredential()}
             >
-              保存站点登录凭据
+              保存凭据
             </Button>
           </div>
         )}
@@ -897,12 +865,12 @@ export function HarkConnectorsSection({ accountId }: { accountId: string }) {
             {credentials.map((cred) => (
               <li
                 key={cred.domain}
-                className="flex items-center justify-between gap-2 rounded bg-surface px-2.5 py-1.5 text-[11.5px]"
+                className="flex items-center justify-between gap-2 rounded-lg bg-surface px-2.5 py-1.5 text-[11.5px]"
               >
                 <span className="flex min-w-0 items-center gap-2 truncate text-ink">
                   <ConnectorIcon domain={cred.domain} name={cred.domain} className="size-5" />
                   <span className="truncate">
-                    {cred.domain} {cred.email ? `(${cred.email})` : ''}
+                    {cred.domain} {cred.email ? `· ${cred.email}` : ''}
                   </span>
                 </span>
                 <button
@@ -1055,9 +1023,8 @@ export function HarkComputerSection({ accountId, botId: _botId }: { accountId: s
       count={panels.length || undefined}
       action={<RefreshButton loading={loading} onClick={() => void refresh()} />}
     >
-      <div className="flex flex-col gap-3 px-3 pb-3 pt-1 text-[12px]">
-        {/* Hark Cloud Computer / CUA Screen Preview */}
-        <div className="relative overflow-hidden rounded-xl border border-line bg-ink/[0.04] p-3">
+      <div className="flex flex-col gap-2.5 text-[12px]">
+        <div className="relative overflow-hidden rounded-xl border border-line bg-ink/[0.03] p-3">
           {activeBrowserPanel ? (
             <div className="flex flex-col gap-2">
               {(activeBrowserPanel.screenshotUrl ||
@@ -1072,7 +1039,7 @@ export function HarkComputerSection({ accountId, botId: _botId }: { accountId: s
                 />
               )}
               <div className="flex items-center justify-between gap-2">
-                <span className="truncate font-mono text-[11px] text-ink-secondary">
+                <span className="truncate text-[11.5px] text-ink-secondary">
                   {activeBrowserPanel.url || activeBrowserPanel.title || activeBrowserPanel.kind}
                 </span>
                 <span className="rounded-full bg-surface px-2 py-0.5 text-[10px] font-medium text-ink">
@@ -1081,17 +1048,15 @@ export function HarkComputerSection({ accountId, botId: _botId }: { accountId: s
               </div>
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center gap-2 py-5 text-center">
-              <span className="grid size-9 place-items-center rounded-xl bg-surface text-ink-secondary shadow-soft">
-                <Monitor className="size-4.5" aria-hidden />
-              </span>
-              <div>
-                <p className="text-[13px] font-medium text-ink">
-                  Hark Cloud Computer · <span className="font-mono text-[12px] text-status-online-ink">READY</span>
-                </p>
-                <p className="mt-0.5 text-[11.5px] text-ink-muted">
-                  Hark 拥有独立的云端电脑与浏览器（CUA）、Shell 终端与网站构建器。当你在对话中让 Hark 浏览网页、查资料或写代码时，实时画面与终端输出会同步到这里。
-                </p>
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2.5">
+                <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-surface text-ink-secondary shadow-soft">
+                  <Monitor className="size-4" aria-hidden />
+                </span>
+                <div>
+                  <p className="text-[12.5px] font-medium text-ink">云端浏览器与终端</p>
+                  <p className="text-[11px] text-status-online-ink">就绪</p>
+                </div>
               </div>
               <Button size="sm" variant="secondary" onClick={toggleWebSession}>
                 {webSessionOpen ? t('Back to conversation') : t('Show web session')}
@@ -1103,12 +1068,8 @@ export function HarkComputerSection({ accountId, botId: _botId }: { accountId: s
         {error && <p className="text-status-error">{error}</p>}
         {hint && <p className="text-ink-secondary">{hint}</p>}
 
-        {/* Pending User Input / Device Permission Asks (`/messages/tool-response`) */}
         {asks.length > 0 && (
           <div className="flex flex-col gap-1.5">
-            <p className="text-[11px] font-semibold tracking-wide text-status-attention-ink uppercase">
-              待处理确认 / 授权请求 (Asks)
-            </p>
             {asks.map((ask) => (
               <div key={ask.id} className="rounded-xl border border-status-attention/30 bg-status-attention/8 p-2.5">
                 <div className="flex items-center gap-1.5 font-medium text-ink">
@@ -1130,7 +1091,7 @@ export function HarkComputerSection({ accountId, botId: _botId }: { accountId: s
                     disabled={busyId === ask.id}
                     onClick={() => void submitToolResponse(ask, askInput[ask.id]?.trim() || 'approved')}
                   >
-                    允许 / 提交
+                    允许
                   </Button>
                   <Button
                     size="sm"
@@ -1146,62 +1107,54 @@ export function HarkComputerSection({ accountId, botId: _botId }: { accountId: s
           </div>
         )}
 
-        {/* Activity Panels List (Browser / Shell / Coding / Search) */}
-        <div>
-          <p className="mb-1.5 text-[11px] font-semibold tracking-wide text-ink-muted uppercase">
-            云端电脑活动面板 (Agent Activity Panels · {panels.length})
-          </p>
-          {panels.length === 0 ? (
-            <EmptyLine>当前会话暂无电脑/终端活动记录（可在对话中发送如“帮我打开 hacker news 看看头条”）</EmptyLine>
-          ) : (
-            <ul className="flex flex-col gap-1.5">
-              {panels.map((p) => {
-                const imgUrl = p.screenshotUrl || (p.screenshotKey ? presignedUrls[p.screenshotKey] : undefined)
-                return (
-                  <li key={p.dispatchId} className="rounded-lg border border-line bg-surface p-2.5">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="inline-flex min-w-0 items-center gap-1.5 truncate font-medium text-ink">
-                        {p.kind.includes('shell') ? (
-                          <Terminal className="size-3.5 shrink-0 text-accent-600" />
-                        ) : (
-                          <Globe className="size-3.5 shrink-0 text-accent-600" />
-                        )}
-                        <span className="truncate">{p.title || p.url || p.command || p.kind}</span>
-                      </span>
-                      <span className="shrink-0 rounded-full bg-hover px-2 py-0.5 text-[10px] text-ink-secondary">
-                        {p.status}
-                      </span>
+        {panels.length > 0 && (
+          <ul className="flex flex-col gap-1.5">
+            {panels.map((p) => {
+              const imgUrl = p.screenshotUrl || (p.screenshotKey ? presignedUrls[p.screenshotKey] : undefined)
+              return (
+                <li key={p.dispatchId} className="rounded-lg border border-line bg-surface p-2.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="inline-flex min-w-0 items-center gap-1.5 truncate font-medium text-ink">
+                      {p.kind.includes('shell') ? (
+                        <Terminal className="size-3.5 shrink-0 text-accent-600" />
+                      ) : (
+                        <Globe className="size-3.5 shrink-0 text-accent-600" />
+                      )}
+                      <span className="truncate">{p.title || p.url || p.command || p.kind}</span>
+                    </span>
+                    <span className="shrink-0 rounded-full bg-hover px-2 py-0.5 text-[10px] text-ink-secondary">
+                      {p.status}
+                    </span>
+                  </div>
+                  {p.command && (
+                    <pre className="mt-1.5 overflow-x-auto rounded bg-sunken px-2 py-1 font-mono text-[11px] text-ink">
+                      $ {p.command}
+                    </pre>
+                  )}
+                  {imgUrl && (
+                    <img
+                      src={imgUrl}
+                      alt={p.kind}
+                      className="mt-2 max-h-36 w-full rounded border border-line object-contain"
+                    />
+                  )}
+                  {p.status === 'running' || p.status === 'active' ? (
+                    <div className="mt-2 flex justify-end">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        disabled={busyId === p.dispatchId}
+                        onClick={() => void stopTool(p.dispatchId)}
+                      >
+                        停止任务
+                      </Button>
                     </div>
-                    {p.command && (
-                      <pre className="mt-1.5 overflow-x-auto rounded bg-sunken px-2 py-1 font-mono text-[11px] text-ink">
-                        $ {p.command}
-                      </pre>
-                    )}
-                    {imgUrl && (
-                      <img
-                        src={imgUrl}
-                        alt={p.kind}
-                        className="mt-2 max-h-36 w-full rounded border border-line object-contain"
-                      />
-                    )}
-                    {p.status === 'running' || p.status === 'active' ? (
-                      <div className="mt-2 flex justify-end">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          disabled={busyId === p.dispatchId}
-                          onClick={() => void stopTool(p.dispatchId)}
-                        >
-                          停止此任务
-                        </Button>
-                      </div>
-                    ) : null}
-                  </li>
-                )
-              })}
-            </ul>
-          )}
-        </div>
+                  ) : null}
+                </li>
+              )
+            })}
+          </ul>
+        )}
       </div>
     </Section>
   )
@@ -1285,7 +1238,7 @@ export function HarkLibrarySection({ accountId }: { accountId: string }) {
       count={artifacts.length || undefined}
       action={<RefreshButton loading={loading} onClick={() => void refresh()} />}
     >
-      <div className="flex flex-col gap-1.5 px-3 pb-2.5 pt-1 text-[12px]">
+      <div className="flex flex-col gap-1.5 text-[12px]">
         {error && <p className="text-status-error">{error}</p>}
         {artifacts.length === 0 ? (
           <EmptyLine>{t('Files the bot creates show up here')}</EmptyLine>
@@ -1301,10 +1254,7 @@ export function HarkLibrarySection({ accountId }: { accountId: string }) {
                   <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-hover text-ink-secondary">
                     <FileText className="size-4" />
                   </span>
-                  <div className="min-w-0">
-                    <p className="truncate font-medium text-ink">{a.name}</p>
-                    <p className="truncate font-mono text-[11px] text-ink-muted">{a.path}</p>
-                  </div>
+                  <p className="truncate font-medium text-ink">{a.name}</p>
                 </button>
                 {(a.downloadUrl || a.s3Key) && (
                   <div className="flex shrink-0 items-center gap-1">
@@ -1412,16 +1362,16 @@ export function HarkInviteAndSessionsSection({ accountId }: { accountId: string 
 
   return (
     <Section
-      title="Hark 邀请与登录设备"
+      title="邀请与登录设备"
       count={sessions.length || undefined}
       action={<RefreshButton loading={loading} onClick={() => void refresh()} />}
     >
-      <div className="flex flex-col gap-2.5 px-3 pb-2.5 pt-1 text-[12px]">
+      <div className="flex flex-col gap-2 text-[12px]">
         {error && <p className="text-status-error">{error}</p>}
         {hint && <p className="text-ink-secondary">{hint}</p>}
 
         {code && (
-          <div className="flex items-center justify-between rounded-lg bg-surface p-2">
+          <div className="flex items-center justify-between rounded-lg bg-hover/60 px-2.5 py-1.5">
             <span className="font-mono text-ink">{code}</span>
             <Button
               size="sm"
@@ -1437,7 +1387,7 @@ export function HarkInviteAndSessionsSection({ accountId }: { accountId: string 
           <TextInput
             value={claimCode}
             onChange={(e) => setClaimCode(e.target.value)}
-            placeholder="输入邀请码兑换 (/invite/claim)…"
+            placeholder="输入邀请码…"
             aria-label="Hark invite code"
             className="h-7 flex-1 text-[12px]"
           />
@@ -1447,31 +1397,26 @@ export function HarkInviteAndSessionsSection({ accountId }: { accountId: string 
         </div>
 
         {sessions.length > 0 && (
-          <div>
-            <p className="mb-1 text-[11px] font-semibold tracking-wide text-ink-muted uppercase">
-              登录设备管理 (/sessions)
-            </p>
-            <ul className="flex flex-col gap-1.5">
-              {sessions.map((s) => (
-                <li
-                  key={s.id}
-                  className="flex items-center justify-between gap-2 rounded-lg bg-surface px-2.5 py-2"
-                >
-                  <div className="min-w-0">
-                    <p className="truncate font-medium text-ink">
-                      {s.label} {s.isCurrent ? '· 当前会话' : ''}
-                    </p>
-                    {s.location && <p className="truncate text-[11px] text-ink-muted">{s.location}</p>}
-                  </div>
-                  {!s.isCurrent && (
-                    <Button size="sm" variant="ghost" disabled={busy} onClick={() => void revokeSession(s.id)}>
-                      踢出
-                    </Button>
-                  )}
-                </li>
-              ))}
-            </ul>
-          </div>
+          <ul className="flex flex-col gap-1 border-t border-line pt-2">
+            {sessions.map((s) => (
+              <li
+                key={s.id}
+                className="flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 hover:bg-hover/60"
+              >
+                <div className="min-w-0">
+                  <p className="truncate font-medium text-ink">
+                    {s.label} {s.isCurrent ? '· 当前设备' : ''}
+                  </p>
+                  {s.location && <p className="truncate text-[11px] text-ink-muted">{s.location}</p>}
+                </div>
+                {!s.isCurrent && (
+                  <Button size="sm" variant="ghost" disabled={busy} onClick={() => void revokeSession(s.id)}>
+                    移除
+                  </Button>
+                )}
+              </li>
+            ))}
+          </ul>
         )}
       </div>
     </Section>

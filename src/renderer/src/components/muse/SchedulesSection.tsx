@@ -191,9 +191,14 @@ export function SchedulesSection({ accountId }: { accountId: string }) {
       action={<RefreshButton loading={loading} onClick={() => void refresh()} />}
     >
       {error && <p className="pb-1 text-[12px] text-status-error">{error}</p>}
-      <p className="mb-2 text-[11px] text-ink-muted">{t('Create tasks in chat with Muse — BotHub lists, runs, and deletes them.')}</p>
-      {renderGroup(t('Active'), active)}
-      {renderGroup(t('Paused'), paused)}
+      {active.length === 0 && paused.length === 0 ? (
+        <EmptyLine>暂无定时任务</EmptyLine>
+      ) : (
+        <>
+          {active.length > 0 && renderGroup(t('Active'), active)}
+          {paused.length > 0 && renderGroup(t('Paused'), paused)}
+        </>
+      )}
       {runsFor && (
         <div className="mt-2 rounded-lg bg-hover/50 px-2.5 py-2">
           <p className="text-[12px] font-medium text-ink">History · {runsFor.slice(0, 8)}…</p>

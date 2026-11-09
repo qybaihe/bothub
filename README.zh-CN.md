@@ -88,6 +88,15 @@ src/
     store/         Zustand 全局 Bot 状态管理、流式消息聚合与本地持久化
 ```
 
+## 协议与接口文档
+
+四大平台适配器的底层传输协议、鉴权流程与接口规范位于 [`docs/`](./docs/README.md) 目录：
+
+- **OpenAI Dot (`chatgpt.com/dots`)**：[`docs/dot/protocol.md`](./docs/dot/protocol.md) — OAuth PKCE 与网页登录鉴权、`/backend-api/tbo` Orbit 实例、`/backend-api/calpico/rooms` SSE 与 REST、`/backend-api/otp/ws` JSON-RPC 2.0 WebSocket、Dynamic Pages、文件库与跨账号记忆迁移
+- **Meta Muse (`muse.ai`)**：[`docs/museai/protocol.md`](./docs/museai/protocol.md) — `Noise_XX_25519_ChaChaPoly_SHA256` 加密 WebSocket 握手与 65+ JSON-RPC 方法全集
+- **xAI Grok Bot (`grok.com`)**：[`docs/grokbot-protocol/protocol.md`](./docs/grokbot-protocol/protocol.md) — Connect-RPC (HTTP/2) 单次与流式调用、Sand 鉴权、技能、记忆、定时任务与云端沙盒
+- **Hark (`hark.com`)**：[`docs/hark/protocol.md`](./docs/hark/protocol.md) — REST + NDJSON 流式对话、连接器、定时任务、VM 文件树与远程桌面会话
+
 ## 开源协议
 
 基于 [MIT License](./LICENSE) 开源。

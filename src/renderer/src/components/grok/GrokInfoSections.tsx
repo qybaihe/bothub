@@ -72,7 +72,7 @@ export function GrokSessionsSection({ accountId, agentId, botId }: { accountId: 
     setHint(undefined)
     try {
       await callGrok(accountId, 'StartFreshGrokBotConversation', { agent_id: agentId })
-      setHint('已开启全新对话 (StartFreshGrokBotConversation)')
+      setHint('已开启新对话')
       setSelectedAgent(botId, agentId)
       await refresh()
     } catch (err) {
@@ -89,7 +89,7 @@ export function GrokSessionsSection({ accountId, agentId, botId }: { accountId: 
     setHint(undefined)
     try {
       await callGrok(accountId, 'RollBackGrokBotConversation', { agent_id: agentId })
-      setHint('已回滚上一轮对话 (RollBackGrokBotConversation)')
+      setHint('已回滚上一轮对话')
       setSelectedAgent(botId, agentId)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
@@ -100,11 +100,11 @@ export function GrokSessionsSection({ accountId, agentId, botId }: { accountId: 
 
   return (
     <Section
-      title="Grok 会话与控制"
+      title="会话与控制"
       count={sessions.length || undefined}
       action={<RefreshButton loading={loading} onClick={() => void refresh()} />}
     >
-      <div className="flex flex-col gap-2 px-3 pb-2.5 pt-1 text-[12px]">
+      <div className="flex flex-col gap-2 text-[12px]">
         {error && <p className="text-status-error">{error}</p>}
         {hint && <p className="text-ink-secondary">{hint}</p>}
         <div className="flex flex-wrap gap-1.5">
@@ -117,8 +117,8 @@ export function GrokSessionsSection({ accountId, agentId, botId }: { accountId: 
         </div>
         {sessions.length > 0 && (
           <ul className="mt-1 flex flex-col gap-1">
-            {sessions.slice(0, 10).map((s) => (
-              <li key={s.sessionId} className="flex items-center justify-between rounded-lg bg-surface px-2.5 py-1.5 font-mono text-[11px]">
+            {sessions.slice(0, 6).map((s) => (
+              <li key={s.sessionId} className="flex items-center justify-between rounded-md px-2 py-1 text-[11.5px] hover:bg-hover/60">
                 <span className="truncate text-ink">{s.sessionId || 'main'}</span>
                 <span className="text-ink-muted">{s.kind}</span>
               </li>
@@ -219,14 +219,14 @@ export function GrokAutomationsSection({ accountId, agentId }: { accountId: stri
 
   return (
     <Section
-      title="定时任务 (Automations)"
+      title="定时任务"
       count={items.length || undefined}
       action={<RefreshButton loading={loading} onClick={() => void refresh()} />}
     >
-      <div className="flex flex-col gap-2 px-3 pb-2.5 pt-1">
+      <div className="flex flex-col gap-2">
         {error && <p className="text-[12px] text-status-error">{error}</p>}
         {items.length === 0 ? (
-          <EmptyLine>暂无 Grok 自动化任务</EmptyLine>
+          <EmptyLine>暂无定时任务</EmptyLine>
         ) : (
           <ul className="flex flex-col gap-1.5">
             {items.map((a) => (
@@ -234,7 +234,7 @@ export function GrokAutomationsSection({ accountId, agentId }: { accountId: stri
                 <div className="flex items-center justify-between gap-2">
                   <span className="truncate font-medium text-ink">{a.name}</span>
                   <span className="rounded-full bg-hover px-2 py-0.5 text-[10px] text-ink-secondary">
-                    {a.isEnabled ? 'Active' : 'Paused'}
+                    {a.isEnabled ? t('Active') : t('Paused')}
                   </span>
                 </div>
                 <p className="mt-0.5 text-[11px] text-ink-muted">{a.schedule}</p>
@@ -359,17 +359,17 @@ export function GrokMemoriesAndSkillsSection({ accountId, agentId }: { accountId
   return (
     <>
       <Section
-        title="Grok 云端记忆 (Memories)"
+        title="云端记忆"
         count={memories.length || undefined}
         action={<RefreshButton loading={loading} onClick={() => void refresh()} />}
       >
-        <div className="flex flex-col gap-1.5 px-3 pb-2.5 pt-1">
+        <div className="flex flex-col gap-1.5">
           {memories.length === 0 ? (
             <EmptyLine>暂无云端记忆</EmptyLine>
           ) : (
             <ul className="flex flex-col gap-1.5">
               {memories.map((m) => (
-                <li key={m.factId} className="rounded-lg border border-line bg-surface px-2.5 py-2 text-[12px] text-ink">
+                <li key={m.factId} className="rounded-lg bg-hover/50 px-2.5 py-1.5 text-[12px] text-ink">
                   {m.text}
                 </li>
               ))}
@@ -379,13 +379,13 @@ export function GrokMemoriesAndSkillsSection({ accountId, agentId }: { accountId
       </Section>
 
       <Section
-        title="Grok 技能 (Skills)"
+        title="技能"
         count={skills.length || undefined}
         action={<RefreshButton loading={loading} onClick={() => void refresh()} />}
       >
-        <div className="flex flex-col gap-2 px-3 pb-2.5 pt-1">
+        <div className="flex flex-col gap-2">
           {error && <p className="text-[12px] text-status-error">{error}</p>}
-          <div className="flex flex-col gap-1.5 rounded-lg border border-line bg-surface p-2">
+          <div className="flex flex-col gap-1.5">
             <TextInput
               value={newSkillName}
               onChange={(e) => setNewSkillName(e.target.value)}
@@ -396,7 +396,7 @@ export function GrokMemoriesAndSkillsSection({ accountId, agentId }: { accountId
             <textarea
               value={newSkillContent}
               onChange={(e) => setNewSkillContent(e.target.value)}
-              placeholder="技能指令内容 (Markdown)…"
+              placeholder="技能指令内容…"
               rows={2}
               className="w-full resize-none rounded-lg border border-line bg-canvas p-2 text-[12px] text-ink outline-none"
             />
@@ -406,15 +406,15 @@ export function GrokMemoriesAndSkillsSection({ accountId, agentId }: { accountId
               disabled={busy || !newSkillName.trim() || !newSkillContent.trim()}
               onClick={() => void addSkill()}
             >
-              添加技能 (AddGrokBotAgentSkill)
+              添加技能
             </Button>
           </div>
           {skills.length === 0 ? (
-            <EmptyLine>暂无已挂载技能</EmptyLine>
+            <EmptyLine>暂无技能</EmptyLine>
           ) : (
-            <ul className="flex flex-col gap-1.5">
+            <ul className="flex flex-col gap-1 border-t border-line pt-2">
               {skills.map((s) => (
-                <li key={s.name} className="flex items-start justify-between gap-2 rounded-lg border border-line bg-surface p-2 text-[12px]">
+                <li key={s.name} className="flex items-start justify-between gap-2 rounded-lg px-2 py-1.5 text-[12px] hover:bg-hover/60">
                   <div className="min-w-0">
                     <p className="truncate font-medium text-ink">{s.name}</p>
                     {s.description && <p className="text-[11px] text-ink-secondary">{s.description}</p>}
@@ -489,7 +489,7 @@ export function GrokFilesSection({ accountId, agentId }: { accountId: string; ag
       count={files.length || undefined}
       action={<RefreshButton loading={loading} onClick={() => void refresh()} />}
     >
-      <div className="flex flex-col gap-1.5 px-3 pb-2.5 pt-1">
+      <div className="flex flex-col gap-1.5">
         {error && <p className="text-[12px] text-status-error">{error}</p>}
         {files.length === 0 ? (
           <EmptyLine>{t('Files the bot creates show up here')}</EmptyLine>
@@ -497,10 +497,7 @@ export function GrokFilesSection({ accountId, agentId }: { accountId: string; ag
           <ul className="divide-y divide-line">
             {files.map((f) => (
               <li key={f.path} className="flex items-center justify-between gap-2 py-2 text-[12px]">
-                <span className="min-w-0">
-                  <span className="block truncate font-medium text-ink">{f.name}</span>
-                  <span className="block truncate font-mono text-[11px] text-ink-muted">{f.path}</span>
-                </span>
+                <span className="min-w-0 truncate font-medium text-ink">{f.name}</span>
                 <Button size="sm" variant="ghost" onClick={() => void removeFile(f.name)}>
                   {t('Delete')}
                 </Button>
@@ -597,55 +594,45 @@ export function GrokMembersSection({ accountId, agentId }: { accountId: string; 
 
   return (
     <Section
-      title="共享与成员邀请 (Access Invites)"
+      title="成员与共享"
       count={invites.length || undefined}
       action={<RefreshButton loading={loading} onClick={() => void refresh()} />}
     >
-      <div className="flex flex-col gap-2.5 px-3 pb-2.5 pt-1 text-[12px]">
+      <div className="flex flex-col gap-2 text-[12px]">
         {error && <p className="text-status-error">{error}</p>}
         {hint && <p className="break-all text-ink-secondary">{hint}</p>}
 
-        <div>
-          <p className="mb-1 text-[11px] font-semibold tracking-wide text-ink-muted uppercase">
-            邀请他人共享此 Bot
-          </p>
-          <div className="flex gap-1.5">
-            <TextInput
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="输入受邀邮箱…"
-              aria-label="Invite email"
-              className="h-7 flex-1 text-[12px]"
-            />
-            <Button size="sm" variant="secondary" disabled={busy || !email.trim()} onClick={() => void sendInvite()}>
-              发送邀请
-            </Button>
-          </div>
+        <div className="flex gap-1.5">
+          <TextInput
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="输入受邀邮箱…"
+            aria-label="Invite email"
+            className="h-7 flex-1 text-[12px]"
+          />
+          <Button size="sm" variant="secondary" disabled={busy || !email.trim()} onClick={() => void sendInvite()}>
+            邀请
+          </Button>
         </div>
 
-        <div>
-          <p className="mb-1 text-[11px] font-semibold tracking-wide text-ink-muted uppercase">
-            接受他人邀请码
-          </p>
-          <div className="flex gap-1.5">
-            <TextInput
-              value={inviteCode}
-              onChange={(e) => setInviteCode(e.target.value)}
-              placeholder="粘贴邀请码…"
-              aria-label="Invite code"
-              className="h-7 flex-1 font-mono text-[12px]"
-            />
-            <Button size="sm" variant="primary" disabled={busy || !inviteCode.trim()} onClick={() => void acceptInvite()}>
-              接受
-            </Button>
-          </div>
+        <div className="flex gap-1.5">
+          <TextInput
+            value={inviteCode}
+            onChange={(e) => setInviteCode(e.target.value)}
+            placeholder="粘贴邀请码…"
+            aria-label="Invite code"
+            className="h-7 flex-1 font-mono text-[12px]"
+          />
+          <Button size="sm" variant="primary" disabled={busy || !inviteCode.trim()} onClick={() => void acceptInvite()}>
+            接受
+          </Button>
         </div>
 
         {invites.length > 0 && (
-          <ul className="flex flex-col gap-1">
+          <ul className="flex flex-col gap-1 border-t border-line pt-2">
             {invites.map((i) => (
-              <li key={i.email} className="flex items-center justify-between rounded-lg bg-surface px-2.5 py-1.5">
-                <span className="truncate text-ink">{i.email}</span>
+              <li key={i.email} className="flex items-center justify-between rounded-md px-2 py-1 text-ink">
+                <span className="truncate">{i.email}</span>
               </li>
             ))}
           </ul>
@@ -691,27 +678,19 @@ export function GrokComputerSection({ accountId, agentId }: { accountId: string;
 
   return (
     <Section
-      title="Sand 云端沙盒电脑 (CursorVM Sandbox)"
+      title="云端沙盒"
       action={<RefreshButton loading={loading} onClick={() => void refresh()} />}
     >
-      <div className="flex flex-col gap-2 px-3 pb-2.5 pt-1 text-[12px]">
+      <div className="flex flex-col gap-2 text-[12px]">
         {error && <p className="text-status-error">{error}</p>}
-        <div className="rounded-lg border border-line bg-surface p-2.5">
-          <div className="flex items-center justify-between">
-            <span className="font-medium text-ink">Grok Sand Pod 状态</span>
-            <span className="rounded-full bg-hover px-2 py-0.5 text-[10.5px] font-medium text-ink-secondary">
-              {status === 'online' || status === 'busy' ? 'Connected' : 'Standby'}
-            </span>
-          </div>
-          <p className="mt-1 font-mono text-[11px] text-ink-muted">
-            Agent ID: {agentId || '未选择 Agent'}
-          </p>
-          <p className="mt-0.5 font-mono text-[11px] text-ink-muted">
-            Workspace: /home/box/sand-data/agents/{agentId || '<id>'}
-          </p>
+        <div className="flex items-center justify-between">
+          <span className="font-medium text-ink">沙盒运行状态</span>
+          <span className="rounded-full bg-hover px-2 py-0.5 text-[10.5px] font-medium text-ink-secondary">
+            {status === 'online' || status === 'busy' ? '运行中' : '待机'}
+          </span>
         </div>
         {vmInfo && Object.keys(vmInfo).length > 0 && (
-          <pre className="max-h-40 overflow-auto rounded-lg border border-line bg-sunken p-2 font-mono text-[11px] text-ink">
+          <pre className="max-h-36 overflow-auto rounded-lg border border-line bg-sunken p-2 font-mono text-[11px] text-ink">
             {JSON.stringify(vmInfo, null, 2)}
           </pre>
         )}

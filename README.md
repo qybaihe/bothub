@@ -88,6 +88,15 @@ src/
     store/         Zustand bot fleet state, streaming reconciler, and persistence
 ```
 
+## Protocol & API Documentation
+
+Detailed wire-protocol specifications and API references for each adapted agent platform live in [`docs/`](./docs/README.md):
+
+- **OpenAI Dot (`chatgpt.com/dots`)**: [`docs/dot/protocol.md`](./docs/dot/protocol.md) — OAuth PKCE & web session auth, `/backend-api/tbo` Orbit profiles, `/backend-api/calpico/rooms` SSE & REST, `/backend-api/otp/ws` JSON-RPC 2.0 WebSocket, Dynamic Pages, Library, and cross-account memory migration
+- **Meta Muse (`muse.ai`)**: [`docs/museai/protocol.md`](./docs/museai/protocol.md) — `Noise_XX_25519_ChaChaPoly_SHA256` encrypted WebSocket handshake and 65+ JSON-RPC methods
+- **xAI Grok Bot (`grok.com`)**: [`docs/grokbot-protocol/protocol.md`](./docs/grokbot-protocol/protocol.md) — Connect-RPC unary & streaming RPCs over HTTP/2, Sand auth, skills, memories, automations, and cloud sandbox
+- **Hark (`hark.com`)**: [`docs/hark/protocol.md`](./docs/hark/protocol.md) — REST + NDJSON streaming endpoints, connectors, scheduled tasks, VM file tree, and computer sessions
+
 ## License
 
 Released under the [MIT License](./LICENSE).

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { EmptyLine, Section } from '@/components/info/Section'
+import { Section } from '@/components/info/Section'
 import { Button } from '@/components/ui/Button'
 import { TextInput } from '@/components/ui/Field'
 import { RefreshButton } from '@/components/muse/RefreshButton'
@@ -128,7 +128,6 @@ export function AgentDiagnosticSection({ accountId }: { accountId: string }) {
     }
   }
 
-  const museId = identityInfo ? String(identityInfo['muse_id'] ?? identityInfo['museId'] ?? identityInfo['id'] ?? '') : ''
   const agentName = identityInfo ? String(identityInfo['display_name'] ?? identityInfo['name'] ?? '') : ''
 
   return (
@@ -137,82 +136,71 @@ export function AgentDiagnosticSection({ accountId }: { accountId: string }) {
       count={activities.length || undefined}
       action={<RefreshButton loading={loading} onClick={() => void refresh()} />}
     >
-      <div className="flex flex-col gap-2.5 px-3 pb-2.5 pt-1 text-[12px]">
+      <div className="flex flex-col gap-2.5 text-[12px]">
         {error && <p className="text-status-error">{error}</p>}
         {hint && <p className="text-ink-secondary">{hint}</p>}
 
-        <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 rounded-lg bg-surface p-2 text-[11px]">
-          <span className="text-ink-muted">VM Health</span>
-          <span className="truncate font-mono text-ink">{vmHealth || 'OK'}</span>
-          {museId && (
-            <>
-              <span className="text-ink-muted">Muse ID</span>
-              <span className="truncate font-mono text-ink" title={museId}>
-                {museId}
-              </span>
-            </>
-          )}
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg bg-hover/60 px-2.5 py-1.5 text-[11px]">
+          <span>
+            <span className="text-ink-muted">VM </span>
+            <span className="font-mono text-ink">{vmHealth || 'OK'}</span>
+          </span>
           {agentName && (
-            <>
-              <span className="text-ink-muted">Identity</span>
-              <span className="truncate text-ink">{agentName}</span>
-            </>
+            <span>
+              <span className="text-ink-muted">身份 </span>
+              <span className="text-ink">{agentName}</span>
+            </span>
           )}
-          <span className="text-ink-muted">Subagents</span>
-          <span className="text-ink">{subagentsCount}</span>
+          <span>
+            <span className="text-ink-muted">子代理 </span>
+            <span className="text-ink">{subagentsCount}</span>
+          </span>
         </div>
 
-        <div>
-          <p className="mb-1 text-[11px] font-semibold tracking-wide text-ink-muted uppercase">
-            Model (model.get / model.set)
-          </p>
-          <div className="flex gap-1.5">
-            {availableModels.length > 0 ? (
-              <select
-                value={modelName}
-                onChange={(e) => setModelName(e.target.value)}
-                className="min-w-0 flex-1 rounded-lg border border-line bg-surface px-2 py-1 text-[12px] text-ink"
-              >
-                {availableModels.map((m) => (
-                  <option key={m} value={m}>
-                    {m}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <TextInput
-                value={modelName}
-                onChange={(e) => setModelName(e.target.value)}
-                placeholder="默认模型"
-                aria-label="Model"
-                className="h-7 flex-1 text-[12px]"
-              />
-            )}
-            <Button size="sm" variant="secondary" disabled={saving || !modelName.trim()} onClick={() => void saveModel()}>
-              {t('Save')}
-            </Button>
-          </div>
-        </div>
-
-        <div>
-          <p className="mb-1 text-[11px] font-semibold tracking-wide text-ink-muted uppercase">
-            Activity Feed (activity.list)
-          </p>
-          {activities.length === 0 ? (
-            <EmptyLine>暂无活动日志</EmptyLine>
+        <div className="flex gap-1.5">
+          {availableModels.length > 0 ? (
+            <select
+              value={modelName}
+              onChange={(e) => setModelName(e.target.value)}
+              className="min-w-0 flex-1 rounded-lg border border-line bg-surface px-2 py-1 text-[12px] text-ink"
+            >
+              {availableModels.map((m) => (
+                <option key={m} value={m}>
+                  {m}
+                </option>
+              ))}
+            </select>
           ) : (
-            <ul className="flex max-h-48 flex-col gap-1 overflow-y-auto">
+            <TextInput
+              value={modelName}
+              onChange={(e) => setModelName(e.target.value)}
+              placeholder="默认模型"
+              aria-label="Model"
+              className="h-7 flex-1 text-[12px]"
+            />
+          )}
+          <Button size="sm" variant="secondary" disabled={saving || !modelName.trim()} onClick={() => void saveModel()}>
+            {t('Save')}
+          </Button>
+        </div>
+
+        {activities.length > 0 && (
+          <div>
+            <p className="mb-1 text-[11px] font-semibold tracking-wide text-ink-muted uppercase">
+              最近活动
+            </p>
+            <ul className="divide-y divide-line max-h-48 overflow-y-auto">
               {activities.map((a) => (
-                <li key={a.id} className="rounded-lg bg-surface px-2.5 py-1.5 text-[11px]">
+                <li key={a.id} className="py-1.5 text-[11.5px]">
                   <p className="truncate font-medium text-ink">{a.title}</p>
                   {(a.kind || a.status) && (
-                    <p className="text-ink-muted">{[a.kind, a.status].filter(Boolean).join(' · ')}</p>
+                    <p className="text-[10.5px] text-ink-muted">{[a.kind, a.status].filter(Boolean).join(' · ')}</p>
                   )}
                 </li>
               ))}
             </ul>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </Section>
   )

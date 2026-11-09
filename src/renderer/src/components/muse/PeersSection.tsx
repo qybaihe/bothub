@@ -612,22 +612,15 @@ export function PeersSection({ accountId }: { accountId: string }) {
       count={contacts.length || undefined}
       action={<RefreshButton loading={loading} onClick={() => void refresh()} />}
     >
-      {error && <p className="px-3 pt-2 text-[12px] text-status-error">{error}</p>}
-      {hint && <p className="px-3 pt-2 text-[12px] text-ink-secondary">{hint}</p>}
+      {error && <p className="pb-1 text-[12px] text-status-error">{error}</p>}
+      {hint && <p className="pb-1 text-[12px] text-ink-secondary">{hint}</p>}
       {sasCode && (
-        <p className="mx-3 mt-2 rounded-lg bg-sunken px-2.5 py-2 font-mono text-[13px] text-ink">{sasCode}</p>
+        <p className="mb-2 rounded-lg bg-sunken px-2.5 py-2 font-mono text-[13px] text-ink">{sasCode}</p>
       )}
       {unavailable ? (
-        <div className="px-3 pb-2">
-          <EmptyLine>{t('Trusted Network unavailable')}</EmptyLine>
-        </div>
+        <EmptyLine>{t('Trusted Network unavailable')}</EmptyLine>
       ) : (
-        <div className="flex flex-col gap-3 px-3 pb-2 pt-1">
-          <p className="text-[11px] text-ink-muted">
-            {peersStatus?.chatPairing ? t('Chat pairing enabled') : t('Chat pairing unknown / off')}
-            {peersStatus?.availability ? ` · ${peersStatus.availability}` : ''}
-          </p>
-
+        <div className="flex flex-col gap-3">
           <div>
             <p className="mb-1.5 text-[11px] font-semibold tracking-wide text-ink-muted uppercase">
               {t('Contacts')}

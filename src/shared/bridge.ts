@@ -128,7 +128,8 @@ export interface MuseBridge {
   ): Promise<{ added: number; total: number; items: MuseProxyPoolItemView[] }>
   removeProxyPoolItem(id: string): Promise<MuseProxyPoolItemView[]>
   clearProxyPool(): Promise<MuseProxyPoolItemView[]>
-  assignProxyPool(accountIds: string[]): Promise<{ assignedCount: number; items: MuseProxyPoolItemView[] }>
+  /** `keepIds`: accounts whose current slot is kept but who get no new one. */
+  assignProxyPool(accountIds: string[], keepIds?: string[]): Promise<{ assignedCount: number; items: MuseProxyPoolItemView[] }>
 }
 
 export interface UpdateBridge {

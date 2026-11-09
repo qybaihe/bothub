@@ -256,9 +256,11 @@ export function registerMuseIpc(): void {
     return clearProxyPool()
   })
 
-  ipcMain.handle(MUSE_CHANNELS.assignProxyPool, async (event, accountIds: unknown) => {
+  ipcMain.handle(MUSE_CHANNELS.assignProxyPool, async (event, accountIds: unknown, keepIds?: unknown) => {
     if (!Array.isArray(accountIds)) throw new TypeError('Invalid accountIds array')
     const ids = accountIds.filter((id): id is string => typeof id === 'string')
+    // Accounts that hold a slot but must not be handed a new one (Hark).
+    const kept = new Set(Array.isArray(keepIds) ? keepIds.filter((id): id is string => typeof id === 'string') : [])
     const mgr = managerFor(event)
     return assignProxyPoolToAccounts(
       ids,
@@ -266,7 +268,7 @@ export function registerMuseIpc(): void {
         await mgr.applyAccountProxy(accId).catch(() => undefined)
       },
       // Logins still in flight are not in the renderer list yet; keep their proxy.
-      (accId) => [...managers.values()].some((m) => m.isLoginInFlight(accId))
+      (accId) => kept.has(accId) || [...managers.values()].some((m) => m.isLoginInFlight(accId))
     )
   })
 

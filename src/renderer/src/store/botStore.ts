@@ -265,6 +265,18 @@ function mergeHydratedMessages(existing: ChatMessage[], hydrated: ChatMessage[])
   })
 }
 
+/** Pool bookkeeping lists: Muse accounts are assigned, Hark accounts only keep their slot. */
+export function poolAccountIds(accounts: Record<string, { id: string; platformId: string }>): {
+  museIds: string[]
+  harkIds: string[]
+} {
+  const all = Object.values(accounts)
+  return {
+    museIds: all.filter((a) => a.platformId === 'meta-muse').map((a) => a.id),
+    harkIds: all.filter((a) => a.platformId === 'hark').map((a) => a.id)
+  }
+}
+
 export const useBotStore = create<BotHubState>()(
   persist((set, get) => {
   const updateMessage = (botId: string, messageId: string, patch: Partial<ChatMessage>) =>
@@ -541,11 +553,9 @@ export const useBotStore = create<BotHubState>()(
       const accounts = get().accounts
       const bridge = electronBridge()
       if (input.platformId === 'meta-muse' && bridge?.muse?.assignProxyPool) {
-        // Hark accounts share the pool; leaving them out freed their proxies.
-        const allMuseIds = Object.values(accounts)
-          .filter((a) => a.platformId === 'meta-muse' || a.platformId === 'hark')
-          .map((a) => a.id)
-        void bridge.muse.assignProxyPool(allMuseIds).catch(() => undefined)
+        // Hark accounts share the pool: keep their slots, but only Muse gets new ones.
+        const { museIds, harkIds } = poolAccountIds(accounts)
+        void bridge.muse.assignProxyPool(museIds, harkIds).catch(() => undefined)
       }
       for (const id of ids) if (accounts[id]?.status === 'offline') void get().connectAccount(id)
       return bot.id
@@ -567,10 +577,9 @@ export const useBotStore = create<BotHubState>()(
       const accounts = get().accounts
       const bridge = electronBridge()
       if (bot.platformId === 'meta-muse' && bridge?.muse?.assignProxyPool) {
-        const allMuseIds = Object.values(accounts)
-          .filter((a) => a.platformId === 'meta-muse' || a.platformId === 'hark')
-          .map((a) => a.id)
-        void bridge.muse.assignProxyPool(allMuseIds).catch(() => undefined)
+        // Hark accounts share the pool: keep their slots, but only Muse gets new ones.
+        const { museIds, harkIds } = poolAccountIds(accounts)
+        void bridge.muse.assignProxyPool(museIds, harkIds).catch(() => undefined)
       }
       for (const id of newIds) if (accounts[id]?.status === 'offline') void get().connectAccount(id)
     },

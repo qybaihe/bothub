@@ -273,7 +273,7 @@ export function SettingsView() {
       setPool(res.items)
       const ids = museAccounts.map((a) => a.id)
       if (ids.length > 0 && muse.assignProxyPool) {
-        const assigned = await muse.assignProxyPool(ids)
+        const assigned = await muse.assignProxyPool(ids, harkAccounts.map((a) => a.id))
         setPool(assigned.items)
         setHint(`已导入 ${res.added} 个代理（池共 ${res.total} 个），并已自动为 ${assigned.assignedCount} 个 Muse 账号一对一绑定代理`)
       } else {
@@ -295,7 +295,7 @@ export function SettingsView() {
     setHint(undefined)
     try {
       const ids = museAccounts.map((a) => a.id)
-      const res = await muse.assignProxyPool(ids)
+      const res = await muse.assignProxyPool(ids, harkAccounts.map((a) => a.id))
       setPool(res.items)
       setHint(`已为 ${res.assignedCount} / ${ids.length} 个 Muse 账号完成一对一代理匹配`)
       await refreshProxiesAndPool()
@@ -328,7 +328,7 @@ export function SettingsView() {
     const muse = getBridge()?.muse
     if (muse?.assignProxyPool) {
       const ids = [...museAccounts.map((a) => a.id), accountId]
-      await muse.assignProxyPool(ids).catch(() => undefined)
+      await muse.assignProxyPool(ids, harkAccounts.map((a) => a.id)).catch(() => undefined)
     }
     addBot({
       id: botId,

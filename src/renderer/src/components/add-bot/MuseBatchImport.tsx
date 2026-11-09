@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/Button'
 import { getBridge } from '@/lib/bridge'
 import { cn } from '@/lib/cn'
 import { useT } from '@/lib/i18n'
-import { useBotStore } from '@/store/botStore'
+import { poolAccountIds, useBotStore } from '@/store/botStore'
 
 type RowState = 'waiting' | 'running' | 'ok' | 'failed' | 'needs-human' | 'cancelled'
 
@@ -144,13 +144,11 @@ export function MuseBatchImport({ onDone, onBusyChange }: { onDone: () => void; 
     // the store yet, so list them too or the pool frees and re-hands out
     // their proxies (two concurrent logins on one IP).
     if (muse?.assignProxyPool) {
-      const existingMuseIds = Object.values(useBotStore.getState().accounts)
-        .filter((a) => a.platformId === 'meta-muse' || a.platformId === 'hark')
-        .map((a) => a.id)
+      const { museIds: existingMuseIds, harkIds } = poolAccountIds(useBotStore.getState().accounts)
       const inFlight = rowsRef.current
         .filter((r) => r.accountId && (r.state === 'running' || r.state === 'needs-human'))
         .map((r) => r.accountId)
-      await muse.assignProxyPool([...new Set([...existingMuseIds, ...inFlight, accountId])]).catch(() => undefined)
+      await muse.assignProxyPool([...new Set([...existingMuseIds, ...inFlight, accountId])], harkIds).catch(() => undefined)
     }
     if (stopRef.current) return { res: { ok: false, reason: 'cancelled' }, accountId, botId }
     try {

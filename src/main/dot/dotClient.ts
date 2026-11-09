@@ -507,6 +507,9 @@ export async function importDotCredentialsFromRaw(
   extra?: { refreshToken?: string; chatgptAccountId?: string; proxyUrl?: string }
 ): Promise<DotStoredAccount> {
   const trimmed = (rawInput ?? '').trim()
+  // Token exchanges must use the account proxy even when re-importing
+  // without one in the form (the stored proxy is kept by upsert).
+  const authProxyUrl = extra?.proxyUrl?.trim() || getStoredDotAccount(accountId)?.proxyUrl
   const extraRt = extra?.refreshToken?.trim()
 
   if (!trimmed && !extraRt) {
@@ -515,7 +518,7 @@ export async function importDotCredentialsFromRaw(
 
   // Case 0: Only refreshToken was provided in extra (or rawInput is empty)
   if (!trimmed && extraRt) {
-    const exchanged = await exchangeDotRefreshToken(extraRt, undefined, extra?.proxyUrl)
+    const exchanged = await exchangeDotRefreshToken(extraRt, undefined, authProxyUrl)
     return upsertDotCredentials(accountId, {
       accessToken: exchanged.accessToken,
       refreshToken: exchanged.refreshToken,
@@ -531,7 +534,7 @@ export async function importDotCredentialsFromRaw(
     const decoded = decodeChatGptJwt(at)
     if (rt && decoded.expiresAtMs && decoded.expiresAtMs < Date.now() + 60_000) {
       try {
-        const exchanged = await exchangeDotRefreshToken(rt, decoded.clientId, extra?.proxyUrl)
+        const exchanged = await exchangeDotRefreshToken(rt, decoded.clientId, authProxyUrl)
         at = exchanged.accessToken
         rt = exchanged.refreshToken
       } catch {
@@ -564,7 +567,7 @@ export async function importDotCredentialsFromRaw(
     // Otherwise treat single-line non-JSON string as an OAuth refresh_token (e.g. rt_...)
     const rtCandidate = trimmed.replace(/^Bearer\s+/i, '').trim()
     if (rtCandidate.length >= 16 && !/\s/.test(rtCandidate)) {
-      const exchanged = await exchangeDotRefreshToken(rtCandidate, undefined, extra?.proxyUrl)
+      const exchanged = await exchangeDotRefreshToken(rtCandidate, undefined, authProxyUrl)
       return upsertDotCredentials(accountId, {
         accessToken: exchanged.accessToken,
         refreshToken: exchanged.refreshToken,
@@ -631,7 +634,11 @@ export async function importDotCredentialsFromRaw(
   const isExpired = Boolean(decoded.expiresAtMs && decoded.expiresAtMs < Date.now() + 60_000)
 
   if ((!accessToken || isExpired) && refreshToken) {
-    const exchanged = await exchangeDotRefreshToken(refreshToken, clientId || decoded.clientId, extra?.proxyUrl)
+    const exchanged = await exchangeDotRefreshToken(
+      refreshToken,
+      clientId || decoded.clientId,
+      authProxyUrl || (typeof rec['proxy_url'] === 'string' ? rec['proxy_url'] : undefined)
+    )
     accessToken = exchanged.accessToken
     refreshToken = exchanged.refreshToken
   }

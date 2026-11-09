@@ -420,7 +420,23 @@ export async function releaseProxyPoolAccount(accountId: string): Promise<void> 
  * stay direct until the proxy was saved again.
  */
 export async function applyAllStoredProxies(log: (msg: string, err: unknown) => void = console.warn): Promise<void> {
-  const ids = Object.keys(readStore())
+  let ids: string[]
+  try {
+    ids = Object.keys(readStore())
+  } catch (err) {
+    log("[proxy] proxy store unreadable at startup", err)
+    return
+  }
+  // Fail closed first (no decryption needed), so a slow keychain prompt
+  // never lets the first requests out with the real IP.
+  await Promise.all(
+    ids.map((id) =>
+      electronSession
+        .fromPartition(partitionForAccount(id))
+        .setProxy({ proxyRules: BLOCKING_PROXY_RULE, proxyBypassRules: "" })
+        .catch((err: unknown) => log(`[proxy] ${id} not blocked`, err))
+    )
+  )
   await Promise.all(
     ids.map((id) => applyProxyToPartition(id).catch((err) => log(`[proxy] ${id} not applied`, err)))
   )

@@ -13,8 +13,11 @@ export function normalizeProxyUrl(raw: string | undefined | null): string | null
   } catch {
     return null
   }
-  if (!url.hostname || !url.port) return null
-  if (!proxyKindOf(url.protocol)) return null
+  const kind = proxyKindOf(url.protocol)
+  if (!url.hostname || !kind) return null
+  // URL drops default ports (http :80, https :443): those are fine. SOCKS needs one.
+  if (!url.port && kind === 'socks' && !/:\d+(\/|$)/.test(withScheme.replace(/^[^@]*@/, ''))) return null
+  if (!url.port && kind === 'http' && !/:\d+(\/|$)/.test(withScheme.split('://')[1] ?? '')) return null
   return url.toString().replace(/\/$/, '')
 }
 
@@ -51,4 +54,9 @@ export function requireValidProxyUrl(raw: string | undefined | null): string | u
   const url = normalizeProxyUrl(raw)
   if (!url) throw new Error('代理地址无效：需要 http:// 或 socks5:// 加 主机:端口')
   return url
+}
+
+/** For socks-proxy-agent: socks5h so hostnames resolve on the proxy (no local DNS leak). */
+export function remoteDnsProxyUrl(normalizedUrl: string): string {
+  return normalizedUrl.replace(/^socks5?:\/\//i, 'socks5h://')
 }

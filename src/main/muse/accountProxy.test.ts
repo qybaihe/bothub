@@ -47,7 +47,9 @@ describe('account proxy fails closed', () => {
   it('applies every stored account at startup without throwing', async () => {
     const log = vi.fn()
     await applyAllStoredProxies(log)
-    expect(setProxy).toHaveBeenCalledTimes(1)
+    // Blocked before decrypting, and stays blocked when decryption fails.
+    expect(setProxy.mock.calls.length).toBeGreaterThanOrEqual(1)
+    for (const [cfg] of setProxy.mock.calls) expect(cfg).toMatchObject({ proxyRules: 'http://127.0.0.1:9' })
     expect(log).toHaveBeenCalledOnce()
   })
 })

@@ -2,7 +2,7 @@ import type { Agent } from 'node:http'
 import { HttpsProxyAgent } from 'https-proxy-agent'
 import { SocksProxyAgent } from 'socks-proxy-agent'
 import { fetch as undiciFetch, ProxyAgent, Socks5ProxyAgent, type Dispatcher } from 'undici'
-import { normalizeProxyUrl, proxyKind, undiciProxyUrl } from './proxyUrl'
+import { normalizeProxyUrl, proxyKind, remoteDnsProxyUrl, undiciProxyUrl } from './proxyUrl'
 
 /**
  * Node-side requests (fetch / ws) through a per-account proxy URL.
@@ -35,5 +35,5 @@ export function proxyFetch(proxyUrl: string | undefined, input: string, init?: R
 export function proxyWsAgent(proxyUrl: string | undefined): Agent | undefined {
   if (!proxyUrl?.trim()) return undefined
   const { url, kind } = requireProxy(proxyUrl)
-  return (kind === 'http' ? new HttpsProxyAgent(url) : new SocksProxyAgent(url)) as unknown as Agent
+  return (kind === 'http' ? new HttpsProxyAgent(url) : new SocksProxyAgent(remoteDnsProxyUrl(url))) as unknown as Agent
 }

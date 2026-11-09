@@ -79,6 +79,8 @@ export const ZH: Record<string, string> = {
   "Allow": "允许",
   "Deny": "拒绝",
   "Typing…": "正在输入…",
+  "You: {text}": "你：{text}",
+  "now": "刚刚",
   "Unpin": "取消置顶",
   "Pin": "置顶",
   "Add photo": "添加头像",

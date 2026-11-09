@@ -35,7 +35,7 @@ function formatShortTime(ts?: number): string {
   if (!ts) return ''
   const diff = Date.now() - ts
   const min = Math.floor(diff / 60_000)
-  if (min < 1) return 'now'
+  if (min < 1) return t('now')
   if (min < 60) return `${min}m`
   const h = Math.floor(min / 60)
   if (h < 24) return `${h}h`
@@ -60,7 +60,7 @@ function previewText(
     (last.attachments?.length ? `📎 ${last.attachments[0]!.name}` : '') ||
     (last.media?.length ? `📎 ${last.media[0]!.name || last.media[0]!.path || 'Attachment'}` : '') ||
     (last.tools?.length ? `🔧 ${last.tools[0]!.name}` : '')
-  return last.role === 'user' ? `You: ${body}` : body
+  return last.role === 'user' ? t('You: {text}', { text: body }) : body
 }
 
 export const BotListItem = memo(function BotListItem({

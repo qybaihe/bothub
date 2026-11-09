@@ -59,7 +59,8 @@ export interface Bot {
 }
 
 export type MessageRole = 'user' | 'bot'
-export type MessageDelivery = 'sending' | 'sent' | 'failed'
+/** `no-reply`: the platform accepted the message but no answer was seen. */
+export type MessageDelivery = 'sending' | 'sent' | 'failed' | 'no-reply'
 
 export interface ChatToolCall {
   id: string

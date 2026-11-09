@@ -65,6 +65,8 @@ export interface SendReceipt {
   acceptedAt: number
   /** Platform thread / session id returned by the send ack. */
   sessionId?: string
+  /** The platform accepted the message, but no reply showed up while waiting. */
+  noReply?: boolean
 }
 
 export interface IncomingMessage {
@@ -293,7 +295,18 @@ export interface PlatformAdapter {
   }): Promise<void>
 }
 
-export type AdapterErrorCode = 'not-connected' | 'unknown-account' | 'unsupported' | 'network' | 'timeout'
+/**
+ * `no-reply`: the message was accepted by the platform; only waiting for the
+ * answer failed. Callers must not treat it as "not sent" (a retry would
+ * deliver the message twice).
+ */
+export type AdapterErrorCode =
+  | 'not-connected'
+  | 'unknown-account'
+  | 'unsupported'
+  | 'network'
+  | 'timeout'
+  | 'no-reply'
 
 export class AdapterError extends Error {
   readonly code: AdapterErrorCode

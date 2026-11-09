@@ -45,6 +45,24 @@ function DeliveryState({ message, onRetry }: Pick<MessageBubbleProps, 'message' 
           )}
         </span>
       )
+    case 'no-reply':
+      // Delivered: resending would post the message a second time, so say so.
+      return (
+        <span className="inline-flex items-center gap-1.5 text-status-attention-ink">
+          <AlertCircle className="size-3" aria-hidden />
+          {message.error ?? '已送达，但没有收到回复'}
+          {onRetry && (
+            <button
+              type="button"
+              onClick={() => onRetry(message.id)}
+              title="会再发送一次同样的内容"
+              className="inline-flex items-center gap-1 rounded px-1 font-medium underline-offset-2 hover:underline"
+            >
+              <RotateCw className="size-3" aria-hidden /> 再发一次
+            </button>
+          )}
+        </span>
+      )
     case 'sent':
       return <Check className="size-3" aria-label={t('Sent')} />
     default:
@@ -1199,11 +1217,11 @@ export const MessageBubble = memo(function MessageBubble({
         <OptionChips key={w.widgetId || w.options.join('|')} message={message} widget={w} />
       ))}
 
-      {(isLastInRun || message.delivery === 'failed' || !mine) && (
+      {(isLastInRun || message.delivery === 'failed' || message.delivery === 'no-reply' || !mine) && (
         <div
           className={cn(
             'mt-1 flex h-5 items-center gap-2 px-1.5 text-[11px] text-ink-muted transition-opacity duration-150',
-            message.delivery === 'failed' || message.delivery === 'sending'
+            message.delivery === 'failed' || message.delivery === 'sending' || message.delivery === 'no-reply'
               ? 'opacity-100'
               : 'opacity-0 group-hover/msg:opacity-100 group-focus-within/msg:opacity-100'
           )}

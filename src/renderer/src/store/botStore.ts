@@ -2,10 +2,19 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { getPlatform } from '@adapters/platforms'
 import { adapterRegistry } from '@adapters/registry'
-import type { AttachmentMeta, ConnectionStatus, IncomingMessage, PlatformId } from '@adapters/types'
+import { AdapterError, type AttachmentMeta, type ConnectionStatus, type IncomingMessage, type PlatformId } from '@adapters/types'
 import { createId } from '@shared/id'
 import { createSeed } from '@/data/seed'
 import type { AccountDraft, Bot, BotAccount, BotGroup, ChatMessage, NewBotInput } from '@/types'
+import {
+  clearNoReplyFlag,
+  sanitizePersisted,
+  SEND_HARD_TIMEOUT_MS,
+  SendTimeoutError,
+  withTimeout
+} from './delivery'
+
+const NO_REPLY_TEXT = '已送达，但没有收到回复'
 
 function electronBridge() {
   if (typeof window === 'undefined') return undefined
@@ -211,7 +220,7 @@ function mergeHydratedMessages(existing: ChatMessage[], hydrated: ChatMessage[])
     if (
       localMsg.role === 'user' &&
       localMsg.id.startsWith('msg_') &&
-      localMsg.delivery === 'sent' &&
+      (localMsg.delivery === 'sent' || localMsg.delivery === 'no-reply') &&
       hydrated.some(
         (h) =>
           h.role === 'user' &&
@@ -275,20 +284,42 @@ export const useBotStore = create<BotHubState>()(
       return
     }
 
-    try {
-      const receipt = await adapter.sendMessage({
-        conversationId: botId,
-        accountId: message.accountId,
-        sessionId: bot.activeSessionId,
-        text: message.text,
-        attachments: message.attachments
-      })
+    const applyReceipt = (receipt: import('@adapters/types').SendReceipt) => {
       if (receipt.sessionId && receipt.sessionId !== bot.activeSessionId) {
         patchBot(botId, () => ({ activeSessionId: receipt.sessionId }))
       }
-      updateMessage(botId, messageId, { delivery: 'sent', error: undefined })
+      updateMessage(
+        botId,
+        messageId,
+        receipt.noReply ? { delivery: 'no-reply', error: NO_REPLY_TEXT } : { delivery: 'sent', error: undefined }
+      )
+    }
+
+    try {
+      const receipt = await withTimeout(
+        adapter.sendMessage({
+          conversationId: botId,
+          accountId: message.accountId,
+          sessionId: bot.activeSessionId,
+          text: message.text,
+          attachments: message.attachments
+        }),
+        SEND_HARD_TIMEOUT_MS,
+        // The adapter answered after we gave up: show what really happened.
+        (late) => {
+          if (late.ok) applyReceipt(late.value)
+        }
+      )
+      applyReceipt(receipt)
     } catch (error) {
-      updateMessage(botId, messageId, { delivery: 'failed', error: errorMessage(error) })
+      if (error instanceof AdapterError && error.code === 'no-reply') {
+        updateMessage(botId, messageId, { delivery: 'no-reply', error: error.message || NO_REPLY_TEXT })
+      } else if (error instanceof SendTimeoutError) {
+        updateMessage(botId, messageId, { delivery: 'failed', error: error.message })
+        get().setTyping(botId, false)
+      } else {
+        updateMessage(botId, messageId, { delivery: 'failed', error: errorMessage(error) })
+      }
     }
   }
 
@@ -653,7 +684,7 @@ export const useBotStore = create<BotHubState>()(
         const nextList =
           existingIdx >= 0
             ? list.map((m, i) => (i === existingIdx ? message : m))
-            : [...list, message]
+            : clearNoReplyFlag([...list, message])
         return {
           messages: { ...state.messages, [botId]: nextList },
           accounts,
@@ -728,7 +759,7 @@ export const useBotStore = create<BotHubState>()(
           media: media?.length ? media : undefined,
           richWidgets: richWidgets?.length ? richWidgets : undefined
         }
-        return { messages: { ...state.messages, [botId]: [...list, message] } }
+        return { messages: { ...state.messages, [botId]: clearNoReplyFlag([...list, message]) } }
       }),
 
     setTyping: (botIdOrAccountId, isTyping) =>
@@ -1480,6 +1511,11 @@ export const useBotStore = create<BotHubState>()(
   },
   {
     name: 'bothub-workspace-v1',
+    // Nothing is in flight after a restart; drop stale `sending`/`pending`.
+    merge: (persisted, current) => ({
+      ...current,
+      ...sanitizePersisted((persisted ?? {}) as Partial<BotHubState>)
+    }),
     partialize: (state) => ({
       groups: state.groups,
       bots: state.bots,

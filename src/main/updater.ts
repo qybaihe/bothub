@@ -166,8 +166,9 @@ function configure(): void {
       return
     }
     // Missing app-update.yml / 404 latest-mac.yml / no published releases: fall back to GitHub API check
+    // Missing manifest / nothing published: check() catches the rejected
+    // checkForUpdates() and falls back to the GitHub API once.
     if (/app-update\.yml|ENOENT|404|latest-mac\.yml|latest\.yml|No published versions|Cannot find/i.test(raw)) {
-      void checkViaGitHubApi(isManualCheck)
       return
     }
     if (isManualCheck) {

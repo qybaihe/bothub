@@ -1559,7 +1559,7 @@ export class MuseSessionManager {
       return result
     } catch (error) {
       console.warn('[muse] auto login failed:', error instanceof Error ? error.name : 'error')
-      return { ok: false, reason: 'timeout' }
+      return { ok: false, reason: 'error' }
     } finally {
       if (this.autoLogins.get(req.accountId) === ctrl) this.autoLogins.delete(req.accountId)
     }

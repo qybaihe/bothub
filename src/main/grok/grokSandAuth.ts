@@ -6,9 +6,10 @@
  * Spec: docs/grokbot-protocol/asar-scan/sand-token-flow.md
  */
 import { createHash, randomBytes, randomUUID } from 'node:crypto'
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { dirname, join } from 'node:path'
+import { join } from 'node:path'
 import { app, BrowserWindow, safeStorage } from 'electron'
+import { createMutex } from '@shared/proxyPool'
+import { readJsonFile, writeJsonAtomic } from '../jsonFile'
 import { partitionForAccount } from '../webContentsViewManager'
 
 export const SAND_CLIENT_ID = 'KbZUR41cY7W6zRSdpSUJ7I7mLYBKOCmB'
@@ -171,21 +172,15 @@ function storePath(): string {
 }
 
 function readFile(): StoreFile {
-  const p = storePath()
-  if (!existsSync(p)) return {}
-  try {
-    const raw = JSON.parse(readFileSync(p, 'utf8')) as unknown
-    return raw && typeof raw === 'object' ? (raw as StoreFile) : {}
-  } catch {
-    return {}
-  }
+  return readJsonFile<StoreFile>(storePath(), {}, (raw) => Boolean(raw) && typeof raw === 'object' && !Array.isArray(raw))
 }
 
 function writeFile(store: StoreFile): void {
-  const p = storePath()
-  mkdirSync(dirname(p), { recursive: true })
-  writeFileSync(p, JSON.stringify(store, null, 2), { encoding: 'utf8', mode: 0o600 })
+  writeJsonAtomic(storePath(), store)
 }
+
+/** persistSandTokens reads, awaits encryption, then writes: serialize it. */
+const withTokenStoreLock = createMutex()
 
 async function assertEncryptionAvailable(): Promise<void> {
   const available = await safeStorage.isAsyncEncryptionAvailable()
@@ -197,10 +192,46 @@ async function assertEncryptionAvailable(): Promise<void> {
 /** Encrypt and write sand tokens. Throws if safeStorage cannot encrypt. */
 export async function persistSandTokens(accountId: string, tokens: SandTokens): Promise<void> {
   await assertEncryptionAvailable()
-  const store = readFile()
   const enc = await safeStorage.encryptStringAsync(JSON.stringify(tokens))
-  store[accountId] = { enc: enc.toString('base64') }
-  writeFile(store)
+  await withTokenStoreLock(() => {
+    const store = readFile()
+    store[accountId] = { enc: enc.toString('base64') }
+    writeFile(store)
+  })
+}
+
+/**
+ * One refresh per account at a time. Parallel RPCs at startup each used to
+ * refresh with the same refresh token; with rotation the losers got
+ * shouldLogout and signed the account out.
+ */
+const refreshInFlight = new Map<string, Promise<{ accessToken: string; selectedTeamId?: string } | null>>()
+
+function refreshAndPersist(
+  accountId: string,
+  tokens: SandTokens,
+  fetchImpl: typeof fetch
+): Promise<{ accessToken: string; selectedTeamId?: string } | null> {
+  const running = refreshInFlight.get(accountId)
+  if (running) return running
+  const run = (async () => {
+    const result = await refreshSandToken(tokens.refreshToken!, fetchImpl)
+    if (result.shouldLogout) {
+      clearSandTokens(accountId)
+      return null
+    }
+    if (!result.tokens) return null
+    const merged: SandTokens = {
+      accessToken: result.tokens.accessToken,
+      refreshToken: result.tokens.refreshToken ?? tokens.refreshToken,
+      authId: tokens.authId,
+      selectedTeamId: result.tokens.selectedTeamId ?? tokens.selectedTeamId
+    }
+    await persistSandTokens(accountId, merged)
+    return { accessToken: merged.accessToken, selectedTeamId: merged.selectedTeamId }
+  })().finally(() => refreshInFlight.delete(accountId))
+  refreshInFlight.set(accountId, run)
+  return run
 }
 
 /**
@@ -274,20 +305,7 @@ export async function forceRefreshSandAccessToken(
 ): Promise<{ accessToken: string; selectedTeamId?: string } | null> {
   const tokens = await loadSandTokens(accountId)
   if (!tokens?.refreshToken) return null
-  const result = await refreshSandToken(tokens.refreshToken, fetchImpl)
-  if (result.shouldLogout) {
-    clearSandTokens(accountId)
-    return null
-  }
-  if (!result.tokens) return null
-  const merged: SandTokens = {
-    accessToken: result.tokens.accessToken,
-    refreshToken: result.tokens.refreshToken ?? tokens.refreshToken,
-    authId: tokens.authId,
-    selectedTeamId: result.tokens.selectedTeamId ?? tokens.selectedTeamId
-  }
-  await persistSandTokens(accountId, merged)
-  return { accessToken: merged.accessToken, selectedTeamId: merged.selectedTeamId }
+  return refreshAndPersist(accountId, tokens, fetchImpl)
 }
 
 /** Return a valid accessToken, refreshing when within 5min of expiry. */
@@ -300,21 +318,10 @@ export async function getValidSandAccessToken(
   const expMs = tokenExpMs(tokens.accessToken)
   const needsRefresh = expMs != null && expMs - Date.now() < REFRESH_MARGIN_MS
   if (needsRefresh && tokens.refreshToken) {
-    const result = await refreshSandToken(tokens.refreshToken, fetchImpl)
-    if (result.shouldLogout) {
-      clearSandTokens(accountId)
-      return null
-    }
-    if (result.tokens) {
-      const merged: SandTokens = {
-        accessToken: result.tokens.accessToken,
-        refreshToken: result.tokens.refreshToken ?? tokens.refreshToken,
-        authId: tokens.authId,
-        selectedTeamId: result.tokens.selectedTeamId ?? tokens.selectedTeamId
-      }
-      await persistSandTokens(accountId, merged)
-      return { accessToken: merged.accessToken, selectedTeamId: merged.selectedTeamId }
-    }
+    const refreshed = await refreshAndPersist(accountId, tokens, fetchImpl)
+    if (refreshed) return refreshed
+    // Logged out by the server: tokens were cleared.
+    if (!(await loadSandTokens(accountId))) return null
   }
   return { accessToken: tokens.accessToken, selectedTeamId: tokens.selectedTeamId }
 }

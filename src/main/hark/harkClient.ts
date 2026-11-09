@@ -10,6 +10,7 @@
 import { randomUUID } from 'node:crypto'
 import { session as electronSession, type Session } from 'electron'
 import { partitionForAccount } from '../webContentsViewManager'
+import { HarkWatchRegistry } from './watchRegistry'
 
 export const HARK_ORIGIN = 'https://app.hark.com'
 export const HARK_API_BASE = `${HARK_ORIGIN}/api`
@@ -1168,14 +1169,11 @@ export function isHarkReplyDone(msg: HarkChatMessage): boolean {
   return hasPayload
 }
 
-const activeHarkWatches = new Map<string, () => void>()
+const activeHarkWatches = new HarkWatchRegistry()
 
+/** Stop every reply watch of the account (stop-tool, pause, sign-out). */
 export function cancelHarkWatch(accountId: string): void {
-  const abortFn = activeHarkWatches.get(accountId)
-  if (abortFn) {
-    activeHarkWatches.delete(accountId)
-    abortFn()
-  }
+  activeHarkWatches.cancelAll(accountId)
 }
 
 /**
@@ -1203,12 +1201,12 @@ export async function watchHarkConversationSync(
   let lastReply: HarkChatMessage | null = null
   let finished = false
 
-  cancelHarkWatch(accountId)
+  // Do not cancel an earlier send's watch: that cut its reply short.
   const abortWatch = () => {
     finished = true
     ac.abort()
   }
-  activeHarkWatches.set(accountId, abortWatch)
+  const watchToken = activeHarkWatches.add(accountId, abortWatch, opts.responseMessageId)
 
   const hasPayloadOrActivity = (m?: HarkChatMessage): m is HarkChatMessage =>
     Boolean(
@@ -1227,11 +1225,18 @@ export async function watchHarkConversationSync(
     if (finished) return true
     const all = syncState.orderedMessages()
     const target = opts.responseMessageId ? syncState.messages.get(opts.responseMessageId) : undefined
+    const claimed = activeHarkWatches.claimedByOthers(accountId, watchToken)
     const candidate =
       (hasPayloadOrActivity(target) ? target : undefined) ??
       [...all]
         .reverse()
-        .find((m) => /assistant|bot|hark/i.test(m.role) && !afterIds.has(m.id) && hasPayloadOrActivity(m))
+        .find(
+          (m) =>
+            /assistant|bot|hark/i.test(m.role) &&
+            !afterIds.has(m.id) &&
+            !claimed.has(m.id) &&
+            hasPayloadOrActivity(m)
+        )
 
     if (candidate) {
       lastReply = candidate
@@ -1374,6 +1379,7 @@ export async function watchHarkConversationSync(
     finished = true
     ac.abort()
     clearTimeout(timer)
+    activeHarkWatches.remove(accountId, watchToken)
   }
 
   return { reply: lastReply, messages: syncState.orderedMessages() }

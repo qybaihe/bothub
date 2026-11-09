@@ -1,6 +1,6 @@
 {
   "name": "bothub",
-  "version": "0.3.4",
+  "version": "0.4.0",
   "private": false,
   "description": "BotHub — a desktop hub for multi-account bots",
   "main": "./out/main/index.js",

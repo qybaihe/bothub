@@ -98,6 +98,8 @@ function harkClientHeaders(extra?: Record<string, string>): Record<string, strin
   }
 }
 
+const HARK_REQUEST_TIMEOUT_MS = 30_000
+
 async function harkFetch(
   ses: Session,
   path: string,
@@ -126,12 +128,16 @@ async function harkFetch(
     if (attempt > 0) {
       await new Promise((r) => setTimeout(r, 350 * attempt))
     }
+    // Every attempt gets its own deadline; a stalled request used to leave
+    // the bubble on "Sending" and the account `pending` until restart.
+    const deadline = AbortSignal.timeout(HARK_REQUEST_TIMEOUT_MS)
+    const signal = init.signal ? AbortSignal.any([init.signal, deadline]) : deadline
     try {
       const response = await ses.fetch(url.toString(), {
         method,
         headers,
         body: init.body !== undefined ? JSON.stringify(init.body) : undefined,
-        signal: init.signal
+        signal
       })
 
       const text = await response.text()
@@ -158,6 +164,8 @@ async function harkFetch(
     } catch (err) {
       lastErr = err
       if (init.signal?.aborted || err instanceof HarkApiError) throw err
+      // A write that timed out may already have landed: don't send it twice.
+      if (deadline.aborted && method !== 'GET') throw new Error(`Hark ${method} ${url.pathname} timed out`)
       if (attempt + 1 >= maxAttempts) throw err
     }
   }

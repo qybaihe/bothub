@@ -1,3 +1,4 @@
+import { statusAfterSendFailure } from '../sendFailure'
 import { createId } from '@shared/id'
 import type { MuseMainEvent } from '@shared/ipc'
 import { getBotHubBridge } from './electronBridge'
@@ -437,7 +438,12 @@ export class MuseAdapter implements PlatformAdapter {
         // Still signed in — a slow/blocked turn is not a login problem.
         this.setStatus(message.accountId, 'online')
       } else {
-        this.setStatus(message.accountId, 'error', error instanceof Error ? error.message : String(error))
+        const next = statusAfterSendFailure(error)
+        this.setStatus(
+          message.accountId,
+          next,
+          next === 'error' ? (error instanceof Error ? error.message : String(error)) : undefined
+        )
       }
       throw error
     } finally {

@@ -1,3 +1,4 @@
+import { statusAfterSendFailure } from '../sendFailure'
 import { createId } from '@shared/id'
 import type { GrokRpcRequest, GrokRpcResponse } from '@shared/ipc'
 import { GrokConnectError } from './connectClient'
@@ -427,7 +428,8 @@ export class GrokBotAdapter implements PlatformAdapter {
           : error instanceof Error
             ? error.message
             : String(error)
-      this.setStatus(message.accountId, 'error', detail)
+      const next = statusAfterSendFailure(error)
+      this.setStatus(message.accountId, next, next === 'error' ? detail : undefined)
       throw error instanceof AdapterError ? error : new AdapterError('network', detail)
     }
   }

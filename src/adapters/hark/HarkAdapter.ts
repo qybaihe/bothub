@@ -1,3 +1,4 @@
+import { statusAfterSendFailure } from '../sendFailure'
 import { createId } from '@shared/id'
 import type { HarkMainEvent, HarkRpcRequest, HarkRpcResponse } from '@shared/ipc'
 import { getBotHubBridge } from '../meta-muse/electronBridge'
@@ -409,7 +410,8 @@ export class HarkAdapter implements PlatformAdapter {
         this.setStatus(message.accountId, 'online')
         throw new AdapterError('no-reply', `Hark 已收到消息，但读取回复失败：${detail}`)
       }
-      this.setStatus(message.accountId, 'error', detail)
+      const next = statusAfterSendFailure(error)
+      this.setStatus(message.accountId, next, next === 'error' ? detail : undefined)
       throw error instanceof AdapterError ? error : new AdapterError('network', detail)
     }
   }

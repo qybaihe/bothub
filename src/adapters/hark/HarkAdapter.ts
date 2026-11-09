@@ -289,7 +289,13 @@ export class HarkAdapter implements PlatformAdapter {
         accountId: message.accountId,
         op: 'mainConversation',
         timezone: timeZone
-      })) as { messages?: Array<{ id: string }> }
+      })) as { conversationId?: string; messages?: Array<{ id: string }> }
+      // The main conversation can change server-side (reset, new day); the
+      // cached id was never refreshed, so sends went to a stale thread.
+      if (before?.conversationId && before.conversationId !== conversationId) {
+        conversationId = before.conversationId
+        this.mainConversationId.set(message.accountId, conversationId)
+      }
       const beforeMsgs = Array.isArray(before?.messages) ? before.messages : []
       const afterIds = beforeMsgs.map((m) => m.id)
 

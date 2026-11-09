@@ -227,7 +227,7 @@ function mergeHydratedMessages(existing: ChatMessage[], hydrated: ChatMessage[])
     if (
       localMsg.role === 'user' &&
       localMsg.id.startsWith('msg_') &&
-      (localMsg.delivery === 'sent' || localMsg.delivery === 'no-reply') &&
+      (localMsg.delivery === 'sent' || localMsg.delivery === 'no-reply' || localMsg.delivery === 'accepted') &&
       hydrated.some(
         (h) =>
           h.role === 'user' &&
@@ -240,6 +240,7 @@ function mergeHydratedMessages(existing: ChatMessage[], hydrated: ChatMessage[])
     // Keep older history before the hydrated window, or in-flight/failed local messages, or newer real-time messages
     if (
       localMsg.delivery === 'sending' ||
+      localMsg.delivery === 'accepted' ||
       localMsg.delivery === 'failed' ||
       localMsg.createdAt < earliestHydratedTs - 1000 ||
       localMsg.createdAt > (hydrated[hydrated.length - 1]?.createdAt ?? 0) + 1000
@@ -662,7 +663,11 @@ export const useBotStore = create<BotHubState>()(
       const message = get().messages[botId]?.find((m) => m.id === messageId)
       // Retrying would silently drop the files (or send an empty message).
       if (message && hasLostAttachments(message)) {
-        updateMessage(botId, messageId, { delivery: 'failed', error: ATTACHMENTS_LOST_TEXT })
+        // Keep "delivered" messages delivered: looking unsent invites a duplicate.
+        updateMessage(botId, messageId, {
+          delivery: message.delivery === 'no-reply' ? 'no-reply' : 'failed',
+          error: ATTACHMENTS_LOST_TEXT
+        })
         return
       }
       updateMessage(botId, messageId, { delivery: 'sending', error: undefined })

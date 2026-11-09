@@ -392,10 +392,7 @@ export class MuseAdapter implements PlatformAdapter {
       // Stream events already posted the assistant bubble when conversationId was set.
       if (!deliveredViaStream) {
         if (!text) {
-          throw new AdapterError(
-            'timeout',
-            'Muse accepted the message but no assistant reply arrived in time. Try again or open the web session.'
-          )
+          throw new AdapterError('no-reply', 'Muse 已收到消息，但等待超时仍没有回复')
         }
         this.emit({
           type: 'typing',
@@ -420,11 +417,8 @@ export class MuseAdapter implements PlatformAdapter {
           }
         })
       } else if (!text) {
-        // Stream said done with empty text — still treat as timeout.
-        throw new AdapterError(
-          'timeout',
-          'Muse accepted the message but no assistant reply arrived in time. Try again or open the web session.'
-        )
+        // Stream said done with empty text: delivered, but nothing came back.
+        throw new AdapterError('no-reply', 'Muse 已收到消息，但没有返回内容')
       }
       const pending = this.pendingApprovals.get(message.accountId) ?? []
       this.setStatus(message.accountId, pending.length ? 'attention' : 'online')
@@ -439,7 +433,7 @@ export class MuseAdapter implements PlatformAdapter {
       const pending = await this.listApprovals(message.accountId).catch(() => [] as MuseApproval[])
       if (pending.length) {
         this.setStatus(message.accountId, 'attention')
-      } else if (error instanceof AdapterError && error.code === 'timeout') {
+      } else if (error instanceof AdapterError && (error.code === 'timeout' || error.code === 'no-reply')) {
         // Still signed in — a slow/blocked turn is not a login problem.
         this.setStatus(message.accountId, 'online')
       } else {

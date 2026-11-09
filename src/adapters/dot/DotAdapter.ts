@@ -389,10 +389,15 @@ export class DotAdapter implements PlatformAdapter {
       }
 
       this.setStatus(message.accountId, 'online')
+      const gotReply =
+        (Array.isArray(res?.replies) &&
+          res.replies.some((r) => (r.text ?? r.content ?? '').trim() || r.media?.length)) ||
+        Boolean((res?.reply?.text ?? res?.reply?.content ?? '').trim() || res?.reply?.tools?.length || res?.reply?.media?.length)
       return {
         messageId: createId('msg'),
         acceptedAt: Date.now(),
-        sessionId: res?.roomId || res?.threadId || message.sessionId
+        sessionId: res?.roomId || res?.threadId || message.sessionId,
+        ...(gotReply ? {} : { noReply: true })
       }
     } catch (error) {
       this.emit({

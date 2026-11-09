@@ -411,7 +411,8 @@ export class GrokBotAdapter implements PlatformAdapter {
       }
 
       this.setStatus(message.accountId, 'online')
-      return { messageId, acceptedAt: Date.now() }
+      const gotReply = Boolean(reply || replyWidgets?.length || replyMedia?.length)
+      return { messageId, acceptedAt: Date.now(), ...(gotReply ? {} : { noReply: true }) }
     } catch (error) {
       this.emit({
         type: 'typing',

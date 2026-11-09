@@ -282,6 +282,7 @@ export class HarkAdapter implements PlatformAdapter {
       isTyping: true
     })
 
+    let accepted = false
     try {
       const before = (await invokeHarkRpc({
         accountId: message.accountId,
@@ -309,6 +310,7 @@ export class HarkAdapter implements PlatformAdapter {
         idempotencyKey?: string
       }
 
+      accepted = true
       if (sent?.idempotencyKey) afterIds.push(sent.idempotencyKey)
 
       const polled = (await invokeHarkRpc({
@@ -376,7 +378,12 @@ export class HarkAdapter implements PlatformAdapter {
       }
 
       this.setStatus(message.accountId, 'online')
-      return { messageId: createId('msg'), acceptedAt: Date.now(), sessionId: conversationId }
+      return {
+        messageId: createId('msg'),
+        acceptedAt: Date.now(),
+        sessionId: conversationId,
+        ...(replyText || replyTools?.length || replyRich?.length ? {} : { noReply: true })
+      }
     } catch (error) {
       this.emit({
         type: 'typing',
@@ -397,6 +404,11 @@ export class HarkAdapter implements PlatformAdapter {
         }
       })
       const detail = error instanceof Error ? error.message : String(error)
+      if (accepted) {
+        // The message is on Hark already; only polling for the answer broke.
+        this.setStatus(message.accountId, 'online')
+        throw new AdapterError('no-reply', `Hark 已收到消息，但读取回复失败：${detail}`)
+      }
       this.setStatus(message.accountId, 'error', detail)
       throw error instanceof AdapterError ? error : new AdapterError('network', detail)
     }

@@ -1,30 +1,66 @@
+import { existsSync } from 'node:fs'
+import { join } from 'node:path'
 import { app, BrowserWindow, ipcMain, shell } from 'electron'
 import { autoUpdater, type UpdateInfo } from 'electron-updater'
 import { UPDATE_CHANNELS, type UpdateStatusEvent } from '@shared/ipc'
 
 const CHECK_INTERVAL_MS = 4 * 60 * 60 * 1000
-const RELEASES_LATEST = 'https://github.com/qybaihe/bothub/releases/latest'
+const GITHUB_OWNER = 'qybaihe'
+const GITHUB_REPO = 'bothub'
+const RELEASES_LATEST = `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/releases/latest`
+const GITHUB_API_LATEST = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/releases/latest`
 
 let started = false
 let lastInfo: UpdateInfo | null = null
+let latestVersionTag: string | null = null
 let downloaded = false
+let isManualCheck = false
 
 /**
  * ShipIt (Squirrel.Mac) rejects unsigned / ad-hoc electron-builder artifacts
  * with "Code signature … did not pass validation". Until we ship Developer ID
  * signed + notarized builds, never auto-download or quitAndInstall on darwin —
  * only notify and open the GitHub release page for a manual install.
- *
- * Re-enable autoDownload / autoInstallOnAppQuit / quitAndInstall once signed.
  */
 function canAutoInstall(): boolean {
   if (process.platform === 'darwin') return false
   return true
 }
 
+function hasAppUpdateConfig(): boolean {
+  try {
+    return existsSync(join(process.resourcesPath, 'app-update.yml'))
+  } catch {
+    return false
+  }
+}
+
+function normalizeSemver(v: string): number[] {
+  return v
+    .trim()
+    .replace(/^v/i, '')
+    .split('-')[0]!
+    .split('.')
+    .map((n) => Number.parseInt(n, 10) || 0)
+}
+
+function isNewerVersion(remote: string, current: string): boolean {
+  const r = normalizeSemver(remote)
+  const c = normalizeSemver(current)
+  const len = Math.max(r.length, c.length, 3)
+  for (let i = 0; i < len; i++) {
+    const rv = r[i] ?? 0
+    const cv = c[i] ?? 0
+    if (rv > cv) return true
+    if (rv < cv) return false
+  }
+  return false
+}
+
 function releaseUrl(version?: string): string {
-  return version
-    ? `https://github.com/qybaihe/bothub/releases/tag/v${version}`
+  const clean = version?.replace(/^v/i, '')
+  return clean
+    ? `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/releases/tag/v${clean}`
     : RELEASES_LATEST
 }
 
@@ -36,22 +72,90 @@ function broadcast(event: UpdateStatusEvent): void {
 }
 
 function openReleasePage(version?: string): void {
-  void shell.openExternal(releaseUrl(version ?? lastInfo?.version))
+  void shell.openExternal(releaseUrl(version ?? latestVersionTag ?? lastInfo?.version))
+}
+
+async function checkViaGitHubApi(manual: boolean): Promise<void> {
+  const currentVersion = app.getVersion()
+  if (manual) {
+    broadcast({ type: 'checking' })
+  }
+  try {
+    const res = await fetch(GITHUB_API_LATEST, {
+      headers: {
+        Accept: 'application/vnd.github+json',
+        'User-Agent': `BotHub/${currentVersion}`
+      },
+      signal: AbortSignal.timeout(12_000)
+    })
+
+    // 404 on /releases/latest means no GitHub Release has been published yet — treat as up-to-date.
+    if (res.status === 404) {
+      if (manual) {
+        broadcast({ type: 'not-available', version: currentVersion })
+      }
+      return
+    }
+
+    if (!res.ok) {
+      if (manual) {
+        broadcast({ type: 'not-available', version: currentVersion })
+      }
+      return
+    }
+
+    const data = (await res.json()) as {
+      tag_name?: string
+      name?: string
+      body?: string
+      draft?: boolean
+      prerelease?: boolean
+    }
+    if (data.draft || data.prerelease) {
+      if (manual) {
+        broadcast({ type: 'not-available', version: currentVersion })
+      }
+      return
+    }
+
+    const remoteVersion = String(data.tag_name || data.name || '').replace(/^v/i, '').trim()
+    if (remoteVersion && isNewerVersion(remoteVersion, currentVersion)) {
+      latestVersionTag = remoteVersion
+      broadcast({
+        type: 'available',
+        version: remoteVersion,
+        releaseNotes: typeof data.body === 'string' ? data.body : undefined,
+        manualInstall: true
+      })
+      return
+    }
+
+    if (manual) {
+      broadcast({ type: 'not-available', version: currentVersion })
+    }
+  } catch {
+    if (manual) {
+      broadcast({ type: 'not-available', version: currentVersion })
+    }
+  }
 }
 
 function configure(): void {
-  const auto = canAutoInstall()
+  const auto = canAutoInstall() && hasAppUpdateConfig()
   autoUpdater.autoDownload = auto
   autoUpdater.autoInstallOnAppQuit = auto
   autoUpdater.allowPrerelease = false
-  autoUpdater.logger = console
+  autoUpdater.logger = null
 
   autoUpdater.on('checking-for-update', () => {
-    broadcast({ type: 'checking' })
+    if (isManualCheck) {
+      broadcast({ type: 'checking' })
+    }
   })
 
   autoUpdater.on('update-available', (info) => {
     lastInfo = info
+    latestVersionTag = info.version
     downloaded = false
     broadcast({
       type: 'available',
@@ -62,7 +166,9 @@ function configure(): void {
   })
 
   autoUpdater.on('update-not-available', (info) => {
-    broadcast({ type: 'not-available', version: info.version })
+    if (isManualCheck) {
+      broadcast({ type: 'not-available', version: info.version || app.getVersion() })
+    }
   })
 
   autoUpdater.on('download-progress', (progress) => {
@@ -77,6 +183,7 @@ function configure(): void {
 
   autoUpdater.on('update-downloaded', (info) => {
     lastInfo = info
+    latestVersionTag = info.version
     downloaded = true
     broadcast({
       type: 'downloaded',
@@ -87,40 +194,39 @@ function configure(): void {
 
   autoUpdater.on('error', (error) => {
     const raw = error?.message || String(error)
-    // ShipIt / codesign failures on unsigned builds — surface a clear manual path.
     if (/ShipIt|code signature|代码不含资源|did not pass validation/i.test(raw)) {
       broadcast({
         type: 'available',
-        version: lastInfo?.version ?? app.getVersion(),
+        version: latestVersionTag ?? lastInfo?.version ?? app.getVersion(),
         manualInstall: true
       })
       return
     }
-    broadcast({ type: 'error', message: raw })
+    // Missing app-update.yml / 404 latest-mac.yml / no published releases: fall back to GitHub API check
+    if (/app-update\.yml|ENOENT|404|latest-mac\.yml|No published versions|Cannot find/i.test(raw)) {
+      if (isManualCheck) {
+        broadcast({ type: 'not-available', version: app.getVersion() })
+      }
+      return
+    }
+    if (isManualCheck) {
+      broadcast({ type: 'error', message: raw })
+    }
   })
 }
 
 async function check(manual = false): Promise<void> {
-  if (!app.isPackaged) {
-    broadcast({
-      type: 'error',
-      message: manual ? 'Updates are only available in packaged builds.' : 'dev-skip'
-    })
+  isManualCheck = manual
+  // On macOS or when app-update.yml is not bundled, use the lightweight GitHub Releases API check
+  // so it never throws ENOENT on app-update.yml or 404 on latest-mac.yml.
+  if (!app.isPackaged || process.platform === 'darwin' || !hasAppUpdateConfig()) {
+    await checkViaGitHubApi(manual)
     return
   }
   try {
     await autoUpdater.checkForUpdates()
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error)
-    if (/ShipIt|code signature|代码不含资源|did not pass validation/i.test(message)) {
-      broadcast({
-        type: 'available',
-        version: lastInfo?.version ?? app.getVersion(),
-        manualInstall: true
-      })
-      return
-    }
-    broadcast({ type: 'error', message })
+  } catch {
+    await checkViaGitHubApi(manual)
   }
 }
 
@@ -129,7 +235,7 @@ function installOrOpenRelease(): void {
     autoUpdater.quitAndInstall(false, true)
     return
   }
-  openReleasePage(lastInfo?.version)
+  openReleasePage(latestVersionTag ?? lastInfo?.version)
 }
 
 export function registerUpdaterIpc(): void {
@@ -149,7 +255,7 @@ export function startAutoUpdater(): void {
   started = true
   configure()
 
-  // Delay first check so the window can load.
+  // Delay first background check so the window can load.
   setTimeout(() => {
     void check(false)
   }, 8_000)

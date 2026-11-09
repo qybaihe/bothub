@@ -799,6 +799,7 @@ export function DotGoalAndThreadsSection({ accountId }: { accountId: string }) {
  */
 export function DotLibrarySection({ accountId }: { accountId: string }) {
   const status = useBotStore((s) => s.accounts[accountId]?.status)
+  const setActiveDocument = useBotStore((s) => s.setActiveDocument)
   const [nodes, setNodes] = useState<
     Array<{
       id: string
@@ -954,13 +955,14 @@ export function DotLibrarySection({ accountId }: { accountId: string }) {
                       size="sm"
                       variant="ghost"
                       onClick={() =>
-                        setDocTarget({
+                        setActiveDocument({
                           accountId,
                           title: n.title,
-                          path: n.id
+                          path: n.id,
+                          platformId: 'dot'
                         })
                       }
-                      title="预览文件"
+                      title="在右侧画布预览文件"
                     >
                       <Eye className="size-3.5" />
                     </Button>

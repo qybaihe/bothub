@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Download, FileText, Globe, KeyRound, Monitor, ShieldAlert, Terminal } from 'lucide-react'
 import { EmptyLine, Section } from '@/components/info/Section'
 import { Button } from '@/components/ui/Button'
+import { ConnectorIcon } from '@/components/ui/ConnectorIcon'
 import { TextInput } from '@/components/ui/Field'
 import { RefreshButton } from '@/components/muse/RefreshButton'
 import { getBridge } from '@/lib/bridge'
@@ -776,13 +777,7 @@ export function HarkConnectorsSection({ accountId }: { accountId: string }) {
             return (
               <li key={c.id} className="flex items-center justify-between gap-2.5 px-3 py-2.5">
                 <div className="flex min-w-0 items-center gap-2.5">
-                  {c.iconUrl ? (
-                    <img src={c.iconUrl} alt="" className="size-6 shrink-0 rounded object-contain" />
-                  ) : (
-                    <span className="grid size-6 shrink-0 place-items-center rounded bg-hover text-[11px] font-semibold">
-                      {c.displayName.slice(0, 1)}
-                    </span>
-                  )}
+                  <ConnectorIcon id={c.id} name={c.displayName} iconUrl={c.iconUrl} />
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5">
                       <span className="truncate text-[13px] font-medium text-ink">{c.displayName}</span>
@@ -835,13 +830,15 @@ export function HarkConnectorsSection({ accountId }: { accountId: string }) {
           <span className="text-[11px] font-semibold tracking-wide text-ink-muted uppercase">
             消息频道与站点凭据
           </span>
-          <div className="flex gap-1">
+          <div className="flex flex-wrap gap-1.5">
             <Button
               size="sm"
               variant="secondary"
               disabled={busyId === 'chan_slack'}
               onClick={() => void connectChannel('slack')}
+              className="inline-flex items-center gap-1.5"
             >
+              <ConnectorIcon id="slack" name="Slack" className="size-4 border-0 bg-transparent shadow-none" />
               绑定 Slack
             </Button>
             <Button
@@ -849,7 +846,9 @@ export function HarkConnectorsSection({ accountId }: { accountId: string }) {
               variant="secondary"
               disabled={busyId === 'chan_telegram'}
               onClick={() => void connectChannel('telegram')}
+              className="inline-flex items-center gap-1.5"
             >
+              <ConnectorIcon id="telegram" name="Telegram" className="size-4 border-0 bg-transparent shadow-none" />
               绑定 Telegram
             </Button>
             <Button size="sm" variant="ghost" onClick={() => setShowAddCred((v) => !v)}>
@@ -898,15 +897,18 @@ export function HarkConnectorsSection({ accountId }: { accountId: string }) {
             {credentials.map((cred) => (
               <li
                 key={cred.domain}
-                className="flex items-center justify-between rounded bg-surface px-2.5 py-1 text-[11.5px]"
+                className="flex items-center justify-between gap-2 rounded bg-surface px-2.5 py-1.5 text-[11.5px]"
               >
-                <span className="truncate text-ink">
-                  {cred.domain} {cred.email ? `(${cred.email})` : ''}
+                <span className="flex min-w-0 items-center gap-2 truncate text-ink">
+                  <ConnectorIcon domain={cred.domain} name={cred.domain} className="size-5" />
+                  <span className="truncate">
+                    {cred.domain} {cred.email ? `(${cred.email})` : ''}
+                  </span>
                 </span>
                 <button
                   type="button"
                   onClick={() => void removeManagedCredential(cred.domain)}
-                  className="text-status-error hover:underline"
+                  className="shrink-0 text-status-error hover:underline"
                 >
                   移除
                 </button>
@@ -1210,6 +1212,7 @@ export function HarkComputerSection({ accountId, botId: _botId }: { accountId: s
  */
 export function HarkLibrarySection({ accountId }: { accountId: string }) {
   const status = useBotStore((s) => s.accounts[accountId]?.status)
+  const setActiveDocument = useBotStore((s) => s.setActiveDocument)
   const [artifacts, setArtifacts] = useState<
     Array<{
       name: string
@@ -1243,6 +1246,16 @@ export function HarkLibrarySection({ accountId }: { accountId: string }) {
   useEffect(() => {
     if (status === 'online' || status === 'busy') void refresh()
   }, [refresh, status])
+
+  const previewArtifact = (a: (typeof artifacts)[number]) => {
+    setActiveDocument({
+      accountId,
+      title: a.name || a.path.split('/').pop() || 'Artifact',
+      path: a.downloadUrl || (a.s3Key ? `harkatt://${a.s3Key}` : a.path),
+      mimeType: a.mimeType,
+      platformId: 'hark'
+    })
+  }
 
   const openOrDownload = async (a: (typeof artifacts)[number]) => {
     if (a.downloadUrl && /^https?:\/\//i.test(a.downloadUrl)) {
@@ -1280,7 +1293,11 @@ export function HarkLibrarySection({ accountId }: { accountId: string }) {
           <ul className="divide-y divide-line">
             {artifacts.map((a) => (
               <li key={a.s3Key || a.path} className="flex items-center justify-between gap-2 py-2">
-                <div className="flex min-w-0 items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => previewArtifact(a)}
+                  className="flex min-w-0 flex-1 items-center gap-2 text-left hover:opacity-85"
+                >
                   <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-hover text-ink-secondary">
                     <FileText className="size-4" />
                   </span>
@@ -1288,11 +1305,16 @@ export function HarkLibrarySection({ accountId }: { accountId: string }) {
                     <p className="truncate font-medium text-ink">{a.name}</p>
                     <p className="truncate font-mono text-[11px] text-ink-muted">{a.path}</p>
                   </div>
-                </div>
+                </button>
                 {(a.downloadUrl || a.s3Key) && (
-                  <Button size="sm" variant="secondary" onClick={() => void openOrDownload(a)}>
-                    <Download className="size-3.5" /> 打开
-                  </Button>
+                  <div className="flex shrink-0 items-center gap-1">
+                    <Button size="sm" variant="ghost" onClick={() => previewArtifact(a)}>
+                      预览
+                    </Button>
+                    <Button size="sm" variant="secondary" onClick={() => void openOrDownload(a)}>
+                      <Download className="size-3.5" /> 下载
+                    </Button>
+                  </div>
                 )}
               </li>
             ))}

@@ -11,6 +11,7 @@ import { ChatHeader } from './ChatHeader'
 import { Composer } from './Composer'
 import { MessageList } from './MessageList'
 import { WebSessionPane } from './WebSessionPane'
+import { DocumentCanvasPane } from './NativeDocumentDialog'
 import { t } from '@/lib/i18n'
 import { ChatApprovals } from './ApprovalCard'
 
@@ -83,6 +84,8 @@ export function ChatArea() {
   const webSessionOpen = useBotStore((s) => s.webSessionOpen)
   const hasBots = useBotStore((s) => s.bots.length > 0)
   const setAddBotOpen = useBotStore((s) => s.setAddBotOpen)
+  const activeDocument = useBotStore((s) => s.activeDocument)
+  const setActiveDocument = useBotStore((s) => s.setActiveDocument)
 
   const accounts = useMemo(() => (bot ? getBotAccounts(bot, accountMap) : []), [bot, accountMap])
   const activeAccount = bot ? accountMap[bot.activeAccountId] : undefined
@@ -138,39 +141,48 @@ export function ChatArea() {
     activeAccount?.status === 'attention'
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <ChatHeader bot={bot} accounts={accounts} />
-      {webSessionOpen && activeAccount ? (
-        <WebSessionPane key={`${bot.id}:${activeAccount.id}`} bot={bot} account={activeAccount} />
-      ) : (
-        <>
-          {messages.length === 0 && !typing ? (
-            <ConversationIntro
+    <div className="flex min-h-0 flex-1 overflow-hidden">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <ChatHeader bot={bot} accounts={accounts} />
+        {webSessionOpen && activeAccount ? (
+          <WebSessionPane key={`${bot.id}:${activeAccount.id}`} bot={bot} account={activeAccount} />
+        ) : (
+          <>
+            {messages.length === 0 && !typing ? (
+              <ConversationIntro
+                bot={bot}
+                canSend={canSend}
+                needsMuseLogin={needsMuseLogin}
+                onPick={(text) => onSend(text)}
+                onMuseLogin={activeAccount ? () => onMuseLogin(activeAccount.id) : undefined}
+              />
+            ) : (
+              <MessageList bot={bot} messages={messages} accounts={accounts} typing={typing} onRetry={onRetry} />
+            )}
+            {bot.platformId === 'meta-muse' && activeAccount && <ChatApprovals accountId={activeAccount.id} />}
+            <Composer
+              key={bot.id}
               bot={bot}
-              canSend={canSend}
-              needsMuseLogin={needsMuseLogin}
-              onPick={(text) => onSend(text)}
-              onMuseLogin={activeAccount ? () => onMuseLogin(activeAccount.id) : undefined}
+              account={activeAccount}
+              typing={typing}
+              onSend={onSend}
+              onCancel={onCancel}
+              onConnect={onConnect}
+              onMuseLogin={onMuseLogin}
+              onGrokLogin={onGrokLogin}
+              onHarkLogin={onHarkLogin}
+              onDotLogin={onDotLogin}
+              hideNotice={needsMuseLogin && messages.length === 0 && !typing}
             />
-          ) : (
-            <MessageList bot={bot} messages={messages} accounts={accounts} typing={typing} onRetry={onRetry} />
-          )}
-          {bot.platformId === 'meta-muse' && activeAccount && <ChatApprovals accountId={activeAccount.id} />}
-          <Composer
-            key={bot.id}
-            bot={bot}
-            account={activeAccount}
-            typing={typing}
-            onSend={onSend}
-            onCancel={onCancel}
-            onConnect={onConnect}
-            onMuseLogin={onMuseLogin}
-            onGrokLogin={onGrokLogin}
-            onHarkLogin={onHarkLogin}
-            onDotLogin={onDotLogin}
-            hideNotice={needsMuseLogin && messages.length === 0 && !typing}
-          />
-        </>
+          </>
+        )}
+      </div>
+      {activeDocument && !webSessionOpen && (
+        <DocumentCanvasPane
+          target={activeDocument}
+          onClose={() => setActiveDocument(null)}
+          onOpenNestedDoc={(next) => setActiveDocument(next)}
+        />
       )}
     </div>
   )

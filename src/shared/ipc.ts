@@ -472,6 +472,10 @@ export type GrokMainEvent =
       messageId: string
       text: string
       done: boolean
+      widgets?: MuseOptionWidgetView[]
+      tools?: MuseToolCallView[]
+      media?: MuseMediaPartView[]
+      richWidgets?: MuseRichWidgetView[]
     }
 
 export interface GrokOpenLoginRequest {
@@ -631,6 +635,7 @@ export type HarkMainEvent =
       text: string
       done: boolean
       tools?: MuseToolCallView[]
+      media?: MuseMediaPartView[]
       richWidgets?: MuseRichWidgetView[]
     }
   | {
@@ -683,6 +688,13 @@ export type HarkRpcRequest =
       afterMessageCount?: number
       afterMessageIds?: string[]
       timeoutMs?: number
+    }
+  | {
+      accountId: string
+      op: 'downloadArtifact'
+      url?: string
+      fileId?: string
+      name?: string
     }
   | {
       accountId: string

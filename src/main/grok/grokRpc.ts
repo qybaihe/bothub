@@ -1,5 +1,13 @@
 import { BrowserWindow } from 'electron'
-import { GROK_CHANNELS, type GrokMainEvent, type GrokRpcRequest, type GrokRpcResponse } from '@shared/ipc'
+import {
+  GROK_CHANNELS,
+  type GrokMainEvent,
+  type GrokRpcRequest,
+  type GrokRpcResponse,
+  type MuseMediaPartView,
+  type MuseOptionWidgetView,
+  type MuseToolCallView
+} from '@shared/ipc'
 import { getGrokMainAuth, setGrokMainAuth } from './grokAuthStore'
 import { GrokConnectClient, GrokConnectError } from './connectClient'
 import { getOrCreateGrokMachineId } from './grokMachineId'
@@ -88,13 +96,54 @@ function decodeTranscriptBody(raw: Record<string, unknown>): Record<string, unkn
 
 function textFromEntry(e: Record<string, unknown>): string {
   const msg = e['message'] as Record<string, unknown> | undefined
+  const widget = msg?.['widget'] as Record<string, unknown> | undefined
   const t =
     (typeof e['text'] === 'string' && e['text']) ||
     (typeof e['content'] === 'string' && e['content']) ||
     (typeof msg?.['text'] === 'string' && (msg['text'] as string)) ||
     (typeof msg?.['content'] === 'string' && (msg['content'] as string)) ||
+    (typeof widget?.['prompt'] === 'string' && (widget['prompt'] as string)) ||
+    (typeof widget?.['title'] === 'string' && (widget['title'] as string)) ||
     ''
   return t.trim()
+}
+
+function extractGrokWidgets(e: Record<string, unknown>): MuseOptionWidgetView[] | undefined {
+  const msg = e['message'] as Record<string, unknown> | undefined
+  const widget = msg?.['widget'] as Record<string, unknown> | undefined
+  if (!widget || !Array.isArray(widget['options'])) return undefined
+  const options = (widget['options'] as Array<Record<string, unknown>>)
+    .map((o) => String(o['label'] ?? o['text'] ?? o['id'] ?? '').trim())
+    .filter(Boolean)
+  if (options.length === 0) return undefined
+  const resp = widget['response'] as Record<string, unknown> | undefined
+  return [
+    {
+      kind: 'option',
+      widgetId: String(widget['id'] ?? e['id'] ?? 'grok_w'),
+      options,
+      buttonStyle: 'center_aligned_filled',
+      baseVersion: 1,
+      selectedText: resp?.['optionId'] ? String(resp['optionId']) : undefined
+    }
+  ]
+}
+
+function extractGrokMedia(e: Record<string, unknown>): MuseMediaPartView[] | undefined {
+  const msg = e['message'] as Record<string, unknown> | undefined
+  const att = (msg?.['attachment'] ?? e['attachment']) as Record<string, unknown> | undefined
+  if (!att || typeof att !== 'object') return undefined
+  const path = String(att['path'] ?? att['url'] ?? '').trim()
+  if (!path) return undefined
+  const mime = typeof att['mimeType'] === 'string' ? att['mimeType'] : undefined
+  return [
+    {
+      kind: mime?.startsWith('image/') ? 'image' : 'file',
+      path,
+      name: String(att['name'] ?? path.split('/').pop() ?? 'attachment'),
+      mimeType: mime
+    }
+  ]
 }
 
 function isAssistantEntry(e: Record<string, unknown>, afterMessageId?: string): boolean {
@@ -104,8 +153,8 @@ function isAssistantEntry(e: Record<string, unknown>, afterMessageId?: string): 
   }
   const role = String(e['role'] ?? '')
   const kind = String(e['kind'] ?? e['entryKind'] ?? e['type'] ?? '')
-  if (/^user$/i.test(role) || /send-message/i.test(kind)) return false
-  return Boolean(textFromEntry(e))
+  if (/^user$/i.test(role) || /^user-attachment$/i.test(kind) || /^event$/i.test(kind)) return false
+  return Boolean(textFromEntry(e) || extractGrokWidgets(e)?.length || extractGrokMedia(e)?.length)
 }
 
 async function watchUntilReply(
@@ -119,13 +168,23 @@ async function watchUntilReply(
     afterMessageId?: string
     timeoutMs?: number
   }
-): Promise<{ text: string; messageId?: string; entry?: Record<string, unknown> }> {
+): Promise<{
+  text: string
+  messageId?: string
+  entry?: Record<string, unknown>
+  widgets?: MuseOptionWidgetView[]
+  tools?: MuseToolCallView[]
+  media?: MuseMediaPartView[]
+}> {
   const timeoutMs = args.timeoutMs ?? 90_000
   const ac = new AbortController()
   const timer = setTimeout(() => ac.abort(), timeoutMs)
   let latestText = ''
   let latestId = ''
   let latestEntry: Record<string, unknown> | undefined
+  let latestWidgets: MuseOptionWidgetView[] | undefined
+  let latestMedia: MuseMediaPartView[] | undefined
+  const collectedTools = new Map<string, MuseToolCallView>()
   let idleSettleTimer: ReturnType<typeof setTimeout> | undefined
 
   const armSettle = () => {
@@ -154,15 +213,33 @@ async function watchUntilReply(
       >[]
       for (const raw of entries) {
         const e = decodeTranscriptBody(raw)
+        const kind = String(e['kind'] ?? e['entryKind'] ?? '')
+        if (/^event$/i.test(kind)) {
+          const evId = String(e['id'] ?? `ev_${collectedTools.size}`)
+          const evName = String(e['eventType'] ?? e['toolName'] ?? e['title'] ?? 'Tool')
+          const evSummary = String(e['summary'] ?? e['text'] ?? '').trim() || undefined
+          collectedTools.set(evId, {
+            id: evId,
+            name: evName,
+            status: 'completed',
+            summary: evSummary
+          })
+          continue
+        }
         if (!isAssistantEntry(e, args.afterMessageId)) continue
         const text = textFromEntry(e)
-        if (!text) continue
+        const widgets = extractGrokWidgets(e)
+        const media = extractGrokMedia(e)
+        if (!text && !widgets?.length && !media?.length) continue
         const rawId = String(e['id'] ?? e['message_id'] ?? e['messageId'] ?? 'reply')
         const msgId = `grok_${rawId}`
         const isStreaming = e['isStreaming'] === true || e['is_streaming'] === true
         latestText = text
         latestId = msgId
         latestEntry = e
+        if (widgets?.length) latestWidgets = widgets
+        if (media?.length) latestMedia = media
+        const toolsArr = collectedTools.size > 0 ? [...collectedTools.values()] : undefined
 
         broadcastGrokEvent({
           type: 'stream',
@@ -171,7 +248,10 @@ async function watchUntilReply(
           agentId: args.agentId,
           messageId: msgId,
           text,
-          done: !isStreaming
+          done: !isStreaming,
+          ...(latestWidgets ? { widgets: latestWidgets } : {}),
+          ...(toolsArr ? { tools: toolsArr } : {}),
+          ...(latestMedia ? { media: latestMedia } : {})
         })
 
         if (!isStreaming) {
@@ -181,9 +261,25 @@ async function watchUntilReply(
         }
       }
     }
-    return { text: latestText, messageId: latestId || undefined, entry: latestEntry }
+    const toolsArr = collectedTools.size > 0 ? [...collectedTools.values()] : undefined
+    return {
+      text: latestText,
+      messageId: latestId || undefined,
+      entry: latestEntry,
+      widgets: latestWidgets,
+      tools: toolsArr,
+      media: latestMedia
+    }
   } catch {
-    return { text: latestText, messageId: latestId || undefined, entry: latestEntry }
+    const toolsArr = collectedTools.size > 0 ? [...collectedTools.values()] : undefined
+    return {
+      text: latestText,
+      messageId: latestId || undefined,
+      entry: latestEntry,
+      widgets: latestWidgets,
+      tools: toolsArr,
+      media: latestMedia
+    }
   } finally {
     clearTimeout(timer)
     if (idleSettleTimer) clearTimeout(idleSettleTimer)

@@ -5,6 +5,8 @@
  */
 
 const ORIGIN = 'https://muse.ai'
+const MUSE_UA =
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36'
 
 export type FetchFn = (url: string, init?: RequestInit) => Promise<Response>
 
@@ -39,23 +41,55 @@ export class MuseControlPlane {
   constructor(private readonly fetchFn: FetchFn) {}
 
   private async post(path: string, body: unknown): Promise<Record<string, unknown>> {
-    const res = await this.fetchFn(ORIGIN + path, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json', Origin: ORIGIN, Referer: ORIGIN + '/' },
-      body: JSON.stringify(body ?? {})
-    })
-    let json: Record<string, unknown> = {}
-    try {
-      json = (await res.json()) as Record<string, unknown>
-    } catch {
-      /* non-JSON */
+    let lastErr: unknown
+    for (let attempt = 0; attempt < 3; attempt++) {
+      if (attempt > 0) {
+        await new Promise((r) => setTimeout(r, 300 * attempt))
+      }
+      try {
+        const res = await this.fetchFn(ORIGIN + path, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+            'Accept-Language': 'en-US,en;q=0.9,zh-CN;q=0.8',
+            Origin: ORIGIN,
+            Referer: ORIGIN + '/',
+            'User-Agent': MUSE_UA,
+            'Sec-Ch-Ua': '"Chromium";v="136", "Google Chrome";v="136", "Not.A/Brand";v="99"',
+            'Sec-Ch-Ua-Mobile': '?0',
+            'Sec-Ch-Ua-Platform': '"macOS"',
+            'Sec-Fetch-Site': 'same-origin',
+            'Sec-Fetch-Mode': 'cors',
+            'Sec-Fetch-Dest': 'empty'
+          },
+          body: JSON.stringify(body ?? {})
+        })
+        let json: Record<string, unknown> = {}
+        try {
+          json = (await res.json()) as Record<string, unknown>
+        } catch {
+          /* non-JSON */
+        }
+        if (res.status === 401 || res.status === 403) {
+          throw new MuseControlPlaneError(`${path}: not signed in (${res.status})`, res.status, 'signed_out')
+        }
+        if ((res.status === 429 || res.status === 502 || res.status === 503 || res.status === 504) && attempt < 2) {
+          lastErr = new MuseControlPlaneError(`${path}: HTTP ${res.status}`, res.status, 'http')
+          continue
+        }
+        if (!res.ok) {
+          const err = typeof json['error'] === 'string' ? (json['error'] as string).slice(0, 120) : ''
+          throw new MuseControlPlaneError(`${path}: HTTP ${res.status}${err ? ` ${err}` : ''}`, res.status, 'http')
+        }
+        return json
+      } catch (err) {
+        lastErr = err
+        if (err instanceof MuseControlPlaneError) throw err
+        if (attempt >= 2) throw err
+      }
     }
-    if (res.status === 401 || res.status === 403) throw new MuseControlPlaneError(`${path}: not signed in (${res.status})`, res.status, 'signed_out')
-    if (!res.ok) {
-      const err = typeof json['error'] === 'string' ? (json['error'] as string).slice(0, 120) : ''
-      throw new MuseControlPlaneError(`${path}: HTTP ${res.status}${err ? ` ${err}` : ''}`, res.status, 'http')
-    }
-    return json
+    throw lastErr instanceof Error ? lastErr : new MuseControlPlaneError(`${path}: failed`, undefined, 'http')
   }
 
   async authCheck(): Promise<{ ok: boolean; viewerId: string }> {

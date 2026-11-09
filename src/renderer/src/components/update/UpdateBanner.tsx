@@ -44,7 +44,7 @@ export function UpdateBanner() {
           break
         case 'not-available':
           setChecking(false)
-          setState({ kind: 'message', text: `You're on the latest version (${event.version}).` })
+          setState({ kind: 'message', text: `当前已是最新版本 (v${event.version})` })
           break
         case 'error':
           setChecking(false)

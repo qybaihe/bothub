@@ -97,16 +97,30 @@ function renderInline(
             {label}
           </a>
         )
-      } else if (onFileLinkClick && (href.startsWith('workspace/') || /\.(md|txt|json|html|pdf|png|jpg|py|ts|js)$/i.test(href))) {
+      } else if (
+        onFileLinkClick &&
+        (href.startsWith('workspace/') ||
+          /^(sediment|dotfile|dotatt|harkatt|harkfile):\/\//i.test(href) ||
+          /\.(md|markdown|txt|json|csv|html|htm|pdf|png|jpe?g|gif|webp|svg|py|ts|tsx|js|sh|sql|yaml|yml)$/i.test(href))
+      ) {
         nodes.push(
           <button
             key={`${keyPrefix}-f-${i}`}
             type="button"
             onClick={() => onFileLinkClick(href.replace(/^\/+/, ''), label)}
-            className="inline-flex items-center gap-1 rounded bg-accent-50 px-1.5 py-0.5 font-mono text-[12px] font-medium text-accent-600 hover:bg-accent-100"
+            className="inline-flex items-center gap-1 rounded-md border border-line bg-accent-50/80 px-2 py-0.5 font-mono text-[12px] font-medium text-accent-600 transition-colors hover:bg-accent-100"
           >
             📄 {label}
           </button>
+        )
+      } else if (href.startsWith('#hark:') || href.startsWith('hark:')) {
+        nodes.push(
+          <span
+            key={`${keyPrefix}-hk-${i}`}
+            className="inline-flex items-center gap-1 rounded-full border border-accent-600/30 bg-accent-50 px-2.5 py-0.5 text-[12px] font-medium text-accent-600"
+          >
+            ⚡ {label}
+          </span>
         )
       } else {
         nodes.push(label)

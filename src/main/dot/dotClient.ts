@@ -36,6 +36,7 @@ export interface DotStoredAccount {
   accessToken: string
   refreshToken?: string
   clientId?: string
+  deviceId?: string
   chatgptAccountId: string
   chatgptUserId?: string
   email?: string
@@ -396,6 +397,7 @@ export function upsertDotCredentials(
     accessToken: input.accessToken.trim(),
     refreshToken: input.refreshToken?.trim() || prev?.refreshToken,
     clientId: input.clientId?.trim() || decoded.clientId || prev?.clientId || DOT_CODEX_CLIENT_ID,
+    deviceId: prev?.deviceId || randomUUID(),
     chatgptAccountId,
     chatgptUserId: decoded.chatgptUserId || prev?.chatgptUserId,
     email,
@@ -762,11 +764,40 @@ export interface DotApiRequestOptions {
   headers?: Record<string, string>
 }
 
+function dotClientHeaders(
+  cred: DotStoredAccount,
+  extra?: Record<string, string>
+): Record<string, string> {
+  return {
+    Authorization: `Bearer ${cred.accessToken}`,
+    Accept: 'application/json',
+    'Accept-Language': 'en-US,en;q=0.9,zh-CN;q=0.8',
+    Origin: DOT_ORIGIN,
+    Referer: `${DOT_ORIGIN}/dots`,
+    'User-Agent': CHROME_UA,
+    'OAI-Device-Id': cred.deviceId || '00000000-0000-4000-8000-000000000001',
+    'OAI-Language': 'en-US',
+    'OAI-Client-Version': 'prod-a8f4c92d1e4b8c3a9f0e2d1b',
+    'Sec-Ch-Ua': '"Chromium";v="147", "Google Chrome";v="147", "Not.A/Brand";v="99"',
+    'Sec-Ch-Ua-Mobile': '?0',
+    'Sec-Ch-Ua-Platform': '"macOS"',
+    'Sec-Fetch-Site': 'same-origin',
+    'Sec-Fetch-Mode': 'cors',
+    'Sec-Fetch-Dest': 'empty',
+    ...(cred.chatgptAccountId ? { 'chatgpt-account-id': cred.chatgptAccountId } : {}),
+    ...(extra ?? {})
+  }
+}
+
 export async function callDotApi<T = unknown>(
   accountId: string,
   opts: DotApiRequestOptions
 ): Promise<T> {
   let acc = await ensureValidDotAccount(accountId)
+  if (!acc.deviceId) {
+    acc.deviceId = randomUUID()
+    saveStore()
+  }
   const method = opts.method ?? (opts.body !== undefined ? 'POST' : 'GET')
   const relPath = opts.path.startsWith('/') ? opts.path : `/${opts.path}`
   const url = new URL(`${DOT_API_BASE}${relPath}`)
@@ -777,15 +808,7 @@ export async function callDotApi<T = unknown>(
   }
 
   const doFetch = async (cred: DotStoredAccount): Promise<Response> => {
-    const headers: Record<string, string> = {
-      Authorization: `Bearer ${cred.accessToken}`,
-      Accept: 'application/json',
-      Origin: DOT_ORIGIN,
-      Referer: `${DOT_ORIGIN}/dots`,
-      'User-Agent': CHROME_UA,
-      ...(cred.chatgptAccountId ? { 'chatgpt-account-id': cred.chatgptAccountId } : {}),
-      ...(opts.headers ?? {})
-    }
+    const headers = dotClientHeaders(cred, opts.headers)
     let bodyPayload: string | undefined
     if (opts.body !== undefined) {
       headers['Content-Type'] = 'application/json'
@@ -794,14 +817,38 @@ export async function callDotApi<T = unknown>(
     return fetch(url.toString(), {
       method,
       headers,
-      body: bodyPayload
+      body: bodyPayload,
+      signal: AbortSignal.timeout(30_000)
     })
   }
 
-  let res = await doFetch(acc)
-  if (res.status === 401 && acc.refreshToken) {
-    acc = await refreshDotAccessToken(accountId)
-    res = await doFetch(acc)
+  const maxAttempts = method === 'GET' ? 3 : 2
+  let res: Response | undefined
+  let lastErr: unknown
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    if (attempt > 0) {
+      await new Promise((r) => setTimeout(r, 400 * attempt))
+    }
+    try {
+      res = await doFetch(acc)
+      if (res.status === 401 && acc.refreshToken) {
+        acc = await refreshDotAccessToken(accountId)
+        res = await doFetch(acc)
+      }
+      if (
+        (res.status === 429 || res.status === 502 || res.status === 503 || res.status === 504) &&
+        attempt + 1 < maxAttempts
+      ) {
+        continue
+      }
+      break
+    } catch (err) {
+      lastErr = err
+      if (attempt + 1 >= maxAttempts) throw err
+    }
+  }
+  if (!res) {
+    throw lastErr instanceof Error ? lastErr : new DotApiError(0, 'Dot API network error')
   }
 
   const text = await res.text()
@@ -1501,6 +1548,7 @@ interface CelsiusWatcherState {
   subscribedRooms: Set<string>
   seenMessageIds: Set<string>
   reconnectTimer?: NodeJS.Timeout
+  pingTimer?: NodeJS.Timeout
   closed: boolean
 }
 
@@ -1720,6 +1768,7 @@ export function closeCelsiusWatcher(accountId: string): void {
   if (!st) return
   st.closed = true
   if (st.reconnectTimer) clearTimeout(st.reconnectTimer)
+  if (st.pingTimer) clearInterval(st.pingTimer)
   try {
     st.ws?.close()
   } catch {
@@ -1784,6 +1833,15 @@ export async function ensureCelsiusWatcher(accountId: string, roomId?: string): 
 
     ws.on('open', () => {
       if (!st || st.closed) return
+      if (st.pingTimer) clearInterval(st.pingTimer)
+      st.pingTimer = setInterval(() => {
+        if (!st || st.closed || ws.readyState !== WebSocket.OPEN) return
+        try {
+          ws.ping()
+        } catch {
+          /* ignore */
+        }
+      }, 25_000)
       const acc = getStoredDotAccount(accountId)
       if (acc?.roomId) st.subscribedRooms.add(acc.roomId)
       const cmds: unknown[] = [
@@ -1834,6 +1892,10 @@ export async function ensureCelsiusWatcher(accountId: string, roomId?: string): 
 
     ws.on('close', () => {
       if (!st || st.closed) return
+      if (st.pingTimer) {
+        clearInterval(st.pingTimer)
+        st.pingTimer = undefined
+      }
       st.ws = null
       st.reconnectTimer = setTimeout(() => {
         void ensureCelsiusWatcher(accountId, roomId)

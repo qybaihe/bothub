@@ -14,6 +14,9 @@ import { partitionForAccount } from '../webContentsViewManager'
 export const HARK_ORIGIN = 'https://app.hark.com'
 export const HARK_API_BASE = `${HARK_ORIGIN}/api`
 export const HARK_LOGIN_URL = `${HARK_ORIGIN}/login`
+export const HARK_CLIENT_VERSION = '0.1.21'
+export const HARK_USER_AGENT =
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Hark/0.1.21 Chrome/134.0.6998.88 Electron/35.1.2 Safari/537.36'
 
 export class HarkApiError extends Error {
   readonly status: number
@@ -75,6 +78,26 @@ export function sessionForAccount(accountId: string): Session {
   return electronSession.fromPartition(partitionForAccount(accountId))
 }
 
+function harkClientHeaders(extra?: Record<string, string>): Record<string, string> {
+  return {
+    Accept: 'application/json',
+    'Accept-Language': 'zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7',
+    Origin: HARK_ORIGIN,
+    Referer: `${HARK_ORIGIN}/`,
+    'User-Agent': HARK_USER_AGENT,
+    'X-Hark-Locale': localeHeader(),
+    'X-Hark-Timezone': timezoneName(),
+    'X-Hark-Client-Version': HARK_CLIENT_VERSION,
+    'Sec-Ch-Ua': '"Chromium";v="134", "Not:A-Brand";v="24"',
+    'Sec-Ch-Ua-Mobile': '?0',
+    'Sec-Ch-Ua-Platform': '"macOS"',
+    'Sec-Fetch-Site': 'same-origin',
+    'Sec-Fetch-Mode': 'cors',
+    'Sec-Fetch-Dest': 'empty',
+    ...(extra ?? {})
+  }
+}
+
 async function harkFetch(
   ses: Session,
   path: string,
@@ -92,27 +115,53 @@ async function harkFetch(
     }
   }
 
-  const headers: Record<string, string> = {
-    'X-Hark-Locale': localeHeader(),
-    Accept: 'application/json'
-  }
-  if (init.body !== undefined) headers['Content-Type'] = 'application/json'
+  const headers = harkClientHeaders(
+    init.body !== undefined ? { 'Content-Type': 'application/json' } : undefined
+  )
+  const method = init.method ?? (init.body !== undefined ? 'POST' : 'GET')
+  const maxAttempts = method === 'GET' ? 3 : 2
+  let lastErr: unknown
 
-  const response = await ses.fetch(url.toString(), {
-    method: init.method ?? (init.body !== undefined ? 'POST' : 'GET'),
-    headers,
-    body: init.body !== undefined ? JSON.stringify(init.body) : undefined,
-    signal: init.signal
-  })
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    if (attempt > 0) {
+      await new Promise((r) => setTimeout(r, 350 * attempt))
+    }
+    try {
+      const response = await ses.fetch(url.toString(), {
+        method,
+        headers,
+        body: init.body !== undefined ? JSON.stringify(init.body) : undefined,
+        signal: init.signal
+      })
 
-  const text = await response.text()
-  if (!response.ok) throw new HarkApiError(response.status, text || response.statusText)
-  if (!text) return null
-  try {
-    return JSON.parse(text) as unknown
-  } catch {
-    return text
+      const text = await response.text()
+      if (!response.ok) {
+        const err = new HarkApiError(response.status, text || response.statusText)
+        if (
+          (response.status === 429 ||
+            response.status === 502 ||
+            response.status === 503 ||
+            response.status === 504) &&
+          attempt + 1 < maxAttempts
+        ) {
+          lastErr = err
+          continue
+        }
+        throw err
+      }
+      if (!text) return null
+      try {
+        return JSON.parse(text) as unknown
+      } catch {
+        return text
+      }
+    } catch (err) {
+      lastErr = err
+      if (init.signal?.aborted || err instanceof HarkApiError) throw err
+      if (attempt + 1 >= maxAttempts) throw err
+    }
   }
+  throw lastErr instanceof Error ? lastErr : new Error('Hark request failed')
 }
 
 export async function callHarkApi(
@@ -396,6 +445,63 @@ export async function uploadHarkAttachment(
     s3_key: String(finalized?.['s3_key'] ?? s3Key),
     kind: 'file',
     text: `Path: ${finalPath}`
+  }
+}
+
+export async function downloadHarkArtifact(
+  accountId: string,
+  opts: { url?: string; fileId?: string; name?: string }
+): Promise<{
+  dataBase64: string
+  mimeType: string
+  filename: string
+  text?: string
+}> {
+  const ses = sessionForAccount(accountId)
+  let targetUrl = opts.url?.trim() || ''
+
+  if (!targetUrl && opts.fileId) {
+    const key = opts.fileId.replace(/^(harkatt|harkfile):\/\//i, '').trim()
+    if (/^https?:\/\//i.test(key)) {
+      targetUrl = key
+    } else {
+      try {
+        const presigned = (await harkFetch(ses, '/images/presign', {
+          method: 'POST',
+          body: { keys: [key] }
+        })) as Record<string, unknown>
+        const urls = (presigned?.['urls'] ?? presigned?.['data'] ?? presigned) as Record<string, unknown> | undefined
+        const resolved = urls && typeof urls[key] === 'string' ? (urls[key] as string) : ''
+        if (resolved) targetUrl = resolved
+      } catch {
+        /* fall through */
+      }
+      if (!targetUrl && key.startsWith('/')) {
+        targetUrl = `${HARK_API_BASE}${key}`
+      }
+    }
+  }
+
+  if (!targetUrl) {
+    throw new Error('Hark artifact URL or S3 key could not be resolved')
+  }
+
+  const res = await ses.fetch(targetUrl)
+  if (!res.ok) {
+    throw new Error(`Hark artifact download failed (${res.status})`)
+  }
+  const ab = await res.arrayBuffer()
+  const buf = Buffer.from(ab)
+  const contentType = res.headers.get('content-type')?.split(';')[0]?.trim() || 'application/octet-stream'
+  const filename = opts.name || targetUrl.split('?')[0]?.split('/').pop() || 'artifact'
+  const isText = /^(text\/|application\/(json|javascript|xml|x-yaml|csv|sql))/i.test(contentType) ||
+    /\.(md|markdown|txt|json|csv|html|htm|py|ts|tsx|js|sh|yaml|yml|sql)$/i.test(filename)
+
+  return {
+    dataBase64: buf.toString('base64'),
+    mimeType: contentType,
+    filename,
+    ...(isText ? { text: buf.toString('utf8') } : {})
   }
 }
 
@@ -858,6 +964,23 @@ function formatPresentationMarkdown(presRaw: unknown): string {
     return md ? `${title}${md}` : ''
   }
 
+  if (
+    (kind === 'document' || kind === 'markdown' || kind === 'article' || kind === 'report') &&
+    (pres[kind] || pres['document'] || pres['markdown'])
+  ) {
+    const d = (pres[kind] ?? pres['document'] ?? pres) as Record<string, unknown>
+    const title = typeof d['title'] === 'string' && d['title'].trim() ? `# ${d['title'].trim()}\n\n` : ''
+    const md =
+      typeof d['markdown'] === 'string'
+        ? d['markdown'].trim()
+        : typeof d['content'] === 'string'
+          ? d['content'].trim()
+          : typeof d['body'] === 'string'
+            ? d['body'].trim()
+            : ''
+    return md ? `${title}${md}` : ''
+  }
+
   if (kind === 'code' && pres['code'] && typeof pres['code'] === 'object') {
     const c = pres['code'] as Record<string, unknown>
     const lang = typeof c['language'] === 'string' ? c['language'].trim() : ''
@@ -1165,70 +1288,75 @@ export async function watchHarkConversationSync(
   }
 
   const runSseStream = async (): Promise<void> => {
-    try {
-      const sseUrl = new URL(`${HARK_API_BASE}/sync/conversation`)
-      sseUrl.searchParams.set('conversationId', conversationId)
-      sseUrl.searchParams.set('v', '2')
-      sseUrl.searchParams.set('manager', managerId)
-      sseUrl.searchParams.set('mode', 'in_tab')
-      sseUrl.searchParams.set('ids', '1')
-      sseUrl.searchParams.set('beat', '5')
-      sseUrl.searchParams.set('dial', 'initial')
+    let dialMode = 'initial'
+    while (Date.now() < deadline && !ac.signal.aborted && !finished) {
+      try {
+        const sseUrl = new URL(`${HARK_API_BASE}/sync/conversation`)
+        sseUrl.searchParams.set('conversationId', conversationId)
+        sseUrl.searchParams.set('v', '2')
+        sseUrl.searchParams.set('manager', managerId)
+        sseUrl.searchParams.set('mode', 'in_tab')
+        sseUrl.searchParams.set('ids', '1')
+        sseUrl.searchParams.set('beat', '5')
+        sseUrl.searchParams.set('dial', dialMode)
+        dialMode = 'reconnect'
 
-      const res = await ses.fetch(sseUrl.toString(), {
-        method: 'GET',
-        headers: {
-          Accept: 'text/event-stream',
-          'Cache-Control': 'no-cache',
-          'X-Hark-Locale': localeHeader()
-        },
-        signal: ac.signal
-      })
+        const res = await ses.fetch(sseUrl.toString(), {
+          method: 'GET',
+          headers: harkClientHeaders({
+            Accept: 'text/event-stream',
+            'Cache-Control': 'no-cache'
+          }),
+          signal: ac.signal
+        })
 
-      if (res.ok && res.body && res.headers.get('content-type')?.includes('text/event-stream')) {
-        const reader = res.body.getReader()
-        const decoder = new TextDecoder()
-        let buf = ''
-        let dataLines: string[] = []
-        let eventType = 'message'
+        if (res.ok && res.body && res.headers.get('content-type')?.includes('text/event-stream')) {
+          const reader = res.body.getReader()
+          const decoder = new TextDecoder()
+          let buf = ''
+          let dataLines: string[] = []
+          let eventType = 'message'
 
-        try {
-          while (Date.now() < deadline && !ac.signal.aborted && !finished) {
-            const { done, value } = await reader.read()
-            if (done) break
-            buf += decoder.decode(value, { stream: true })
-            let nl: number
-            while ((nl = buf.indexOf('\n')) >= 0) {
-              const line = buf.slice(0, nl).replace(/\r$/, '')
-              buf = buf.slice(nl + 1)
-              if (line === '') {
-                if (dataLines.length > 0) {
-                  const payload = dataLines.join('\n')
-                  dataLines = []
-                  if (eventType === 'message' && syncState.applyFrame(payload)) {
-                    if (checkState()) {
-                      return
+          try {
+            while (Date.now() < deadline && !ac.signal.aborted && !finished) {
+              const { done, value } = await reader.read()
+              if (done) break
+              buf += decoder.decode(value, { stream: true })
+              let nl: number
+              while ((nl = buf.indexOf('\n')) >= 0) {
+                const line = buf.slice(0, nl).replace(/\r$/, '')
+                buf = buf.slice(nl + 1)
+                if (line === '') {
+                  if (dataLines.length > 0) {
+                    const payload = dataLines.join('\n')
+                    dataLines = []
+                    if (eventType === 'message' && syncState.applyFrame(payload)) {
+                      if (checkState()) {
+                        return
+                      }
                     }
+                    eventType = 'message'
                   }
-                  eventType = 'message'
+                } else if (line.startsWith('event:')) {
+                  eventType = line.slice(6).trim()
+                } else if (line.startsWith('data:')) {
+                  dataLines.push(line.slice(5).trimStart())
                 }
-              } else if (line.startsWith('event:')) {
-                eventType = line.slice(6).trim()
-              } else if (line.startsWith('data:')) {
-                dataLines.push(line.slice(5).trimStart())
               }
             }
-          }
-        } finally {
-          try {
-            reader.releaseLock()
-          } catch {
-            /* ignore */
+          } finally {
+            try {
+              reader.releaseLock()
+            } catch {
+              /* ignore */
+            }
           }
         }
+      } catch {
+        /* aborted or transient disconnect — retry below if still active */
       }
-    } catch {
-      /* aborted or failed */
+      if (finished || ac.signal.aborted) return
+      await new Promise((r) => setTimeout(r, 1200))
     }
   }
 

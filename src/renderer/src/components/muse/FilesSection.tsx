@@ -148,6 +148,8 @@ function InlineFilePreview({ accountId, file }: { accountId: string; file: MuseF
     setTimeout(() => URL.revokeObjectURL(url), 2000)
   }
 
+  const setActiveDocument = useBotStore((s) => s.setActiveDocument)
+
   if (loading) {
     return <p className="col-span-2 pt-1 text-ink-muted">{t('Loading preview…')}</p>
   }
@@ -160,13 +162,32 @@ function InlineFilePreview({ accountId, file }: { accountId: string; file: MuseF
     <div className="col-span-2 mt-1.5 flex flex-col gap-1.5 border-t border-line pt-2">
       <div className="flex items-center justify-between">
         <span className="text-[11px] font-medium text-ink-secondary">{t('Preview')}</span>
-        <button
-          type="button"
-          onClick={downloadFile}
-          className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-medium text-accent-600 hover:bg-surface"
-        >
-          <Download className="size-3" /> {t('Download')}
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() =>
+              setActiveDocument({
+                accountId,
+                title: file.name,
+                path: file.path || file.id,
+                markdown: mt.includes('markdown') || file.name.endsWith('.md') ? preview.text : undefined,
+                html: mt.includes('html') || file.name.endsWith('.html') ? preview.text : undefined,
+                mimeType: preview.mimeType,
+                platformId: 'meta-muse'
+              })
+            }
+            className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-medium text-accent-600 hover:bg-surface"
+          >
+            画布打开
+          </button>
+          <button
+            type="button"
+            onClick={downloadFile}
+            className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-medium text-accent-600 hover:bg-surface"
+          >
+            <Download className="size-3" /> {t('Download')}
+          </button>
+        </div>
       </div>
       {mt.startsWith('image/') && preview.dataBase64 ? (
         <img

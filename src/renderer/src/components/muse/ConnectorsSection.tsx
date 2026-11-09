@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react"
 import type { MuseConnectorView } from "@shared/ipc"
 import { EmptyLine, Section } from "@/components/info/Section"
 import { Button } from "@/components/ui/Button"
+import { ConnectorIcon } from "@/components/ui/ConnectorIcon"
 import { RefreshButton } from "@/components/muse/RefreshButton"
 import { getBridge } from "@/lib/bridge"
 import { useBotStore } from "@/store/botStore"
@@ -102,18 +103,21 @@ export function ConnectorsSection({ accountId }: { accountId: string }) {
       ) : (
         <ul className="divide-y divide-line">
           {items.map((c) => (
-            <li key={c.id} className="flex items-center justify-between gap-2 px-3 py-2.5" title={c.description}>
-              <div className="min-w-0">
-                <p className="min-w-0 truncate text-[13px] text-ink">{c.name}</p>
-                <span
-                  className={
-                    c.connected
-                      ? "mt-1 inline-flex rounded-[4px] bg-status-online/10 px-1.5 text-[11px] leading-4 text-status-online-ink"
-                      : "mt-1 inline-flex rounded-[4px] bg-sunken px-1.5 text-[11px] leading-4 text-ink-muted"
-                  }
-                >
-                  {c.connected ? "已连接" : "未连接"}
-                </span>
+            <li key={c.id} className="flex items-center justify-between gap-2.5 px-3 py-2.5" title={c.description}>
+              <div className="flex min-w-0 items-center gap-2.5">
+                <ConnectorIcon id={c.id} name={c.name} />
+                <div className="min-w-0">
+                  <p className="min-w-0 truncate text-[13px] font-medium text-ink">{c.name}</p>
+                  <span
+                    className={
+                      c.connected
+                        ? "mt-0.5 inline-flex rounded-[4px] bg-status-online/10 px-1.5 text-[10.5px] leading-4 text-status-online-ink"
+                        : "mt-0.5 inline-flex rounded-[4px] bg-sunken px-1.5 text-[10.5px] leading-4 text-ink-muted"
+                    }
+                  >
+                    {c.connected ? "已连接" : "未连接"}
+                  </span>
+                </div>
               </div>
               {c.connected ? (
                 <Button

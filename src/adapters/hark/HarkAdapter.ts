@@ -78,7 +78,7 @@ export class HarkAdapter implements PlatformAdapter {
           accountId: event.accountId,
           isTyping: true
         })
-        if (event.text || event.tools?.length || event.richWidgets?.length) {
+        if (event.text || event.tools?.length || event.media?.length || event.richWidgets?.length) {
           this.emit({
             type: 'message_delta',
             messageId: event.messageId,
@@ -86,6 +86,7 @@ export class HarkAdapter implements PlatformAdapter {
             accountId: event.accountId,
             text: event.text,
             tools: event.tools,
+            media: event.media,
             richWidgets: event.richWidgets
           })
         }
@@ -109,7 +110,7 @@ export class HarkAdapter implements PlatformAdapter {
           }
         })
         this.setStatus(event.accountId, 'online')
-        if (event.text || event.tools?.length || event.richWidgets?.length) {
+        if (event.text || event.tools?.length || event.media?.length || event.richWidgets?.length) {
           this.emit({
             type: 'message',
             message: {
@@ -119,6 +120,7 @@ export class HarkAdapter implements PlatformAdapter {
               text: event.text,
               createdAt: Date.now(),
               tools: event.tools,
+              media: event.media,
               richWidgets: event.richWidgets
             }
           })

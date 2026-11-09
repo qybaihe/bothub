@@ -62,12 +62,16 @@ function decodeEntryBody(raw: Record<string, unknown>): Record<string, unknown> 
 }
 
 function entryText(e: Record<string, unknown>): string {
+  const msg = e['message'] as Record<string, unknown> | undefined
+  const widget = msg?.['widget'] as Record<string, unknown> | undefined
   const text =
     (typeof e['text'] === 'string' && e['text']) ||
     (typeof e['content'] === 'string' && e['content']) ||
-    (typeof (e['message'] as { text?: string } | undefined)?.text === 'string'
-      ? (e['message'] as { text: string }).text
-      : '')
+    (typeof msg?.['text'] === 'string' && (msg['text'] as string)) ||
+    (typeof msg?.['content'] === 'string' && (msg['content'] as string)) ||
+    (typeof widget?.['prompt'] === 'string' && (widget['prompt'] as string)) ||
+    (typeof widget?.['title'] === 'string' && (widget['title'] as string)) ||
+    ''
   return typeof text === 'string' ? text.trim() : ''
 }
 
@@ -83,10 +87,10 @@ function extractReplyText(entries: unknown, afterMessageId?: string): string {
     if (afterMessageId && (id === afterMessageId || String(e['clientNonce'] ?? '') === afterMessageId)) continue
     const role = String(e['role'] ?? '')
     const kind = String(e['kind'] ?? e['entryKind'] ?? e['type'] ?? '')
-    if (/^user$/i.test(role) || /send-message/i.test(kind)) continue
+    if (/^user$/i.test(role) || /^user-attachment$/i.test(kind) || /^event$/i.test(kind)) continue
     const text = entryText(e)
     if (!text) continue
-    if (/assistant|bot|message/i.test(role) || /assistant|message|bot/i.test(kind) || role === '') {
+    if (/assistant|bot|message/i.test(role) || /assistant|message|send-message|bot/i.test(kind) || role === '') {
       return text
     }
   }
@@ -340,6 +344,9 @@ export class GrokBotAdapter implements PlatformAdapter {
 
       let reply = ''
       let replyMessageId = ''
+      let replyWidgets: IncomingMessage['widgets']
+      let replyTools: IncomingMessage['tools']
+      let replyMedia: IncomingMessage['media']
       try {
         const watched = await invokeGrokRpc({
           accountId: message.accountId,
@@ -357,6 +364,9 @@ export class GrokBotAdapter implements PlatformAdapter {
           if (typeof w['text'] === 'string') reply = w['text']
           else reply = extractReplyText(watched, messageId)
           if (typeof w['messageId'] === 'string') replyMessageId = w['messageId']
+          if (Array.isArray(w['widgets'])) replyWidgets = w['widgets'] as IncomingMessage['widgets']
+          if (Array.isArray(w['tools'])) replyTools = w['tools'] as IncomingMessage['tools']
+          if (Array.isArray(w['media'])) replyMedia = w['media'] as IncomingMessage['media']
         }
       } catch {
         // Fallback: brief list poll if Watch unavailable.
@@ -386,13 +396,16 @@ export class GrokBotAdapter implements PlatformAdapter {
         isTyping: false
       })
 
-      if (reply) {
+      if (reply || replyWidgets?.length || replyMedia?.length) {
         const incoming: IncomingMessage = {
           id: replyMessageId || createId('msg'),
           conversationId: message.conversationId,
           accountId: message.accountId,
           text: reply,
-          createdAt: Date.now()
+          createdAt: Date.now(),
+          ...(replyWidgets ? { widgets: replyWidgets } : {}),
+          ...(replyTools ? { tools: replyTools } : {}),
+          ...(replyMedia ? { media: replyMedia } : {})
         }
         this.emit({ type: 'message', message: incoming })
       }

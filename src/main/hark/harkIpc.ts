@@ -6,6 +6,7 @@ import {
   type HarkOpenLoginRequest,
   type HarkRpcRequest,
   type HarkRpcResponse,
+  type MuseMediaPartView,
   type MuseRichWidgetView,
   type MuseToolCallView
 } from '@shared/ipc'
@@ -14,6 +15,7 @@ import {
   cancelHarkWatch,
   clearHarkAccount,
   conversationIdFromPayload,
+  downloadHarkArtifact,
   extractMessages,
   fetchConversationSnapshotSummary,
   getAuthSession,
@@ -48,6 +50,23 @@ function mapHarkTools(msg: HarkChatMessage): MuseToolCallView[] | undefined {
           : 'completed',
     summary: tc.url || tc.command || tc.result
   }))
+}
+
+function mapHarkMedia(msg: HarkChatMessage): MuseMediaPartView[] | undefined {
+  if (!msg.artifacts || msg.artifacts.length === 0) return undefined
+  return msg.artifacts.map((a) => {
+    const path = a.downloadUrl || (a.s3Key ? `harkatt://${a.s3Key}` : a.path)
+    const isImg =
+      (a.mimeType && a.mimeType.startsWith('image/')) ||
+      /\.(png|jpe?g|gif|webp|svg)$/i.test(a.name || a.path || '')
+    return {
+      kind: isImg ? 'image' : 'file',
+      path,
+      name: a.name || a.path.split('/').pop() || 'artifact',
+      mimeType: a.mimeType,
+      sizeBytes: a.sizeBytes
+    }
+  })
 }
 
 function mapHarkRichWidgets(msg: HarkChatMessage): MuseRichWidgetView[] | undefined {
@@ -121,7 +140,12 @@ async function runHarkRpc(req: HarkRpcRequest): Promise<HarkRpcResponse> {
         const data = await getMainConversation(req.accountId, req.timezone ?? timezoneName())
         const convId = conversationIdFromPayload(data)
         const snap = convId ? await fetchConversationSnapshotSummary(req.accountId, convId) : null
-        const messages = snap && snap.messages.length > 0 ? snap.messages : extractMessages(data)
+        const rawMessages = snap && snap.messages.length > 0 ? snap.messages : extractMessages(data)
+        const messages = rawMessages.map((m) => ({
+          ...m,
+          media: !/^user$/i.test(m.role) ? mapHarkMedia(m) : undefined,
+          richWidgets: !/^user$/i.test(m.role) ? mapHarkRichWidgets(m) : undefined
+        }))
         return {
           ok: true,
           data: {
@@ -184,6 +208,7 @@ async function runHarkRpc(req: HarkRpcRequest): Promise<HarkRpcResponse> {
             const done = isHarkReplyDone(msg)
             const text = msg.content.trim()
             const tools = mapHarkTools(msg)
+            const media = mapHarkMedia(msg)
             const richWidgets = mapHarkRichWidgets(msg)
             const activePhrase =
               msg.narration?.trim() ||
@@ -202,7 +227,7 @@ async function runHarkRpc(req: HarkRpcRequest): Promise<HarkRpcResponse> {
               })
             }
 
-            if (!text && !tools?.length && !richWidgets?.length && !done) return
+            if (!text && !tools?.length && !media?.length && !richWidgets?.length && !done) return
             broadcast({
               type: 'stream',
               accountId: req.accountId,
@@ -211,6 +236,7 @@ async function runHarkRpc(req: HarkRpcRequest): Promise<HarkRpcResponse> {
               text,
               done,
               ...(tools ? { tools } : {}),
+              ...(media ? { media } : {}),
               ...(richWidgets ? { richWidgets } : {})
             })
           }
@@ -234,6 +260,7 @@ async function runHarkRpc(req: HarkRpcRequest): Promise<HarkRpcResponse> {
         ) {
           const msgId = `hark_${finalReply.id}`
           const tools = mapHarkTools(finalReply)
+          const media = mapHarkMedia(finalReply)
           const richWidgets = mapHarkRichWidgets(finalReply)
           broadcast({
             type: 'stream',
@@ -243,6 +270,7 @@ async function runHarkRpc(req: HarkRpcRequest): Promise<HarkRpcResponse> {
             text: finalReply.content.trim(),
             done: true,
             ...(tools ? { tools } : {}),
+            ...(media ? { media } : {}),
             ...(richWidgets ? { richWidgets } : {})
           })
           return {
@@ -254,6 +282,7 @@ async function runHarkRpc(req: HarkRpcRequest): Promise<HarkRpcResponse> {
                 ...finalReply,
                 id: msgId,
                 tools,
+                media,
                 richWidgets
               }
             }
@@ -278,6 +307,14 @@ async function runHarkRpc(req: HarkRpcRequest): Promise<HarkRpcResponse> {
             timedOut: true
           }
         }
+      }
+      case 'downloadArtifact': {
+        const downloaded = await downloadHarkArtifact(req.accountId, {
+          url: req.url,
+          fileId: req.fileId,
+          name: req.name
+        })
+        return { ok: true, data: downloaded }
       }
       case 'call': {
         if (typeof req.path !== 'string' || !req.path.trim()) {

@@ -75,6 +75,10 @@ export interface IncomingMessage {
   createdAt: number
   /** Platform id of the message this replies to, when known. */
   replyTo?: string
+  widgets?: MuseOptionWidget[]
+  tools?: MuseToolCall[]
+  media?: MuseMediaPart[]
+  richWidgets?: MuseRichWidget[]
 }
 
 

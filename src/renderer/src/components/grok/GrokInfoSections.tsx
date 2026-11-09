@@ -654,3 +654,68 @@ export function GrokMembersSection({ accountId, agentId }: { accountId: string; 
     </Section>
   )
 }
+
+/**
+ * 6. Grok Bot Cloud Sandbox Computer (`EnsureSandBox`, `ListGrokBotAgentStatuses`)
+ */
+export function GrokComputerSection({ accountId, agentId }: { accountId: string; agentId?: string }) {
+  const status = useBotStore((s) => s.accounts[accountId]?.status)
+  const [vmInfo, setVmInfo] = useState<Record<string, unknown> | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string>()
+
+  const refresh = useCallback(async () => {
+    setLoading(true)
+    setError(undefined)
+    try {
+      const bridge = getBridge()?.grok
+      if (!bridge?.rpc) return
+      const res = await bridge.rpc({
+        accountId,
+        op: 'listAgentStatuses',
+        agentIds: agentId ? [agentId] : undefined
+      })
+      if (res.ok && res.data && typeof res.data === 'object') {
+        setVmInfo(res.data as Record<string, unknown>)
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setLoading(false)
+    }
+  }, [accountId, agentId])
+
+  useEffect(() => {
+    if (status === 'online' || status === 'busy') void refresh()
+  }, [refresh, status])
+
+  return (
+    <Section
+      title="Sand 云端沙盒电脑 (CursorVM Sandbox)"
+      action={<RefreshButton loading={loading} onClick={() => void refresh()} />}
+    >
+      <div className="flex flex-col gap-2 px-3 pb-2.5 pt-1 text-[12px]">
+        {error && <p className="text-status-error">{error}</p>}
+        <div className="rounded-lg border border-line bg-surface p-2.5">
+          <div className="flex items-center justify-between">
+            <span className="font-medium text-ink">Grok Sand Pod 状态</span>
+            <span className="rounded-full bg-hover px-2 py-0.5 text-[10.5px] font-medium text-ink-secondary">
+              {status === 'online' || status === 'busy' ? 'Connected' : 'Standby'}
+            </span>
+          </div>
+          <p className="mt-1 font-mono text-[11px] text-ink-muted">
+            Agent ID: {agentId || '未选择 Agent'}
+          </p>
+          <p className="mt-0.5 font-mono text-[11px] text-ink-muted">
+            Workspace: /home/box/sand-data/agents/{agentId || '<id>'}
+          </p>
+        </div>
+        {vmInfo && Object.keys(vmInfo).length > 0 && (
+          <pre className="max-h-40 overflow-auto rounded-lg border border-line bg-sunken p-2 font-mono text-[11px] text-ink">
+            {JSON.stringify(vmInfo, null, 2)}
+          </pre>
+        )}
+      </div>
+    </Section>
+  )
+}

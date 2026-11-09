@@ -7,6 +7,7 @@ import { ComputerSection } from '@/components/muse/ComputerSection'
 import { GoalsSection } from '@/components/muse/GoalsSection'
 import {
   GrokAutomationsSection,
+  GrokComputerSection,
   GrokFilesSection,
   GrokMemoriesAndSkillsSection,
   GrokMembersSection,
@@ -341,6 +342,17 @@ export function InfoPanel() {
                   <>
                     <DotOrbitProfilesSection accountId={bot.activeAccountId} botId={bot.id} />
                     <DotGoalAndThreadsSection accountId={bot.activeAccountId} />
+                  </>
+                ) : bot.platformId === 'grok' && bot.activeAccountId ? (
+                  <>
+                    <GrokComputerSection
+                      accountId={bot.activeAccountId}
+                      agentId={bot.selectedAgentId}
+                    />
+                    <GrokAutomationsSection
+                      accountId={bot.activeAccountId}
+                      agentId={bot.selectedAgentId}
+                    />
                   </>
                 ) : (
                   <Section title={t('Computer')}>

@@ -93,18 +93,31 @@ export function startAdapterBridge(): () => void {
             event.accountId
           if (!event.done) {
             store.setTyping(convId, true)
-            if (event.text) {
-              store.applyMessageDelta(event.messageId, convId, event.accountId, event.text)
+            if (event.text || event.widgets?.length || event.tools?.length || event.media?.length) {
+              store.applyMessageDelta(
+                event.messageId,
+                convId,
+                event.accountId,
+                event.text || "",
+                event.widgets,
+                event.tools,
+                event.media,
+                event.richWidgets
+              )
             }
           } else {
             store.setTyping(convId, false)
-            if (event.text) {
+            if (event.text || event.widgets?.length || event.tools?.length || event.media?.length) {
               store.receiveMessage({
                 id: event.messageId,
                 conversationId: convId,
                 accountId: event.accountId,
-                text: event.text,
-                createdAt: Date.now()
+                text: event.text || "",
+                createdAt: Date.now(),
+                widgets: event.widgets,
+                tools: event.tools,
+                media: event.media,
+                richWidgets: event.richWidgets
               })
             }
           }

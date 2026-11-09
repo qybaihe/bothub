@@ -41,9 +41,12 @@ export interface BotHubState {
   /** Open the dedicated Grok Bot-style Settings view in the main pane. */
   settingsOpen: boolean
   settingsTab: 'overview' | 'general' | 'muse-accounts' | 'dot-accounts' | 'grok-accounts' | 'hark-accounts' | 'proxy-pool'
+  /** Active document/article opened in the right-side Split-Pane Document Canvas. */
+  activeDocument: import('@/components/chat/NativeDocumentDialog').NativeDocumentTarget | null
 
   // Navigation & layout
   selectBot: (botId: string) => void
+  setActiveDocument: (doc: import('@/components/chat/NativeDocumentDialog').NativeDocumentTarget | null) => void
   toggleGroup: (groupId: string) => void
   /** Create a local sidebar section (Grok-like; not a host API). */
   addGroup: (name?: string) => string
@@ -306,6 +309,9 @@ export const useBotStore = create<BotHubState>()(
     webSessionOpen: false,
     settingsOpen: false,
     settingsTab: 'overview',
+    activeDocument: null,
+
+    setActiveDocument: (doc) => set({ activeDocument: doc }),
 
     selectBot: (botId) =>
       set((state) => {
@@ -325,6 +331,10 @@ export const useBotStore = create<BotHubState>()(
         return {
           selectedBotId: botId,
           settingsOpen: false,
+          activeDocument:
+            state.activeDocument && targetBot?.accountIds.includes(state.activeDocument.accountId)
+              ? state.activeDocument
+              : null,
           accounts: nextAccounts,
           bots: state.bots.map((b) => (b.id === botId && b.unread > 0 ? { ...b, unread: 0 } : b))
         }
@@ -993,11 +1003,58 @@ export const useBotStore = create<BotHubState>()(
                   }
                 }
                 const msgObj = e['message'] as Record<string, unknown> | undefined
-                const text = String(e['text'] ?? e['content'] ?? msgObj?.['text'] ?? msgObj?.['content'] ?? '').trim()
-                if (!text) continue
                 const roleRaw = String(e['role'] ?? '')
                 const kindRaw = String(e['kind'] ?? e['entryKind'] ?? '')
-                const isUser = /^user$/i.test(roleRaw) || /send-message/i.test(kindRaw)
+                if (/^event$/i.test(kindRaw)) continue
+                const isUser = /^user$/i.test(roleRaw) || /^user-attachment$/i.test(kindRaw)
+                const widgetObj = msgObj?.['widget'] as Record<string, unknown> | undefined
+                const text = String(
+                  e['text'] ??
+                    e['content'] ??
+                    msgObj?.['text'] ??
+                    msgObj?.['content'] ??
+                    widgetObj?.['prompt'] ??
+                    widgetObj?.['title'] ??
+                    ''
+                ).trim()
+
+                let widgets: ChatMessage['widgets']
+                if (widgetObj && Array.isArray(widgetObj['options'])) {
+                  const opts = (widgetObj['options'] as Array<Record<string, unknown>>)
+                    .map((o) => String(o['label'] ?? o['text'] ?? o['id'] ?? '').trim())
+                    .filter(Boolean)
+                  if (opts.length > 0) {
+                    const resp = widgetObj['response'] as Record<string, unknown> | undefined
+                    widgets = [
+                      {
+                        kind: 'option',
+                        widgetId: String(widgetObj['id'] ?? e['id'] ?? 'grok_w'),
+                        options: opts,
+                        buttonStyle: 'center_aligned_filled',
+                        baseVersion: 1,
+                        selectedText: resp?.['optionId'] ? String(resp['optionId']) : undefined
+                      }
+                    ]
+                  }
+                }
+
+                let media: ChatMessage['media']
+                const attObj = (msgObj?.['attachment'] ?? e['attachment']) as Record<string, unknown> | undefined
+                if (attObj && typeof attObj === 'object') {
+                  const attPath = String(attObj['path'] ?? attObj['url'] ?? '').trim()
+                  if (attPath) {
+                    media = [
+                      {
+                        kind: String(attObj['mimeType'] ?? '').startsWith('image/') ? 'image' : 'file',
+                        path: attPath,
+                        name: String(attObj['name'] ?? attPath.split('/').pop() ?? 'attachment'),
+                        mimeType: typeof attObj['mimeType'] === 'string' ? attObj['mimeType'] : undefined
+                      }
+                    ]
+                  }
+                }
+
+                if (!text && !widgets?.length && !media?.length) continue
                 const rawId = String(e['id'] ?? e['message_id'] ?? hydrated.length)
                 hydrated.push({
                   id: isUser ? `grok_u_${rawId}` : `grok_${rawId}`,
@@ -1006,7 +1063,9 @@ export const useBotStore = create<BotHubState>()(
                   role: isUser ? 'user' : 'bot',
                   text,
                   createdAt: Number(e['timestampMs'] ?? e['created_at_ms'] ?? Date.now()) || Date.now(),
-                  delivery: isUser ? 'sent' : undefined
+                  delivery: isUser ? 'sent' : undefined,
+                  ...(widgets ? { widgets } : {}),
+                  ...(media ? { media } : {})
                 })
               }
               if (hydrated.length > 0) {
@@ -1094,9 +1153,13 @@ export const useBotStore = create<BotHubState>()(
                     id: string
                     role: string
                     content: string
+                    thought?: string | null
+                    narration?: string | null
                     createdAt?: string | number | null
                     toolCalls?: Array<{ dispatchId: string; name: string; status: string; url?: string }>
                     actions?: Array<{ kind: string; connector?: string; label: string }>
+                    media?: ChatMessage['media']
+                    richWidgets?: ChatMessage['richWidgets']
                   }>
                 }
                 if (d.conversationId) {
@@ -1104,7 +1167,13 @@ export const useBotStore = create<BotHubState>()(
                 }
                 if (Array.isArray(d.messages) && d.messages.length > 0) {
                   const hydrated: ChatMessage[] = d.messages
-                    .filter((m) => (m.content && m.content.trim()) || (m.actions && m.actions.length > 0))
+                    .filter(
+                      (m) =>
+                        (m.content && m.content.trim()) ||
+                        (m.actions && m.actions.length > 0) ||
+                        (m.media && m.media.length > 0) ||
+                        (m.richWidgets && m.richWidgets.length > 0)
+                    )
                     .map((m) => {
                       const isUser = /^user$/i.test(m.role)
                       const ts =
@@ -1113,20 +1182,21 @@ export const useBotStore = create<BotHubState>()(
                           : typeof m.createdAt === 'string'
                             ? Date.parse(m.createdAt) || Date.now()
                             : Date.now()
-                      const richWidgets: ChatMessage['richWidgets'] =
-                        m.actions && m.actions.length > 0
-                          ? [
-                              {
-                                kind: 'text_with_button',
-                                widgetId: `hark_act_${m.id}`,
-                                text: '',
-                                buttons: m.actions.map((a) => ({
-                                  label: a.label || `Connect ${a.connector ?? ''}`,
-                                  actionText: a.connector ? `Connect ${a.connector}` : a.label
-                                }))
-                              }
-                            ]
-                          : undefined
+                      const combinedRich: NonNullable<ChatMessage['richWidgets']> = [
+                        ...(m.richWidgets ?? [])
+                      ]
+                      if (m.actions && m.actions.length > 0) {
+                        combinedRich.push({
+                          kind: 'text_with_button',
+                          widgetId: `hark_act_${m.id}`,
+                          text: '',
+                          buttons: m.actions.map((a) => ({
+                            label: a.label || `Connect ${a.connector ?? ''}`,
+                            actionText: a.connector ? `Connect ${a.connector}` : a.label
+                          }))
+                        })
+                      }
+                      const richWidgets = combinedRich.length > 0 ? combinedRich : undefined
                       const tools: ChatMessage['tools'] =
                         m.toolCalls && m.toolCalls.length > 0
                           ? m.toolCalls.map((tc) => ({
@@ -1138,9 +1208,18 @@ export const useBotStore = create<BotHubState>()(
                                   : tc.status === 'failed'
                                     ? 'errored'
                                     : 'completed',
-                              summary: tc.url
+                              summary: tc.url || m.narration || undefined
                             }))
-                          : undefined
+                          : m.narration || m.thought
+                            ? [
+                                {
+                                  id: `hark_thought_${m.id}`,
+                                  name: m.narration ? 'Agent Activity' : 'Thinking',
+                                  status: 'completed',
+                                  summary: (m.narration || m.thought || '').slice(0, 140)
+                                }
+                              ]
+                            : undefined
                       return {
                         id: isUser ? `hark_u_${m.id}` : `hark_${m.id}`,
                         botId: ownerBot.id,
@@ -1150,7 +1229,8 @@ export const useBotStore = create<BotHubState>()(
                         createdAt: ts,
                         delivery: isUser ? 'sent' : undefined,
                         richWidgets,
-                        tools
+                        tools,
+                        ...(m.media && m.media.length > 0 ? { media: m.media } : {})
                       }
                     })
                   if (hydrated.length > 0) {

@@ -103,30 +103,47 @@ function sandUserAgent(clientOs: string, clientVersion: string): string {
       : clientOs === 'linux'
         ? '(X11; Linux x86_64)'
         : '(Macintosh; Intel Mac OS X 10_15_7)'
-  return `Mozilla/5.0 ${osUa} AppleWebKit/537.36 (KHTML, like Gecko) Sand/${clientVersion} Safari/537.36`
+  return `Mozilla/5.0 ${osUa} AppleWebKit/537.36 (KHTML, like Gecko) Sand/${clientVersion} Chrome/132.0.6834.210 Electron/34.3.0 Safari/537.36`
+}
+
+function defaultTimeZone(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
+  } catch {
+    return 'UTC'
+  }
 }
 
 function buildHeaders(opts: GrokConnectClientOptions): Record<string, string> {
   const checksum = opts.checksumFn ?? globalChecksumFn
   const clientOs = opts.clientOs ?? processPlatform()
   const clientVersion = opts.clientVersion ?? GROK_SAND_CLIENT_VERSION
+  const reqId = randomUUID()
   const headers: Record<string, string> = {
     'content-type': 'application/json',
     'connect-protocol-version': '1',
+    accept: 'application/json',
+    'accept-language': 'en-US,en;q=0.9',
     authorization: `Bearer ${opts.auth.accessToken}`,
     'user-agent': sandUserAgent(clientOs, clientVersion),
     'x-cursor-client-type': 'sand',
     'x-cursor-client-version': clientVersion,
     'x-cursor-client-os': clientOs,
+    'x-cursor-client-arch': process.arch === 'x64' ? 'x64' : 'arm64',
+    'x-cursor-client-device-type': 'desktop',
     'x-ghost-mode': opts.ghostMode === true ? 'true' : 'false',
-    'x-request-id': randomUUID()
+    'x-request-id': reqId,
+    'x-amzn-trace-id': `Root=${reqId}`,
+    'x-cursor-timezone': opts.timeZone || defaultTimeZone(),
+    'sec-fetch-site': 'cross-site',
+    'sec-fetch-mode': 'cors',
+    'sec-fetch-dest': 'empty'
   }
   if (opts.boxNamespace) headers['x-sand-box-namespace'] = opts.boxNamespace
   if (opts.auth.teamId) headers['x-cursor-team-id'] = String(opts.auth.teamId)
   // Only when machineId non-empty (asar behavior).
   const machineId = opts.auth.machineId?.trim()
   if (machineId) headers['x-cursor-checksum'] = checksum(machineId)
-  if (opts.timeZone) headers['x-cursor-timezone'] = opts.timeZone
   return headers
 }
 
@@ -149,28 +166,49 @@ export class GrokConnectClient {
 
   async unary<TReq extends object, TRes = unknown>(method: string, body: TReq): Promise<TRes> {
     const url = `${this.baseUrl}/${GROK_SERVICE}/${method}`
-    const res = await this.fetchImpl(url, {
-      method: 'POST',
-      headers: buildHeaders(this.opts),
-      body: JSON.stringify(body ?? {})
-    })
-    const text = await res.text()
-    if (!res.ok) {
-      let code: string | undefined
-      try {
-        const parsed = JSON.parse(text) as { code?: string; error?: { code?: string } }
-        code = parsed.code ?? parsed.error?.code
-      } catch {
-        /* plain body */
+    const maxAttempts = 3
+    let lastErr: unknown
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      if (attempt > 0) {
+        const delayMs = Math.round(350 * Math.pow(1.8, attempt - 1) * (0.85 + Math.random() * 0.3))
+        await new Promise((r) => setTimeout(r, delayMs))
       }
-      throw new GrokConnectError(res.status, text, code)
+      try {
+        const res = await this.fetchImpl(url, {
+          method: 'POST',
+          headers: buildHeaders(this.opts),
+          body: JSON.stringify(body ?? {}),
+          signal: AbortSignal.timeout(25_000)
+        })
+        const text = await res.text()
+        if (!res.ok) {
+          let code: string | undefined
+          try {
+            const parsed = JSON.parse(text) as { code?: string; error?: { code?: string } }
+            code = parsed.code ?? parsed.error?.code
+          } catch {
+            /* plain body */
+          }
+          const err = new GrokConnectError(res.status, text, code)
+          if ((res.status === 429 || res.status === 502 || res.status === 503 || res.status === 504) && attempt + 1 < maxAttempts) {
+            lastErr = err
+            continue
+          }
+          throw err
+        }
+        if (!text) return {} as TRes
+        try {
+          return JSON.parse(text) as TRes
+        } catch {
+          throw new GrokConnectError(res.status, `non-JSON response: ${text.slice(0, 200)}`)
+        }
+      } catch (err) {
+        lastErr = err
+        if (err instanceof GrokConnectError) throw err
+        if (attempt + 1 >= maxAttempts) throw err
+      }
     }
-    if (!text) return {} as TRes
-    try {
-      return JSON.parse(text) as TRes
-    } catch {
-      throw new GrokConnectError(res.status, `non-JSON response: ${text.slice(0, 200)}`)
-    }
+    throw lastErr instanceof Error ? lastErr : new Error('Grok ConnectRPC request failed')
   }
 
   listAgents(req: { role?: string; includeTeamAgents?: boolean } = {}) {

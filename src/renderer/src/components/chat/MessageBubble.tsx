@@ -5,6 +5,7 @@ import { formatBytes, formatClock } from '@/lib/format'
 import { useBotStore } from '@/store/botStore'
 import type { ChatMediaPart, ChatMessage, ChatOptionWidget, ChatRichWidget, ChatToolCall } from '@/types'
 import { getBridge } from '@/lib/bridge'
+import { ConnectorIcon } from '@/components/ui/ConnectorIcon'
 import { MarkdownText } from './MarkdownText'
 import { NativeDocumentDialog, type NativeDocumentTarget } from './NativeDocumentDialog'
 import { t } from '@/lib/i18n'
@@ -276,13 +277,31 @@ function MediaParts({
       const bridge = getBridge()
       const rawPath = (part.path || '').trim()
       const isHttpUrl = /^https?:\/\//i.test(rawPath)
-      const isDotFile = isHttpUrl || /^(CalpicoFile_|file_|sediment:\/\/|dotfile:\/\/|dotatt:\/\/)/i.test(rawPath)
+      const isHarkFile = /^(harkatt:\/\/|harkfile:\/\/)/i.test(rawPath) || /hark\.com|hark\.ai/i.test(rawPath)
+      const isDotFile =
+        !isHarkFile &&
+        (isHttpUrl || /^(CalpicoFile_|file_|libfile_|sediment:\/\/|dotfile:\/\/|dotatt:\/\/)/i.test(rawPath))
 
       let dataBase64 = ''
       let mimeType = part.mimeType || 'application/octet-stream'
       let filename = part.name || (!isHttpUrl ? rawPath.split('/').pop() : undefined) || 'attachment'
 
-      if (isDotFile && bridge?.dot?.rpc) {
+      if (isHarkFile && bridge?.hark?.rpc) {
+        const cleanRef = rawPath.replace(/^(harkatt|harkfile):\/\//i, '')
+        const res = await bridge.hark.rpc({
+          accountId,
+          op: 'downloadArtifact',
+          url: /^https?:\/\//i.test(cleanRef) ? cleanRef : undefined,
+          fileId: !/^https?:\/\//i.test(cleanRef) ? cleanRef : undefined,
+          name: part.name
+        })
+        if (res.ok && res.data && typeof res.data === 'object') {
+          const d = res.data as { dataBase64: string; mimeType: string; filename?: string; name?: string }
+          dataBase64 = d.dataBase64
+          mimeType = d.mimeType || mimeType
+          filename = d.filename || d.name || filename
+        }
+      } else if (isDotFile && bridge?.dot?.rpc) {
         const res = await bridge.dot.rpc({
           accountId,
           op: 'downloadFile',
@@ -647,28 +666,63 @@ function RichWidgets({
               ) : null}
               {w.buttons.length > 0 && (
                 <div className="flex flex-wrap gap-1.5">
-                  {w.buttons.map((b, i) =>
-                    b.url ? (
-                      <a
-                        key={`${b.label}-${i}`}
-                        href={b.url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="rounded-full bg-accent-600 px-3 py-1 text-[12px] font-medium text-white hover:bg-accent-700"
-                      >
-                        {b.label}
-                      </a>
-                    ) : (
+                  {w.buttons.map((b, i) => {
+                    const harkProvider = b.command?.startsWith('hark:connect:')
+                      ? b.command.slice('hark:connect:'.length).trim()
+                      : undefined
+                    if (b.url) {
+                      return (
+                        <a
+                          key={`${b.label}-${i}`}
+                          href={b.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1.5 rounded-full bg-accent-600 px-3 py-1 text-[12px] font-medium text-white hover:bg-accent-700"
+                        >
+                          <ConnectorIcon id={harkProvider} name={b.label} className="size-4 border-0 bg-transparent shadow-none" />
+                          {b.label}
+                        </a>
+                      )
+                    }
+                    return (
                       <button
                         key={`${b.label}-${i}`}
                         type="button"
-                        onClick={() => void sendMessage(botId, b.actionText || b.label)}
-                        className="rounded-full border border-line-strong bg-surface px-3 py-1 text-[12px] font-medium text-ink hover:bg-hover"
+                        onClick={async () => {
+                          if (harkProvider && getBridge()?.hark?.rpc) {
+                            try {
+                              const res = await getBridge()!.hark!.rpc({
+                                accountId,
+                                op: 'call',
+                                method: 'POST',
+                                path: '/connectors/link-sessions',
+                                body: {
+                                  provider: harkProvider,
+                                  returnUrl: 'https://app.hark.com/settings/connected-accounts',
+                                  origin: 'chat'
+                                }
+                              })
+                              if (res.ok && res.data && typeof res.data === 'object') {
+                                const d = res.data as Record<string, unknown>
+                                const startUrl = String(d['startUrl'] ?? d['url'] ?? d['authUrl'] ?? '')
+                                if (startUrl.startsWith('http')) {
+                                  await getBridge()?.muse?.openHttps?.(startUrl)
+                                  return
+                                }
+                              }
+                            } catch {
+                              /* fall through to sendMessage */
+                            }
+                          }
+                          void sendMessage(botId, b.actionText || b.label)
+                        }}
+                        className="inline-flex items-center gap-1.5 rounded-full border border-line-strong bg-surface px-3 py-1 text-[12px] font-medium text-ink hover:bg-hover"
                       >
+                        <ConnectorIcon id={harkProvider ?? b.label} name={b.label} className="size-4 border-0 bg-transparent shadow-none" />
                         {b.label}
                       </button>
                     )
-                  )}
+                  })}
                 </div>
               )}
             </li>
@@ -735,36 +789,61 @@ function RichWidgets({
           )
         }
         if (w.kind === 'markdown') {
+          const docTitle = w.title || w.path?.split('/').pop() || 'Markdown 文档'
+          const wordCount = (w.markdown || '').trim().length
           return (
-            <li key={w.widgetId} className="overflow-hidden rounded-xl border border-line bg-surface shadow-soft">
-              <div className="flex items-center justify-between border-b border-line px-3 py-1.5 text-[12px]">
-                <span className="truncate font-medium text-ink">
-                  📄 {w.title || w.path?.split('/').pop() || 'Markdown 文档'}
-                </span>
+            <li
+              key={w.widgetId}
+              className="overflow-hidden rounded-2xl border border-line bg-surface shadow-soft transition-shadow hover:shadow-md"
+            >
+              <div className="flex items-center justify-between gap-3 border-b border-line bg-sunken/40 px-3.5 py-2.5">
                 <button
                   type="button"
                   onClick={() =>
                     onOpenDoc({
                       accountId,
-                      title: w.title || w.path?.split('/').pop() || 'Markdown 文档',
+                      title: docTitle,
                       markdown: w.markdown || undefined,
                       path: w.path,
                       mimeType: 'text/markdown'
                     })
                   }
-                  className="inline-flex shrink-0 items-center gap-1 rounded-full bg-hover px-2.5 py-0.5 text-[11px] font-medium text-accent-600 hover:bg-active"
+                  className="flex min-w-0 flex-1 items-center gap-2.5 text-left"
                 >
-                  <Maximize2 className="size-3" /> 原生打开
+                  <span className="grid size-8 shrink-0 place-items-center rounded-xl bg-accent-50 text-accent-600">
+                    <FileText className="size-4" aria-hidden />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[13.5px] font-semibold text-ink">{docTitle}</span>
+                    <span className="block truncate text-[11px] text-ink-muted">
+                      文章 / 文档卡片{wordCount > 0 ? ` · ${wordCount} 字` : ''}
+                      {w.path ? ` · ${w.path}` : ''}
+                    </span>
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    onOpenDoc({
+                      accountId,
+                      title: docTitle,
+                      markdown: w.markdown || undefined,
+                      path: w.path,
+                      mimeType: 'text/markdown'
+                    })
+                  }
+                  className="inline-flex shrink-0 items-center gap-1 rounded-full bg-accent-600 px-3 py-1 text-[11.5px] font-medium text-white shadow-hairline hover:bg-accent-700"
+                >
+                  <Maximize2 className="size-3" /> 右侧画布阅读
                 </button>
               </div>
               {w.markdown && (
-                <div className="max-h-56 overflow-y-auto p-3 text-[13px] leading-relaxed text-ink">
+                <div className="relative max-h-60 overflow-hidden px-4 py-3 text-[13.5px] leading-relaxed text-ink">
                   <MarkdownText
                     text={w.markdown}
-                    onFileLinkClick={(path, label) =>
-                      onOpenDoc({ accountId, title: label, path })
-                    }
+                    onFileLinkClick={(path, label) => onOpenDoc({ accountId, title: label, path })}
                   />
+                  <div className="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-surface to-transparent" />
                 </div>
               )}
             </li>
@@ -913,14 +992,21 @@ export const MessageBubble = memo(function MessageBubble({
   const tools = (!mine && message.tools) || []
   const media = (!mine && message.media) || []
   const rich = (!mine && message.richWidgets) || []
+  const setActiveDocument = useBotStore((s) => s.setActiveDocument)
   const [docTarget, setDocTarget] = useState<NativeDocumentTarget | null>(null)
+  const [articleExpanded, setArticleExpanded] = useState(false)
   const [copiedMsg, setCopiedMsg] = useState(false)
+
+  const openDocument = (target: NativeDocumentTarget) => {
+    setActiveDocument(target)
+  }
+
   const isLongMarkdownReport =
     !mine &&
-    message.text.length > 420 &&
-    (/(^|\n)#{1,4}\s+|\n\|.+\|\n|```/.test(message.text) || message.text.length > 900)
+    message.text.length > 360 &&
+    (/(^|\n)#{1,4}\s+|\n\|.+\|\n|```/.test(message.text) || message.text.length > 800)
   const reportTitleMatch = !mine ? /^(?:---[\s\S]*?---\s*)?#+\s+(.+)$/m.exec(message.text) : null
-  const reportTitle = reportTitleMatch?.[1]?.replace(/[*`]/g, '').trim() || 'Markdown 报告'
+  const reportTitle = reportTitleMatch?.[1]?.replace(/[*`]/g, '').trim() || '文章 / 报告文档'
 
   const copyMessageText = () => {
     if (!message.text) return
@@ -935,20 +1021,12 @@ export const MessageBubble = memo(function MessageBubble({
 
   return (
     <div className={cn('flex flex-col', mine ? 'items-end' : 'items-start')}>
+      {/* 1. Tool execution trace / thinking status above the assistant reply */}
       {!mine && tools.length > 0 && <ToolChips tools={tools} />}
-      {!mine && rich.length > 0 && (
-        <RichWidgets
-          widgets={rich}
-          botId={message.botId}
-          accountId={message.accountId}
-          onOpenDoc={setDocTarget}
-        />
-      )}
-      {!mine && media.length > 0 && (
-        <MediaParts parts={media} accountId={message.accountId} onOpenDoc={setDocTarget} />
-      )}
+
+      {/* 2. User uploaded attachment chips */}
       {message.attachments && message.attachments.length > 0 && (
-        <ul className={cn('mb-1 flex max-w-[78%] flex-wrap gap-1.5', mine && 'justify-end')}>
+        <ul className={cn('mb-1.5 flex max-w-[78%] flex-wrap gap-1.5', mine && 'justify-end')}>
           {message.attachments.map((file) => (
             <li
               key={file.id}
@@ -966,56 +1044,157 @@ export const MessageBubble = memo(function MessageBubble({
         </ul>
       )}
 
-      {message.text && (
-        <div
-          className={cn(
-            'max-w-[78%] rounded-[18px] px-3.5 py-2 text-[14px] leading-6',
-            mine ? 'bg-bubble-user text-canvas whitespace-pre-wrap break-words' : 'bg-bubble text-ink',
-            message.delivery === 'sending' && 'opacity-70',
-            message.delivery === 'failed' && 'bg-status-error/10 text-ink ring-1 ring-status-error/30'
-          )}
-        >
-          {isLongMarkdownReport && (
-            <div className="mb-2 flex items-center justify-between gap-2 border-b border-line pb-1.5 text-[12px]">
-              <span className="inline-flex min-w-0 items-center gap-1.5 truncate font-medium text-ink-secondary">
-                <FileText className="size-3.5 shrink-0 text-accent-600" />
-                <span className="truncate">{reportTitle}</span>
-              </span>
+      {/* 3. Message text or structured inline Article / Document Card */}
+      {message.text &&
+        (isLongMarkdownReport ? (
+          <div className="w-full max-w-[82%] overflow-hidden rounded-2xl border border-line bg-surface shadow-soft">
+            {/* Article Card Header */}
+            <div className="flex items-center justify-between gap-3 border-b border-line bg-sunken/40 px-4 py-2.5">
               <button
                 type="button"
                 onClick={() =>
-                  setDocTarget({
+                  openDocument({
                     accountId: message.accountId,
                     title: reportTitle,
                     markdown: message.text,
                     mimeType: 'text/markdown'
                   })
                 }
-                className="inline-flex shrink-0 items-center gap-1 rounded-full bg-surface px-2.5 py-0.5 text-[11px] font-medium text-accent-600 shadow-hairline hover:bg-hover"
+                className="flex min-w-0 flex-1 items-center gap-2.5 text-left"
               >
-                <Maximize2 className="size-3" /> 原生打开阅读
+                <span className="grid size-8 shrink-0 place-items-center rounded-xl bg-accent-50 text-accent-600">
+                  <FileText className="size-4" aria-hidden />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[13.5px] font-semibold text-ink">{reportTitle}</span>
+                  <span className="block truncate text-[11px] text-ink-muted">
+                    Markdown 文章卡片 · {message.text.length} 字 · 支持右侧画布沉浸阅读
+                  </span>
+                </span>
               </button>
+              <div className="flex shrink-0 items-center gap-1.5">
+                {message.text.length > 720 && (
+                  <button
+                    type="button"
+                    onClick={() => setArticleExpanded((v) => !v)}
+                    className="inline-flex items-center gap-1 rounded-full border border-line bg-surface px-2.5 py-1 text-[11.5px] font-medium text-ink-secondary hover:bg-hover hover:text-ink"
+                  >
+                    {articleExpanded ? '收起预览' : '展开全文'}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() =>
+                    openDocument({
+                      accountId: message.accountId,
+                      title: reportTitle,
+                      markdown: message.text,
+                      mimeType: 'text/markdown'
+                    })
+                  }
+                  className="inline-flex items-center gap-1 rounded-full bg-accent-600 px-3 py-1 text-[11.5px] font-medium text-white shadow-hairline hover:bg-accent-700"
+                >
+                  <Maximize2 className="size-3" /> 右侧画布阅读
+                </button>
+              </div>
             </div>
-          )}
-          {mine ? (
-            message.text
-          ) : (
-            <MarkdownText
-              text={message.text}
-              onFileLinkClick={(path, label) =>
-                setDocTarget({
-                  accountId: message.accountId,
-                  title: label || path.split('/').pop() || 'Document',
-                  path
-                })
-              }
-            />
-          )}
+
+            {/* Article Card Body */}
+            <div
+              className={cn(
+                'relative px-5 py-4 text-[14px] leading-[1.68] text-ink',
+                !articleExpanded && message.text.length > 720 && 'max-h-[340px] overflow-hidden'
+              )}
+            >
+              <MarkdownText
+                text={message.text}
+                onFileLinkClick={(path, label) =>
+                  openDocument({
+                    accountId: message.accountId,
+                    title: label || path.split('/').pop() || 'Document',
+                    path
+                  })
+                }
+              />
+              {!articleExpanded && message.text.length > 720 && (
+                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-surface via-surface/85 to-transparent" />
+              )}
+            </div>
+
+            {!articleExpanded && message.text.length > 720 && (
+              <div className="flex items-center justify-between border-t border-line/70 bg-sunken/25 px-4 py-1.5 text-[11.5px] text-ink-secondary">
+                <button
+                  type="button"
+                  onClick={() => setArticleExpanded(true)}
+                  className="font-medium text-ink-secondary hover:text-ink"
+                >
+                  点击展开完整长文（共 {message.text.length} 字）
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    openDocument({
+                      accountId: message.accountId,
+                      title: reportTitle,
+                      markdown: message.text,
+                      mimeType: 'text/markdown'
+                    })
+                  }
+                  className="font-medium text-accent-600 hover:underline"
+                >
+                  在右侧分栏打开 →
+                </button>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div
+            className={cn(
+              'max-w-[78%] rounded-[18px] px-3.5 py-2 text-[14px] leading-6',
+              mine ? 'bg-bubble-user text-canvas whitespace-pre-wrap break-words' : 'bg-bubble text-ink',
+              message.delivery === 'sending' && 'opacity-70',
+              message.delivery === 'failed' && 'bg-status-error/10 text-ink ring-1 ring-status-error/30'
+            )}
+          >
+            {mine ? (
+              message.text
+            ) : (
+              <MarkdownText
+                text={message.text}
+                onFileLinkClick={(path, label) =>
+                  openDocument({
+                    accountId: message.accountId,
+                    title: label || path.split('/').pop() || 'Document',
+                    path
+                  })
+                }
+              />
+            )}
+          </div>
+        ))}
+
+      {/* 4. Media / File / Artifact cards below message text */}
+      {!mine && media.length > 0 && (
+        <div className={cn('w-full', message.text && 'mt-2')}>
+          <MediaParts parts={media} accountId={message.accountId} onOpenDoc={openDocument} />
+        </div>
+      )}
+
+      {/* 5. Rich widgets / interactive cards / CTA buttons below message text */}
+      {!mine && rich.length > 0 && (
+        <div className={cn('w-full', (message.text || media.length > 0) && 'mt-2')}>
+          <RichWidgets
+            widgets={rich}
+            botId={message.botId}
+            accountId={message.accountId}
+            onOpenDoc={openDocument}
+          />
         </div>
       )}
 
       <NativeDocumentDialog target={docTarget} onClose={() => setDocTarget(null)} />
 
+      {/* 6. Interactive option chips */}
       {optionWidgets.map((w) => (
         <OptionChips key={w.widgetId || w.options.join('|')} message={message} widget={w} />
       ))}
@@ -1051,18 +1230,18 @@ export const MessageBubble = memo(function MessageBubble({
                 <button
                   type="button"
                   onClick={() =>
-                    setDocTarget({
+                    openDocument({
                       accountId: message.accountId,
                       title: reportTitle,
                       markdown: message.text,
                       mimeType: 'text/markdown'
                     })
                   }
-                  title="作为文档打开"
+                  title="在右侧画布展开阅读"
                   className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] text-ink-secondary hover:bg-hover hover:text-ink"
                 >
                   <Maximize2 className="size-3" />
-                  <span>展开阅读</span>
+                  <span>右侧阅读</span>
                 </button>
               </div>
             )

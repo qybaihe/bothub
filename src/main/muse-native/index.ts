@@ -56,10 +56,25 @@ export interface MuseNativeClient {
 
 const DEVICE_FILE = 'muse-native-devices.json'
 
+const sessionNodeIds = new Map<string, string>()
+
 /** Stable per-account device id (`node_id`), like the web client's deviceContext.local.deviceId. */
 function nodeIdFor(accountId: string): string {
   const file = join(app.getPath('userData'), DEVICE_FILE)
-  const map = readJsonFile<Record<string, string>>(file, {}, (r) => Boolean(r) && typeof r === 'object' && !Array.isArray(r))
+  let map: Record<string, string>
+  let readable = true
+  try {
+    map = readJsonFile<Record<string, string>>(file, {}, (r) => Boolean(r) && typeof r === 'object' && !Array.isArray(r))
+  } catch {
+    // Locked right now: use a session-only id rather than overwrite the file.
+    map = {}
+    readable = false
+  }
+  if (!readable) {
+    const cached = sessionNodeIds.get(accountId) ?? randomUUID()
+    sessionNodeIds.set(accountId, cached)
+    return cached
+  }
   let id = map[accountId]
   if (!id) {
     id = randomUUID()

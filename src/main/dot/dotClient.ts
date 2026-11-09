@@ -161,6 +161,8 @@ const accountStore = new Map<string, DotStoredAccount>()
  */
 const unreadableEntries = new Map<string, PersistedDotAccount>()
 let storeLoaded = false
+/** Last load threw (file locked): saving now would drop every account. */
+let storeLoadFailed = false
 
 interface PersistedDotAccount extends Omit<DotStoredAccount, 'accessToken' | 'refreshToken'> {
   accessToken?: string
@@ -184,6 +186,7 @@ function getSafeStorage(): typeof import('electron').safeStorage | null {
 function ensureStoreLoaded(): void {
   if (storeLoaded && accountStore.size > 0) return
   storeLoaded = true
+  storeLoadFailed = false
   try {
     const file = resolveStorePath()
     if (!existsSync(file)) return
@@ -239,11 +242,18 @@ function ensureStoreLoaded(): void {
       }
     }
   } catch (err) {
+    storeLoadFailed = true
+    storeLoaded = false
     console.warn('[dot] failed to read dot-accounts.json', err)
   }
 }
 
 function saveStore(): void {
+  if (storeLoadFailed) ensureStoreLoaded()
+  if (storeLoadFailed) {
+    console.warn('[dot] not saving dot-accounts.json: it could not be read, saving would drop accounts')
+    return
+  }
   try {
     const file = resolveStorePath()
     mkdirSync(dirname(file), { recursive: true })

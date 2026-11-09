@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSyn
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { readJsonFile, writeJsonAtomic } from './jsonFile'
+import { JsonStoreReadError, readJsonFile, writeJsonAtomic } from './jsonFile'
 
 let dir = ''
 beforeEach(() => {
@@ -29,15 +29,16 @@ describe('jsonFile', () => {
     expect(readFileSync(join(dir, kept!), 'utf8')).toBe('{"a":')
   })
 
-  it('falls back when the shape is wrong', () => {
+  it('moves a wrong-shaped file aside before falling back', () => {
     const p = join(dir, 'store.json')
     writeJsonAtomic(p, [1, 2])
     expect(readJsonFile(p, {}, isObject)).toEqual({})
+    expect(readdirSync(dir).some((f) => f.startsWith('store.json.corrupt-'))).toBe(true)
   })
-  it('keeps a file it cannot read right now (not corrupt)', () => {
+  it('throws (and keeps the file) when it cannot be read right now', () => {
     const p = join(dir, 'store.json')
     mkdirSync(p) // EISDIR stands in for a locked file
-    expect(readJsonFile(p, { empty: true }, isObject)).toEqual({ empty: true })
+    expect(() => readJsonFile(p, { empty: true }, isObject)).toThrow(JsonStoreReadError)
     expect(readdirSync(dir)).toEqual(['store.json'])
   })
 })

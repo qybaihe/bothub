@@ -40,5 +40,9 @@ export function getOrCreateGrokMachineId(accountId: string): string {
 }
 
 export function peekGrokMachineId(accountId: string): string | undefined {
-  return readStore()[accountId]
+  try {
+    return readStore()[accountId]
+  } catch {
+    return undefined
+  }
 }

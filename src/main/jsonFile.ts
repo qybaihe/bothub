@@ -30,29 +30,45 @@ function renameWithRetry(from: string, to: string): void {
   }
 }
 
+/** The file exists but could not be read right now (locked, permissions). */
+export class JsonStoreReadError extends Error {
+  constructor(path: string, cause: unknown) {
+    super(`Could not read ${path}: ${cause instanceof Error ? cause.message : String(cause)}`)
+    this.name = 'JsonStoreReadError'
+  }
+}
+
+function moveAside(path: string): void {
+  try {
+    renameSync(path, `${path}.corrupt-${Date.now()}`)
+  } catch {
+    /* best effort */
+  }
+}
+
 /**
- * Read JSON; a file that does not parse is moved aside (kept for recovery)
- * instead of being silently replaced on the next write.
+ * Read JSON. A file that does not parse or has the wrong shape is moved
+ * aside (kept for recovery). A file that exists but cannot be read throws
+ * JsonStoreReadError: returning the fallback there made the next
+ * read-modify-write replace every entry.
  */
 export function readJsonFile<T>(path: string, fallback: T, isValid: (raw: unknown) => boolean): T {
   if (!existsSync(path)) return fallback
   let text: string
   try {
     text = readFileSync(path, 'utf8')
-  } catch {
-    // Unreadable right now (locked, permissions): not corrupt, keep the file.
-    return fallback
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') return fallback
+    throw new JsonStoreReadError(path, err)
   }
   let raw: unknown
   try {
     raw = JSON.parse(text) as unknown
   } catch {
-    try {
-      renameSync(path, `${path}.corrupt-${Date.now()}`)
-    } catch {
-      /* best effort */
-    }
+    moveAside(path)
     return fallback
   }
-  return isValid(raw) ? (raw as T) : fallback
+  if (isValid(raw)) return raw as T
+  moveAside(path)
+  return fallback
 }

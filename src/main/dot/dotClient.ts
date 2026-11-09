@@ -2042,8 +2042,8 @@ export async function sendAndWatchDotRoomReply(
         await listDots(accountId, false).catch(() => undefined)
       }
 
-      const rootBusy = await isDotRootThreadBusy(accountId).catch(() => false)
-      if (rootBusy) {
+      const rootBusy = await isDotRootThreadBusy(accountId).catch(() => null)
+      if (rootBusy === true) {
         lastBusy = true
         opts.onActivity?.(
           'thinking',
@@ -2060,7 +2060,8 @@ export async function sendAndWatchDotRoomReply(
         return
       }
       // If the only reply was an `aeon_transplant` recovery notice and the new container went idle without answering, auto-continue once
-      if (isTransplantOnly && !recoverySent) {
+      // Only when Dot positively reports idle: this re-posts the prompt as the user.
+      if (isTransplantOnly && !recoverySent && rootBusy === false) {
         await triggerSilentTurnRecovery('transplant_idle')
         return
       }
@@ -2124,8 +2125,12 @@ export async function sendAndWatchDotRoomReply(
           await checkStillBusyAndMaybeFinish()
           if (finished) return
         } else if (repliesById.size === 0 && Date.now() - startedAt > 6_000) {
-          const rootBusy = await isDotRootThreadBusy(accountId).catch(() => true)
-          if (!rootBusy && !lastBusy) {
+          const rootBusy = await isDotRootThreadBusy(accountId).catch(() => null)
+          if (rootBusy === null) {
+            // Status unknown (no thread id / read failed): never nudge on a
+            // guess, just give up quietly after a longer wait.
+            if (Date.now() - startedAt > 60_000) idleEmptyChecks++
+          } else if (!rootBusy && !lastBusy) {
             idleEmptyChecks++
           } else if (!rootBusy && Date.now() - startedAt > 15_000) {
             idleEmptyChecks++
@@ -2133,9 +2138,9 @@ export async function sendAndWatchDotRoomReply(
             idleEmptyChecks = 0
           }
           if (idleEmptyChecks >= 2) {
-            if (!recoverySent) {
+            if (!recoverySent && rootBusy === false) {
               await triggerSilentTurnRecovery('empty_turn_idle')
-            } else if (idleEmptyChecks >= 4) {
+            } else if (idleEmptyChecks >= 4 || (rootBusy === null && idleEmptyChecks >= 2)) {
               finish()
               return
             }
@@ -2539,10 +2544,15 @@ export async function deleteDotPage(accountId: string, pageId: string): Promise<
 // Dot Root Thread Status & Cross-Account Memory Export / Migration
 // ============================================================================
 
-export async function isDotRootThreadBusy(accountId: string, threadId?: string): Promise<boolean> {
+/**
+ * Whether Dot's root thread is still working. `null` means unknown (no
+ * thread id, or the read failed); callers must not treat that as idle,
+ * because idle triggers an automatic follow-up message.
+ */
+export async function isDotRootThreadBusy(accountId: string, threadId?: string): Promise<boolean | null> {
   const acc = getStoredDotAccount(accountId)
   const tid = threadId || acc?.threadId
-  if (!tid) return false
+  if (!tid) return null
   try {
     const res = (await withAppServerWs(
       accountId,
@@ -2552,7 +2562,7 @@ export async function isDotRootThreadBusy(accountId: string, threadId?: string):
     const statusType = String(res?.thread?.status?.type ?? 'idle').toLowerCase()
     return statusType !== 'idle' && statusType !== 'ready' && statusType !== 'completed'
   } catch {
-    return false
+    return null
   }
 }
 

@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 import WebSocket from 'ws'
@@ -151,6 +151,12 @@ function resolveStorePath(): string {
 }
 
 const accountStore = new Map<string, DotStoredAccount>()
+/**
+ * Entries whose tokens could not be decrypted right now (Keychain denied,
+ * safeStorage not ready). They are written back untouched; dropping them
+ * made the next save delete those accounts for good.
+ */
+const unreadableEntries = new Map<string, PersistedDotAccount>()
 let storeLoaded = false
 
 interface PersistedDotAccount extends Omit<DotStoredAccount, 'accessToken' | 'refreshToken'> {
@@ -196,7 +202,11 @@ function ensureStoreLoaded(): void {
         if (!v || typeof v !== 'object') continue
         let accessToken = typeof v.accessToken === 'string' ? v.accessToken : ''
         let refreshToken = typeof v.refreshToken === 'string' ? v.refreshToken : undefined
-        if (typeof v.encTokens === 'string' && v.encTokens && ss) {
+        if (typeof v.encTokens === 'string' && v.encTokens) {
+          if (!ss) {
+            unreadableEntries.set(k, v)
+            continue
+          }
           try {
             const dec = JSON.parse(
               ss.decryptString(Buffer.from(v.encTokens, 'base64'))
@@ -204,7 +214,8 @@ function ensureStoreLoaded(): void {
             if (typeof dec.accessToken === 'string') accessToken = dec.accessToken
             if (typeof dec.refreshToken === 'string') refreshToken = dec.refreshToken
           } catch {
-            /* ignore undecryptable entry */
+            unreadableEntries.set(k, v)
+            continue
           }
         } else if (accessToken && ss) {
           migratedPlaintext = true
@@ -233,6 +244,9 @@ function saveStore(): void {
     mkdirSync(dirname(file), { recursive: true })
     const ss = getSafeStorage()
     const out: Record<string, PersistedDotAccount> = {}
+    for (const [k, v] of unreadableEntries.entries()) {
+      if (!accountStore.has(k)) out[k] = v
+    }
     for (const [k, v] of accountStore.entries()) {
       const { accessToken, refreshToken, ...metadata } = v
       if (ss) {
@@ -251,8 +265,11 @@ function saveStore(): void {
         }
       }
     }
-    writeFileSync(file, JSON.stringify(out, null, 2), { encoding: 'utf8', mode: 0o600 })
-    chmodSync(file, 0o600)
+    // Temp file + rename: a crash mid-write must not truncate every account.
+    const tmp = `${file}.${process.pid}.tmp`
+    writeFileSync(tmp, JSON.stringify(out, null, 2), { encoding: 'utf8', mode: 0o600 })
+    chmodSync(tmp, 0o600)
+    renameSync(tmp, file)
   } catch (err) {
     console.warn('[dot] failed to write dot-accounts.json', err)
   }
@@ -345,6 +362,7 @@ export function clearStoredDotAccount(accountId: string): void {
   cancelWatchDotRoomReply(accountId)
   closeCelsiusWatcher(accountId)
   accountStore.delete(accountId)
+  unreadableEntries.delete(accountId)
   saveStore()
 }
 
@@ -355,6 +373,7 @@ export function clearAllStoredDotAccounts(): void {
     closeCelsiusWatcher(id)
   }
   accountStore.clear()
+  unreadableEntries.clear()
   saveStore()
 }
 

@@ -157,6 +157,8 @@ function isAssistantEntry(e: Record<string, unknown>, afterMessageId?: string): 
   return Boolean(textFromEntry(e) || extractGrokWidgets(e)?.length || extractGrokMedia(e)?.length)
 }
 
+const GROK_REPLY_SETTLE_MS = 15_000
+
 async function watchUntilReply(
   client: GrokConnectClient,
   args: {
@@ -187,9 +189,12 @@ async function watchUntilReply(
   const collectedTools = new Map<string, MuseToolCallView>()
   let idleSettleTimer: ReturnType<typeof setTimeout> | undefined
 
+  // Agents often post a short ack, keep working, then post the real answer.
+  // Stopping 1.6 s after the first finished entry dropped those later
+  // messages, so wait for a quiet period instead.
   const armSettle = () => {
     if (idleSettleTimer) clearTimeout(idleSettleTimer)
-    idleSettleTimer = setTimeout(() => ac.abort(), 1600)
+    idleSettleTimer = setTimeout(() => ac.abort(), GROK_REPLY_SETTLE_MS)
   }
 
   try {

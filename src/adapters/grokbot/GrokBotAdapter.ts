@@ -357,7 +357,8 @@ export class GrokBotAdapter implements PlatformAdapter {
           sessionId,
           afterUpdatedSeq: afterSeq,
           afterMessageId: messageId,
-          timeoutMs: 90_000
+          // Upper bound only; the watch ends after a quiet period once replies land.
+          timeoutMs: 600_000
         })
         if (watched && typeof watched === 'object') {
           const w = watched as Record<string, unknown>

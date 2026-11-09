@@ -30,6 +30,24 @@ const BOTS = [
   ['b-money', 'Dot-记账助手', 'dot', 'g-life', '每月账单汇总', 0, '10 月支出比上月少 12%', 4320]
 ]
 
+// Earlier turns shown above a bot's last message (used by the demo recording).
+const THREADS = {
+  'b-plan': {
+    before: [['user', '帮我看看今天的安排，下午想留一小时写方案。', 14]],
+    last: ['今天下午 3 点和设计评审，已帮你空出 2 点到 3 点：', '', '- 10:00 站会（15 分钟）', '- 14:00 写方案（专注时间）', '- 15:00 设计评审'].join('\n')
+  },
+  'b-inbox': {
+    before: [['user', '收件箱里有什么要我处理的吗？', 27]],
+    last: [
+      '有 3 封需要你回复，草稿已经写好了：',
+      '',
+      '1. **供应商报价**：确认下周交付时间',
+      '2. **面试安排**：周四 14:00 可以',
+      '3. **报销提醒**：还差一张发票'
+    ].join('\n')
+  }
+}
+
 const HANDLE = {
   'meta-muse': (i) => `muse${i}@example.com`,
   dot: (i) => `dot${i}@example.com`,
@@ -69,8 +87,25 @@ export function buildWorkspace(now = Date.now()) {
       unread
     })
     if (preview) {
+      const thread = THREADS[id]
       messages[id] = [
-        { id: `${id}-last`, botId: id, accountId: accId, role: 'bot', text: preview, createdAt: now - minAgo * MIN }
+        ...(thread?.before ?? []).map(([role, text, ago], k) => ({
+          id: `${id}-${k}`,
+          botId: id,
+          accountId: accId,
+          role,
+          text,
+          createdAt: now - ago * MIN,
+          ...(role === 'user' ? { delivery: 'sent' } : {})
+        })),
+        {
+          id: `${id}-last`,
+          botId: id,
+          accountId: accId,
+          role: 'bot',
+          text: thread?.last ?? preview,
+          createdAt: now - minAgo * MIN
+        }
       ]
     }
   })

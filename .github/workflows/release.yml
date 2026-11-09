@@ -37,7 +37,13 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            echo "Release $TAG already exists; uploading into it."
+            # electron-builder (releaseType draft) silently skips a published
+            # release, so a re-run would "succeed" without uploading anything.
+            if [ "$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft)" != "true" ]; then
+              echo "::error::release $TAG is already published; bump the version instead of re-running"
+              exit 1
+            fi
+            echo "Draft release $TAG already exists; uploading into it."
           else
             gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --draft --verify-tag \
               --title "$TAG" --generate-notes
@@ -81,6 +87,9 @@ jobs:
             export CSC_IDENTITY_AUTO_DISCOVERY=false
           fi
           if [ -z "$WIN_CSC_LINK" ]; then unset WIN_CSC_LINK WIN_CSC_KEY_PASSWORD; fi
+          # electron-builder falls back to CSC_LINK on Windows: never sign the
+          # .exe with the Apple certificate.
+          if [ "$RUNNER_OS" = "Windows" ]; then unset CSC_LINK CSC_KEY_PASSWORD; fi
           npx electron-builder --config electron-builder.config.cjs ${{ matrix.target }} --publish always
 
   publish:

@@ -1950,6 +1950,8 @@ export async function sendAndWatchDotRoomReply(
     timeoutMs?: number
     onMessage?: (msg: DotRoomMessage, done: boolean, stillBusy?: boolean) => void
     onActivity?: (code: string, text: string | undefined, busy: boolean) => void
+    /** The user message is in the room (before any reply). */
+    onSent?: () => void
   }
 ): Promise<{
   roomId: string
@@ -1976,6 +1978,7 @@ export async function sendAndWatchDotRoomReply(
     dotId: opts.dotId,
     text: opts.text
   })
+  opts.onSent?.()
   const roomId = sent.roomId
   const sentId = sent.message.id
   const sentCreatedAtMs = sent.message.createdAtMs || Date.now()

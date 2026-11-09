@@ -62,6 +62,12 @@ export class DotAdapter implements PlatformAdapter {
   }
 
   private handleMainEvent(event: DotMainEvent): void {
+    // Only an explicit "posted" counts: other stream events (clock triggers,
+    // late replies) can arrive before the post and would fake "delivered".
+    if (event.type === 'sent') {
+      this.pendingAccept.get(event.accountId)?.()
+      return
+    }
     if (event.type === 'activity') {
       this.emit({
         type: 'activity',
@@ -88,7 +94,6 @@ export class DotAdapter implements PlatformAdapter {
     }
 
     if (event.type === 'stream') {
-      this.pendingAccept.get(event.accountId)?.()
       const convId = event.conversationId ?? event.accountId
       if (!event.done) {
         this.emit({

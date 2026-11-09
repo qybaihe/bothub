@@ -228,6 +228,7 @@ export async function runDotRpc(req: DotRpcRequest): Promise<DotRpcResponse> {
           dotId: target.dotId,
           roomId: target.roomId,
           text: req.text,
+          onSent: () => broadcast({ type: 'sent', accountId: req.accountId }),
           onActivity: (code, text, busy) => {
             broadcast({
               type: 'activity',

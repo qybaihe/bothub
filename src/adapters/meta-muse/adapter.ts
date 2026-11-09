@@ -200,8 +200,11 @@ export class MuseAdapter implements PlatformAdapter {
         if (pending.length > 0) this.setStatus(event.accountId, 'attention')
         break
       }
-      case 'stream': {
+      case 'sent':
+        // Server ack of the user message; stream events may be a previous turn.
         this.pendingAccept.get(event.accountId)?.()
+        break
+      case 'stream': {
         const widgets = event.widgets as MuseOptionWidget[] | undefined
         const tools = event.tools as import('../types').MuseToolCall[] | undefined
         const media = event.media as import('../types').MuseMediaPart[] | undefined

@@ -264,6 +264,8 @@ export interface MuseProxyPoolItemView {
 
 export type MuseMainEvent =
   | { type: 'status'; status: MuseSessionStatus }
+  /** The platform acknowledged the user message of the turn in flight. */
+  | { type: 'sent'; accountId: string; conversationId?: string }
   | { type: 'approvals'; accountId: string; pending: unknown[] }
   | {
       type: 'stream'
@@ -721,6 +723,8 @@ export const DOT_CHANNELS = {
 } as const
 
 export type DotMainEvent =
+  /** The room message of the send in flight was posted. */
+  | { type: 'sent'; accountId: string }
   | {
       type: 'login'
       accountId: string

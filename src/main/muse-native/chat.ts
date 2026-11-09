@@ -874,6 +874,8 @@ export interface StreamChatInput {
   items?: MuseChatItem[]
   /** Origin metadata for option-widget taps. */
   messageOrigin?: Record<string, unknown>
+  /** Called once the server acknowledged this user message. */
+  onAck?: () => void
 }
 
 /** Build chat.stream `items` from text + optional attachment items. */
@@ -1239,6 +1241,7 @@ export async function streamChat(
     if (input.messageOrigin) params['message_origin'] = input.messageOrigin
     const h = await gw.subscribe('chat.stream', params, () => undefined)
     ack = await h.ack
+    input.onAck?.()
     const r = obj(ack['result'])
     const ackSession = str(ack['session_id']) || str(r['session_id'])
     if (!sessionId && ackSession) sessionId = ackSession

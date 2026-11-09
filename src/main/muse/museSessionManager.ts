@@ -623,7 +623,14 @@ export class MuseSessionManager {
       const result = await streamChat(
         client.gateway,
         client.chat,
-        { text, nodeId: client.nodeId, sessionId, messageOrigin, items: extractChatItems(params) },
+        {
+          text,
+          nodeId: client.nodeId,
+          sessionId,
+          messageOrigin,
+          items: extractChatItems(params),
+          onAck: () => this.emit({ type: 'sent', accountId, conversationId })
+        },
         (u) => {
           let id = ids.get(u.messageId)
           if (!id) {

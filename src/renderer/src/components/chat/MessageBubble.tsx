@@ -26,13 +26,13 @@ function DeliveryState({ message, onRetry }: Pick<MessageBubbleProps, 'message' 
     case 'sending':
       return (
         <span className="inline-flex items-center gap-1">
-          <Clock3 className="size-3" aria-hidden /> Sending
+          <Clock3 className="size-3" aria-hidden /> {t('Sending…')}
         </span>
       )
     case 'accepted':
       return (
         <span className="inline-flex items-center gap-1">
-          <Loader2 className="size-3 animate-spin" aria-hidden /> 已送达 · 回复中
+          <Loader2 className="size-3 animate-spin" aria-hidden /> {t('Delivered · replying')}
         </span>
       )
     case 'failed':
@@ -46,7 +46,7 @@ function DeliveryState({ message, onRetry }: Pick<MessageBubbleProps, 'message' 
               onClick={() => onRetry(message.id)}
               className="inline-flex items-center gap-1 rounded px-1 font-medium underline-offset-2 hover:underline"
             >
-              <RotateCw className="size-3" aria-hidden /> Retry
+              <RotateCw className="size-3" aria-hidden /> {t('Retry')}
             </button>
           )}
         </span>
@@ -56,15 +56,15 @@ function DeliveryState({ message, onRetry }: Pick<MessageBubbleProps, 'message' 
       return (
         <span className="inline-flex items-center gap-1.5 text-status-attention-ink">
           <AlertCircle className="size-3" aria-hidden />
-          {message.error ?? '已送达，但没有收到回复'}
+          {message.error ?? t('Delivered, but no reply')}
           {onRetry && (
             <button
               type="button"
               onClick={() => onRetry(message.id)}
-              title="会再发送一次同样的内容"
+              title={t('Sends the same message again')}
               className="inline-flex items-center gap-1 rounded px-1 font-medium underline-offset-2 hover:underline"
             >
-              <RotateCw className="size-3" aria-hidden /> 再发一次
+              <RotateCw className="size-3" aria-hidden /> {t('Send again')}
             </button>
           )}
         </span>

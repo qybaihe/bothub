@@ -187,7 +187,8 @@ function materializeAccounts(
       platformId,
       displayName: displayName || getPlatform(platformId).name,
       handle: draft.handle.trim(),
-      status: 'offline'
+      status: 'offline',
+      ...(draft.importKey ? { importKey: draft.importKey } : {})
     }
     ids.push(id)
   }

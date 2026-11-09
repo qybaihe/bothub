@@ -88,3 +88,13 @@ describe("maskEmail", () => {
     expect(maskEmail("someone@example.com")).toBe("som***@example.com")
   })
 })
+
+describe('museImportKey', () => {
+  it('is stable, case-insensitive and does not contain the email', async () => {
+    const { museImportKey } = await import('./museBatch')
+    const a = await museImportKey('Someone@Example.com ')
+    expect(a).toBe(await museImportKey('someone@example.com'))
+    expect(a).not.toBe(await museImportKey('other@example.com'))
+    expect(a).toMatch(/^[0-9a-f]{32}$/)
+  })
+})

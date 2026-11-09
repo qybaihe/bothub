@@ -8,6 +8,8 @@ import type {
 /** A platform account as tracked by BotHub (accounts can back several bots). */
 export interface BotAccount extends PlatformAccount {
   status: ConnectionStatus
+  /** Batch import fingerprint of the login email (see museImportKey). */
+  importKey?: string
   /** Human-readable reason for the current status (e.g. an error). */
   statusDetail?: string
   /** True while a connect/disconnect request is in flight. */
@@ -206,6 +208,7 @@ export interface AccountDraft {
   accountId?: string
   displayName: string
   handle: string
+  importKey?: string
 }
 
 export type GroupChoice = { kind: 'existing'; groupId: string } | { kind: 'new'; name: string }

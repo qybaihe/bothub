@@ -292,6 +292,7 @@ export const ZH: Record<string, string> = {
   'Signed in': '成功',
   'Needs you': '需人工验证',
   'Cancelled': '已取消',
+  'Already imported, skipped': '已导入过，已跳过',
   'attempt {n}': '第 {n} 次',
   'Open window': '打开窗口',
   'Retry': '重试',

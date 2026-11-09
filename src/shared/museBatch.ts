@@ -121,3 +121,13 @@ export interface MuseAutoLoginResult {
   /** The login window is still open (hidden) and can be shown for a manual checkpoint. */
   canShow?: boolean
 }
+
+/**
+ * Stable, non-reversible key for "this email was already imported" (the
+ * email itself is not stored with the account).
+ */
+export async function museImportKey(email: string): Promise<string> {
+  const data = new TextEncoder().encode(`bothub-muse-import:${email.trim().toLowerCase()}`)
+  const digest = await crypto.subtle.digest('SHA-256', data)
+  return Array.from(new Uint8Array(digest).slice(0, 16), (b) => b.toString(16).padStart(2, '0')).join('')
+}

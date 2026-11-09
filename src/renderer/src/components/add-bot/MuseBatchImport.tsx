@@ -6,7 +6,8 @@ import {
   shouldAutoRetry,
   type MuseAutoLoginFailure,
   type MuseAutoLoginResult,
-  type MuseBatchParseError
+  type MuseBatchParseError,
+  museImportKey
 } from '@shared/museBatch'
 import { CheckCircle2, Circle, FileUp, Loader2, ShieldAlert, XCircle } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
@@ -15,13 +16,14 @@ import { cn } from '@/lib/cn'
 import { useT } from '@/lib/i18n'
 import { poolAccountIds, useBotStore } from '@/store/botStore'
 
-type RowState = 'waiting' | 'running' | 'ok' | 'failed' | 'needs-human' | 'cancelled'
+type RowState = 'waiting' | 'running' | 'ok' | 'failed' | 'needs-human' | 'cancelled' | 'skipped'
 
 interface Row {
   id: string
   line: number
   email: string
   inboxUrl: string
+  importKey?: string
   botId: string
   accountId: string
   state: RowState
@@ -98,7 +100,7 @@ export function MuseBatchImport({ onDone, onBusyChange }: { onDone: () => void; 
       id: row.botId,
       platformId: 'meta-muse',
       name: freshName(`Muse · ${local}`, taken),
-      accounts: [{ key: row.accountId, accountId: row.accountId, displayName: local, handle: '' }],
+      accounts: [{ key: row.accountId, accountId: row.accountId, displayName: local, handle: '', importKey: row.importKey }],
       background: true
     })
     patch(row.id, { state: 'ok', reason: undefined })
@@ -197,15 +199,23 @@ export function MuseBatchImport({ onDone, onBusyChange }: { onDone: () => void; 
     setRunning(false)
   }
 
-  const start = () => {
-    rowsRef.current = parsed.items.map((item) => ({
+  const start = async () => {
+    // Re-importing the same list used to create a second bot per email.
+    const imported = new Set(
+      Object.values(useBotStore.getState().accounts)
+        .filter((a) => a.platformId === 'meta-muse' && a.importKey)
+        .map((a) => a.importKey!)
+    )
+    const keys = await Promise.all(parsed.items.map((item) => museImportKey(item.email)))
+    rowsRef.current = parsed.items.map((item, i) => ({
       id: createId('row'),
       line: item.line,
       email: item.email,
       inboxUrl: item.inboxUrl,
+      importKey: keys[i],
       botId: '',
       accountId: '',
-      state: 'waiting',
+      state: imported.has(keys[i]!) ? 'skipped' : 'waiting',
       attempts: 0
     }))
     setRows(rowsRef.current)
@@ -233,7 +243,7 @@ export function MuseBatchImport({ onDone, onBusyChange }: { onDone: () => void; 
 
   const counts = rows.reduce<Record<RowState, number>>(
     (acc, r) => ({ ...acc, [r.state]: acc[r.state] + 1 }),
-    { waiting: 0, running: 0, ok: 0, failed: 0, 'needs-human': 0, cancelled: 0 }
+    { waiting: 0, running: 0, ok: 0, failed: 0, 'needs-human': 0, cancelled: 0, skipped: 0 }
   )
   const stateLabel: Record<RowState, string> = {
     waiting: t('Waiting'),
@@ -241,7 +251,8 @@ export function MuseBatchImport({ onDone, onBusyChange }: { onDone: () => void; 
     ok: t('Signed in'),
     failed: t('Failed'),
     'needs-human': t('Needs you'),
-    cancelled: t('Cancelled')
+    cancelled: t('Cancelled'),
+    skipped: t('Already imported, skipped')
   }
 
   if (rows.length === 0) {
@@ -303,7 +314,7 @@ export function MuseBatchImport({ onDone, onBusyChange }: { onDone: () => void; 
               <option value={2}>2</option>
             </select>
           </label>
-          <Button className="ml-auto" variant="primary" disabled={parsed.items.length === 0} onClick={start}>
+          <Button className="ml-auto" variant="primary" disabled={parsed.items.length === 0} onClick={() => void start()}>
             {t('Import {n}', { n: String(parsed.items.length) })}
           </Button>
         </div>

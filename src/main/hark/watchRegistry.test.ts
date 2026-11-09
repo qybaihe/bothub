@@ -24,4 +24,13 @@ describe('HarkWatchRegistry', () => {
     expect(b).toHaveBeenCalledOnce()
     expect(reg.size('acc')).toBe(0)
   })
+
+  it('a reply returned by a finished watch is never taken again', () => {
+    const reg = new HarkWatchRegistry()
+    const t1 = reg.add('acc', vi.fn())
+    reg.markTaken('acc', 'reply-1')
+    reg.remove('acc', t1)
+    const t2 = reg.add('acc', vi.fn())
+    expect(reg.claimedByOthers('acc', t2).has('reply-1')).toBe(true)
+  })
 })

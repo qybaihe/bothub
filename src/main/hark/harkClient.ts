@@ -1379,6 +1379,8 @@ export async function watchHarkConversationSync(
     finished = true
     ac.abort()
     clearTimeout(timer)
+    const done = lastReply as HarkChatMessage | null
+    if (done?.id) activeHarkWatches.markTaken(accountId, done.id)
     activeHarkWatches.remove(accountId, watchToken)
   }
 

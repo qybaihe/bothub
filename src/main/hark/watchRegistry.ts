@@ -5,6 +5,8 @@
 export class HarkWatchRegistry {
   private readonly byAccount = new Map<string, Map<string, { abort: () => void; target?: string }>>()
   private seq = 0
+  /** Replies already returned by a finished watch (bounded per account). */
+  private readonly taken = new Map<string, string[]>()
 
   add(accountId: string, abort: () => void, target?: string): string {
     const token = `w${++this.seq}`
@@ -29,9 +31,16 @@ export class HarkWatchRegistry {
     for (const { abort } of map.values()) abort()
   }
 
-  /** Reply ids other watches are waiting for: never take them as our reply. */
+  /** A finished watch returned this reply: no later watch may take it too. */
+  markTaken(accountId: string, replyId: string): void {
+    const list = this.taken.get(accountId) ?? []
+    if (!list.includes(replyId)) list.push(replyId)
+    this.taken.set(accountId, list.slice(-50))
+  }
+
+  /** Reply ids other watches are waiting for or already returned: never ours. */
   claimedByOthers(accountId: string, token: string): Set<string> {
-    const out = new Set<string>()
+    const out = new Set<string>(this.taken.get(accountId) ?? [])
     for (const [t, w] of this.byAccount.get(accountId) ?? []) if (t !== token && w.target) out.add(w.target)
     return out
   }

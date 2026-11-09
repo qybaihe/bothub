@@ -8,7 +8,7 @@
 
 # BotHub
 
-### **All your personal AI agents. One desktop workspace.**
+### **Bring all your personal agents together and use them in one client, just like Grok Bot**
 
 **A macOS and Windows app that puts your Meta Muse, Grok Bot, Hark and Dot bots in one window, each signed in with its own isolated account.**
 

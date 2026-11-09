@@ -2,7 +2,7 @@
   "name": "bothub",
   "version": "0.4.0",
   "private": false,
-  "description": "BotHub — a desktop hub for multi-account bots",
+  "description": "BotHub — bring all your personal agents together and use them in one client, just like Grok Bot",
   "main": "./out/main/index.js",
   "author": "qybaihe",
   "license": "MIT",

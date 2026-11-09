@@ -8,15 +8,15 @@
 
 # BotHub
 
-### **所有個人 AI 智慧體，一個桌面工作台。**
+### **集合你的各種 personal agent，在同一個用戶端中像 Grok Bot 一樣使用它們**
 
 **一款 macOS / Windows 桌面應用程式，把 Meta Muse、Grok Bot、Hark 與 Dot 上的 Bot 放進同一個視窗，每個 Bot 都以各自隔離的帳號登入。**
 
 [![Release](https://img.shields.io/github/v/release/qybaihe/bothub?style=for-the-badge&label=%E6%9C%80%E6%96%B0%E7%89%88%E6%9C%AC&color=2563eb)](https://github.com/qybaihe/bothub/releases/latest)
 [![CI](https://img.shields.io/github/actions/workflow/status/qybaihe/bothub/ci.yml?branch=main&style=for-the-badge&label=CI)](https://github.com/qybaihe/bothub/actions/workflows/ci.yml)
-[![Platform](https://img.shields.io/badge/平台-macOS_%7C_Windows-6e56cf?style=for-the-badge)](#-快速開始)
+[![Platform](https://img.shields.io/badge/%E5%B9%B3%E5%8F%B0-macOS_%7C_Windows-6e56cf?style=for-the-badge)](#-快速開始)
 [![Electron](https://img.shields.io/badge/Electron-45-47848f?style=for-the-badge&logo=electron&logoColor=white)](https://www.electronjs.org/)
-[![MIT License](https://img.shields.io/badge/授權-MIT-38bdf8?style=for-the-badge)](../../LICENSE)
+[![MIT License](https://img.shields.io/badge/%E6%8E%88%E6%AC%8A-MIT-38bdf8?style=for-the-badge)](../../LICENSE)
 
 **[⬇️ 下載 macOS 版](https://github.com/qybaihe/bothub/releases/latest) · [⬇️ 下載 Windows 版](https://github.com/qybaihe/bothub/releases/latest) · [📦 所有版本](https://github.com/qybaihe/bothub/releases) · [🐛 回報問題](https://github.com/qybaihe/bothub/issues)**
 

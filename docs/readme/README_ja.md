@@ -8,15 +8,15 @@
 
 # BotHub
 
-### **すべてのパーソナル AI エージェントを、ひとつのデスクトップに。**
+### **あらゆるパーソナルエージェントを集めて、ひとつのクライアントで Grok Bot のように使いこなす**
 
 **Meta Muse・Grok Bot・Hark・Dot の Bot をひとつのウィンドウにまとめる macOS / Windows アプリ。Bot ごとに分離されたアカウントでサインインします。**
 
 [![Release](https://img.shields.io/github/v/release/qybaihe/bothub?style=for-the-badge&label=%E6%9C%80%E6%96%B0%E7%89%88&color=2563eb)](https://github.com/qybaihe/bothub/releases/latest)
 [![CI](https://img.shields.io/github/actions/workflow/status/qybaihe/bothub/ci.yml?branch=main&style=for-the-badge&label=CI)](https://github.com/qybaihe/bothub/actions/workflows/ci.yml)
-[![Platform](https://img.shields.io/badge/対応OS-macOS_%7C_Windows-6e56cf?style=for-the-badge)](#-クイックスタート)
+[![Platform](https://img.shields.io/badge/%E5%AF%BE%E5%BF%9COS-macOS_%7C_Windows-6e56cf?style=for-the-badge)](#-クイックスタート)
 [![Electron](https://img.shields.io/badge/Electron-45-47848f?style=for-the-badge&logo=electron&logoColor=white)](https://www.electronjs.org/)
-[![MIT License](https://img.shields.io/badge/ライセンス-MIT-38bdf8?style=for-the-badge)](../../LICENSE)
+[![MIT License](https://img.shields.io/badge/%E3%83%A9%E3%82%A4%E3%82%BB%E3%83%B3%E3%82%B9-MIT-38bdf8?style=for-the-badge)](../../LICENSE)
 
 **[⬇️ macOS 版をダウンロード](https://github.com/qybaihe/bothub/releases/latest) · [⬇️ Windows 版をダウンロード](https://github.com/qybaihe/bothub/releases/latest) · [📦 すべてのリリース](https://github.com/qybaihe/bothub/releases) · [🐛 問題を報告](https://github.com/qybaihe/bothub/issues)**
 

@@ -2,22 +2,32 @@
 
 # BotHub
 
-**Unified Multi-Account Desktop Workspace for Personal AI Agents**
+**One desktop workspace for all your personal AI agents**
 
+[![Release](https://img.shields.io/github/v/release/qybaihe/bothub?label=Release&color=111318)](https://github.com/qybaihe/bothub/releases/latest)
+[![CI](https://github.com/qybaihe/bothub/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/qybaihe/bothub/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
-[![Platform: macOS arm64](https://img.shields.io/badge/Platform-macOS%20(Apple%20Silicon)-111318.svg)](https://github.com/qybaihe/bothub/releases)
-[![Electron](https://img.shields.io/badge/Electron-33-47848F.svg)](https://www.electronjs.org/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.6-3178C6.svg)](https://www.typescriptlang.org/)
+[![Platform](https://img.shields.io/badge/Platform-macOS%20%7C%20Windows-6E56CF.svg)](https://github.com/qybaihe/bothub/releases/latest)
+
+[![Download](https://img.shields.io/badge/Download-macOS-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/qybaihe/bothub/releases/latest)
+[![Download](https://img.shields.io/badge/Download-Windows-0078D4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/qybaihe/bothub/releases/latest)
 
 **English** · [简体中文](./README.zh-CN.md) · [繁體中文](./README.zh-TW.md) · [日本語](./README.ja.md)
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/bothub-dark.webp">
+  <img src="docs/assets/bothub-light.webp" alt="BotHub: many Muse, Dot, Hark and Grok Bot bots in the sidebar and a conversation open (sample data)" width="100%">
+</picture>
+
 </div>
+
+<p align="center"><sub>Screenshot with fictional sample data: bots on Muse, Dot, Hark and Grok Bot, grouped in the sidebar.</sub></p>
 
 ---
 
 ## Overview
 
-**BotHub** is a native macOS desktop hub built with Electron, React, TypeScript, and Tailwind CSS that unifies multiple personal AI agent platforms into a single workspace. Each **Bot** pairs a supported agent platform with an isolated account session (`partition`), allowing you to run, inspect, and orchestrate dozens of personal AI agents side by side without browser tab sprawl or session collisions.
+**BotHub** is a desktop hub for macOS and Windows built with Electron, React, TypeScript, and Tailwind CSS that unifies multiple personal AI agent platforms into a single workspace. Each **Bot** pairs a supported agent platform with an isolated account session (`partition`), allowing you to run, inspect, and orchestrate dozens of personal AI agents side by side without browser tab sprawl or session collisions.
 
 ## Supported Platforms
 
@@ -42,33 +52,57 @@
 - **Security by Default**
   - Sensitive tokens (such as Dot Access/Refresh Tokens and per-account proxy credentials) are encrypted at rest via macOS Keychain / Electron `safeStorage` with `0600` file permissions.
   - Zero hardcoded secrets or external telemetry.
+- **Reliable delivery**
+  Messages show *sending*, *delivered · replying*, *no reply* or *failed*. A message the platform already accepted is never offered as "not sent", so retrying does not post it twice.
 
 ## Installation
 
-Download the latest macOS (`arm64`) build from [GitHub Releases](https://github.com/qybaihe/bothub/releases).
+Download from the [latest release](https://github.com/qybaihe/bothub/releases/latest):
 
-> **Note for unsigned macOS builds**: After dragging `BotHub.app` into `/Applications`, right-click → **Open**, or clear the quarantine attribute in Terminal:
+| System | File |
+| :--- | :--- |
+| macOS, Apple Silicon | `BotHub-<version>-arm64.dmg` |
+| macOS, Intel | `BotHub-<version>-x64.dmg` |
+| Windows 10/11 (x64) | `BotHub-Setup-<version>-x64.exe` |
+
+> **macOS (unsigned build)**: drag `BotHub.app` into `/Applications`, then right-click → **Open** the first time (or *System Settings → Privacy & Security → Open Anyway*). Alternatively clear the quarantine flag:
 >
 > ```bash
 > xattr -cr /Applications/BotHub.app
 > ```
+>
+> **Windows (unsigned installer)**: if SmartScreen shows "Windows protected your PC", click **More info → Run anyway**.
+
+Updates: on Windows BotHub downloads new versions from GitHub Releases in the background and installs them with one click; on macOS it tells you when a new version is out and opens the download page.
 
 ## Development
 
 ```bash
-npm install
-npm run dev          # Start Electron with Vite HMR
-npm run typecheck    # Run TypeScript checks across main, preload, and renderer
-npm run build        # Compile production bundles into out/
-npm run dist         # Package macOS arm64 dmg + zip into release/
+npm ci
+npm run dev          # Electron + Vite with hot reload
 ```
 
 | Command | Description |
 | :--- | :--- |
-| `npm run dev` | Launch Electron main, preload, and React renderer with hot reload |
-| `npm run typecheck` | Type-check Node (`tsconfig.node.json`) and Web (`tsconfig.web.json`) targets |
-| `npm run build` | Build production bundles into `out/` |
-| `npm run dist` | Package distributable macOS `dmg` and `zip` artifacts via `electron-builder` |
+| `npm run dev` | Run Electron main, preload and the React renderer with hot reload |
+| `npm run dev:web` | Run only the renderer in a browser (no Electron, no accounts) |
+| `npm run typecheck` | Type-check the Node and web targets |
+| `npm test` | Unit tests (Vitest) |
+| `npm run build` | Type-check and build production bundles into `out/` |
+| `npm run dist:mac` / `npm run dist:win` | Package macOS `dmg` + `zip` (arm64 + x64) / Windows NSIS installer into `release/` |
+| `npm run dist:dir` | Unpacked macOS arm64 app for a quick smoke test |
+
+The README screenshot is generated from fictional data with `npx -y -p playwright@1.64 node scripts/screenshot/capture.mjs [--dark]`.
+
+## Releasing
+
+CI (`.github/workflows/ci.yml`) type-checks, tests, builds and packages on macOS and Windows for every push.
+
+1. Bump `version` in `package.json` and merge to `main`.
+2. Push a tag `vX.Y.Z` matching that version.
+3. `release.yml` creates a draft release, builds macOS (arm64 + x64 `dmg`/`zip`, `latest-mac.yml`) and Windows (NSIS `exe`, `latest.yml`), uploads everything, and publishes the release once all assets are present.
+
+Builds are unsigned by default. Code signing and notarization turn on when the repository secrets `CSC_LINK`, `CSC_KEY_PASSWORD`, `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, `APPLE_TEAM_ID` (macOS) or `WIN_CSC_LINK`, `WIN_CSC_KEY_PASSWORD` (Windows) are set.
 
 ## Project Structure
 

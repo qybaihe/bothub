@@ -2,22 +2,32 @@
 
 # BotHub
 
-**面向多平台、多账号的桌面端个人 AI 智能体工作台**
+**把所有个人 AI 智能体收进一个桌面工作台**
 
+[![Release](https://img.shields.io/github/v/release/qybaihe/bothub?label=Release&color=111318)](https://github.com/qybaihe/bothub/releases/latest)
+[![CI](https://github.com/qybaihe/bothub/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/qybaihe/bothub/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
-[![Platform: macOS arm64](https://img.shields.io/badge/Platform-macOS%20(Apple%20Silicon)-111318.svg)](https://github.com/qybaihe/bothub/releases)
-[![Electron](https://img.shields.io/badge/Electron-33-47848F.svg)](https://www.electronjs.org/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.6-3178C6.svg)](https://www.typescriptlang.org/)
+[![Platform](https://img.shields.io/badge/Platform-macOS%20%7C%20Windows-6E56CF.svg)](https://github.com/qybaihe/bothub/releases/latest)
+
+[![下载](https://img.shields.io/badge/%E4%B8%8B%E8%BD%BD-macOS-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/qybaihe/bothub/releases/latest)
+[![下载](https://img.shields.io/badge/%E4%B8%8B%E8%BD%BD-Windows-0078D4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/qybaihe/bothub/releases/latest)
 
 [English](./README.md) · **简体中文** · [繁體中文](./README.zh-TW.md) · [日本語](./README.ja.md)
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/bothub-dark.webp">
+  <img src="docs/assets/bothub-light.webp" alt="BotHub：侧边栏里的多个 Muse、Dot、Hark、Grok Bot 机器人与一段对话（示例数据）" width="100%">
+</picture>
+
 </div>
+
+<p align="center"><sub>截图使用虚构的示例数据：侧边栏按分组列出 Muse、Dot、Hark、Grok Bot 上的多个 Bot。</sub></p>
 
 ---
 
 ## 项目简介
 
-**BotHub** 是一款基于 Electron、React、TypeScript 与 Tailwind CSS 构建的 macOS 原生桌面端 AI 智能体中枢。它将多个个人 AI Agent 平台（**Meta Muse**、**Grok Bot**、**Hark**、**Dot**）聚合在统一的原生界面中；每个 **Bot** 绑定独立隔离的账号会话（`partition`），支持同平台多账号并行在线、实时流式对话、云端电脑/工具调用检视以及集中式管理中心。
+**BotHub** 是一款基于 Electron、React、TypeScript 与 Tailwind CSS 构建的 macOS / Windows 桌面端 AI 智能体中枢。它将多个个人 AI Agent 平台（**Meta Muse**、**Grok Bot**、**Hark**、**Dot**）聚合在统一的原生界面中；每个 **Bot** 绑定独立隔离的账号会话（`partition`），支持同平台多账号并行在线、实时流式对话、云端电脑/工具调用检视以及集中式管理中心。
 
 ## 已接入平台一览
 
@@ -42,33 +52,57 @@
 - **凭据安全与隐私保护**
   - 本地持久化的敏感凭据（如 Dot 的 `AT`/`RT` 及账号代理密码）默认通过 Electron `safeStorage`（macOS Keychain）加密并以 `0600` 权限落盘。
   - 代码库零硬编码密钥、无任何第三方隐私遥测。
+- **可靠投递**
+  消息会显示「发送中」「已送达 · 回复中」「没有收到回复」或「发送失败」。平台已经收到的消息不会再被当成未发送，重试不会重复发出。
 
 ## 安装说明
 
-前往 [GitHub Releases](https://github.com/qybaihe/bothub/releases) 下载最新 macOS (`arm64`) 安装包。
+从 [最新 Release](https://github.com/qybaihe/bothub/releases/latest) 下载：
 
-> **macOS 未签名包打开提示**：将 `BotHub.app` 拖入 `/Applications` 后，首次打开请右键点击选「打开」，或在终端执行以下命令移除隔离属性：
+| 系统 | 文件 |
+| :--- | :--- |
+| macOS（Apple 芯片） | `BotHub-<版本>-arm64.dmg` |
+| macOS（Intel） | `BotHub-<版本>-x64.dmg` |
+| Windows 10/11（x64） | `BotHub-Setup-<版本>-x64.exe` |
+
+> **macOS（未签名）**：把 `BotHub.app` 拖进「应用程序」后，第一次请右键点击 →「打开」（或在「系统设置 → 隐私与安全性」里点「仍要打开」）。也可以在终端移除隔离属性：
 >
 > ```bash
 > xattr -cr /Applications/BotHub.app
 > ```
+>
+> **Windows（未签名）**：如果 SmartScreen 提示「Windows 已保护你的电脑」，点「更多信息 → 仍要运行」。
+
+更新：Windows 版会在后台从 GitHub Releases 下载新版本，一键安装；macOS 版会提示有新版本并打开下载页。
 
 ## 本地开发与构建
 
 ```bash
-npm install
-npm run dev          # 启动 Electron + Vite 热更新开发环境
-npm run typecheck    # 运行主进程、预加载脚本与渲染进程 TypeScript 类型检查
-npm run build        # 编译生产构建产物至 out/
-npm run dist         # 使用 electron-builder 打包 macOS arm64 dmg 与 zip
+npm ci
+npm run dev          # 启动 Electron + Vite 热更新
 ```
 
 | 命令 | 说明 |
 | :--- | :--- |
-| `npm run dev` | 启动 Electron 主进程、预加载脚本与 React 渲染层热更新 |
-| `npm run typecheck` | 对 Node 侧（`tsconfig.node.json`）与 Web 侧（`tsconfig.web.json`）执行类型检查 |
-| `npm run build` | 编译生产环境代码至 `out/` 目录 |
-| `npm run dist` | 通过 `electron-builder` 打包 macOS `dmg` 与 `zip` 发行包 |
+| `npm run dev` | 启动 Electron 主进程、preload 与 React 渲染层（热更新） |
+| `npm run dev:web` | 只在浏览器里运行界面（不启动 Electron、不登录账号） |
+| `npm run typecheck` | 检查 Node 与 Web 两端类型 |
+| `npm test` | 单元测试（Vitest） |
+| `npm run build` | 类型检查并构建到 `out/` |
+| `npm run dist:mac` / `npm run dist:win` | 打包 macOS `dmg` + `zip`（arm64 + x64）/ Windows NSIS 安装包到 `release/` |
+| `npm run dist:dir` | 生成未打包的 macOS arm64 应用，便于冒烟测试 |
+
+README 截图由虚构数据生成：`npx -y -p playwright@1.64 node scripts/screenshot/capture.mjs [--dark]`。
+
+## 发布流程
+
+每次推送都会由 CI（`.github/workflows/ci.yml`）在 macOS 与 Windows 上做类型检查、测试、构建和打包。
+
+1. 修改 `package.json` 的 `version` 并合入 `main`。
+2. 推送与版本一致的 tag：`vX.Y.Z`。
+3. `release.yml` 会先建草稿 Release，分别构建 macOS（arm64 + x64 的 `dmg`/`zip`、`latest-mac.yml`）和 Windows（NSIS `exe`、`latest.yml`）并上传，确认文件齐全后自动发布。
+
+默认不签名。配置仓库密钥 `CSC_LINK`、`CSC_KEY_PASSWORD`、`APPLE_ID`、`APPLE_APP_SPECIFIC_PASSWORD`、`APPLE_TEAM_ID`（macOS）或 `WIN_CSC_LINK`、`WIN_CSC_KEY_PASSWORD`（Windows）后会自动签名与公证。
 
 ## 目录结构
 

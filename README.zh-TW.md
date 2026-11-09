@@ -2,22 +2,32 @@
 
 # BotHub
 
-**面向多平台、多帳號的桌面端個人 AI 智慧體工作台**
+**把所有個人 AI 智慧體收進一個桌面工作台**
 
+[![Release](https://img.shields.io/github/v/release/qybaihe/bothub?label=Release&color=111318)](https://github.com/qybaihe/bothub/releases/latest)
+[![CI](https://github.com/qybaihe/bothub/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/qybaihe/bothub/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
-[![Platform: macOS arm64](https://img.shields.io/badge/Platform-macOS%20(Apple%20Silicon)-111318.svg)](https://github.com/qybaihe/bothub/releases)
-[![Electron](https://img.shields.io/badge/Electron-33-47848F.svg)](https://www.electronjs.org/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.6-3178C6.svg)](https://www.typescriptlang.org/)
+[![Platform](https://img.shields.io/badge/Platform-macOS%20%7C%20Windows-6E56CF.svg)](https://github.com/qybaihe/bothub/releases/latest)
+
+[![下載](https://img.shields.io/badge/%E4%B8%8B%E8%BC%89-macOS-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/qybaihe/bothub/releases/latest)
+[![下載](https://img.shields.io/badge/%E4%B8%8B%E8%BC%89-Windows-0078D4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/qybaihe/bothub/releases/latest)
 
 [English](./README.md) · [简体中文](./README.zh-CN.md) · **繁體中文** · [日本語](./README.ja.md)
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/bothub-dark.webp">
+  <img src="docs/assets/bothub-light.webp" alt="BotHub：側邊欄中的多個 Muse、Dot、Hark、Grok Bot 機器人與一段對話（範例資料）" width="100%">
+</picture>
+
 </div>
+
+<p align="center"><sub>截圖使用虛構的範例資料：側邊欄依群組列出 Muse、Dot、Hark、Grok Bot 上的多個 Bot。</sub></p>
 
 ---
 
 ## 專案簡介
 
-**BotHub** 是一款基於 Electron、React、TypeScript 與 Tailwind CSS 建構的 macOS 原生桌面端 AI 智慧體中樞。它將多個個人 AI Agent 平台（**Meta Muse**、**Grok Bot**、**Hark**、**Dot**）聚合在統一的原生介面中；每個 **Bot** 綁定獨立隔離的帳號工作階段（`partition`），支援同平台多帳號並行在線、即時串流對話、雲端電腦/工具呼叫檢視以及集中式管理中心。
+**BotHub** 是一款基於 Electron、React、TypeScript 與 Tailwind CSS 建構的 macOS / Windows 桌面端 AI 智慧體中樞。它將多個個人 AI Agent 平台（**Meta Muse**、**Grok Bot**、**Hark**、**Dot**）聚合在統一的原生介面中；每個 **Bot** 綁定獨立隔離的帳號工作階段（`partition`），支援同平台多帳號並行在線、即時串流對話、雲端電腦/工具呼叫檢視以及集中式管理中心。
 
 ## 已接入平台一覽
 
@@ -42,25 +52,74 @@
 - **憑證安全與隱私保護**
   - 本機持久化的敏感憑證（如 Dot 的 `AT`/`RT` 及帳號代理密碼）預設透過 Electron `safeStorage`（macOS Keychain）加密並以 `0600` 權限落盤。
   - 程式碼庫零硬編碼金鑰、無任何第三方隱私遙測。
+- **可靠投遞**
+  訊息會顯示「傳送中」「已送達 · 回覆中」「沒有收到回覆」或「傳送失敗」。平台已收到的訊息不會再被當成未傳送，重試不會重複送出。
 
 ## 安裝說明
 
-前往 [GitHub Releases](https://github.com/qybaihe/bothub/releases) 下載最新 macOS (`arm64`) 安裝包。
+從 [最新 Release](https://github.com/qybaihe/bothub/releases/latest) 下載：
 
-> **macOS 未簽章套件開啟提示**：將 `BotHub.app` 拖入 `/Applications` 後，首次開啟請右鍵點擊選「打開」，或在終端機執行以下指令移除隔離屬性：
+| 系統 | 檔案 |
+| :--- | :--- |
+| macOS（Apple 晶片） | `BotHub-<版本>-arm64.dmg` |
+| macOS（Intel） | `BotHub-<版本>-x64.dmg` |
+| Windows 10/11（x64） | `BotHub-Setup-<版本>-x64.exe` |
+
+> **macOS（未簽署）**：將 `BotHub.app` 拖進「應用程式」後，第一次請按右鍵 →「打開」（或在「系統設定 → 隱私權與安全性」中點「強制打開」）。也可以在終端機移除隔離屬性：
 >
 > ```bash
 > xattr -cr /Applications/BotHub.app
 > ```
+>
+> **Windows（未簽署）**：若 SmartScreen 顯示「Windows 已保護您的電腦」，請點「其他資訊 → 仍要執行」。
+
+更新：Windows 版會在背景從 GitHub Releases 下載新版本，一鍵安裝；macOS 版會提示有新版本並開啟下載頁。
 
 ## 本機開發與建置
 
 ```bash
-npm install
-npm run dev          # 啟動 Electron + Vite 熱更新開發環境
-npm run typecheck    # 執行主行程、預載腳本與渲染行程 TypeScript 型別檢查
-npm run build        # 編譯正式環境建置產物至 out/
-npm run dist         # 使用 electron-builder 打包 macOS arm64 dmg 與 zip
+npm ci
+npm run dev          # 啟動 Electron + Vite 熱更新
+```
+
+| 指令 | 說明 |
+| :--- | :--- |
+| `npm run dev` | 啟動 Electron 主行程、preload 與 React 介面（熱更新） |
+| `npm run dev:web` | 只在瀏覽器中執行介面（不啟動 Electron、不登入帳號） |
+| `npm run typecheck` | 檢查 Node 與 Web 兩端型別 |
+| `npm test` | 單元測試（Vitest） |
+| `npm run build` | 型別檢查並建置到 `out/` |
+| `npm run dist:mac` / `npm run dist:win` | 打包 macOS `dmg` + `zip`（arm64 + x64）/ Windows NSIS 安裝檔到 `release/` |
+| `npm run dist:dir` | 產生未封裝的 macOS arm64 應用程式，方便冒煙測試 |
+
+README 截圖由虛構資料產生：`npx -y -p playwright@1.64 node scripts/screenshot/capture.mjs [--dark]`。
+
+## 發佈流程
+
+每次推送都會由 CI（`.github/workflows/ci.yml`）在 macOS 與 Windows 上進行型別檢查、測試、建置與打包。
+
+1. 修改 `package.json` 的 `version` 並合併到 `main`。
+2. 推送與版本一致的 tag：`vX.Y.Z`。
+3. `release.yml` 會先建立草稿 Release，分別建置 macOS（arm64 + x64 的 `dmg`/`zip`、`latest-mac.yml`）與 Windows（NSIS `exe`、`latest.yml`）並上傳，確認檔案齊全後自動發佈。
+
+預設不簽署。設定儲存庫密鑰 `CSC_LINK`、`CSC_KEY_PASSWORD`、`APPLE_ID`、`APPLE_APP_SPECIFIC_PASSWORD`、`APPLE_TEAM_ID`（macOS）或 `WIN_CSC_LINK`、`WIN_CSC_KEY_PASSWORD`（Windows）後會自動簽署與公證。
+
+## 目錄結構
+
+```text
+src/
+  adapters/        四大平台轉接器（Meta Muse、Grok Bot、Hark、Dot）與統一 PlatformAdapter 介面
+  main/            Electron 主行程
+    muse/          Muse 分區工作階段管理、批次自動登入、單帳號代理路由
+    muse-native/   Muse 原生 WebSocket 閘道客戶端（雲端電腦、工作區檔案、工具審批等）
+    grok/          Grok Bot Sand 驗證、Connect-RPC 客戶端與 IPC 通道
+    hark/          Hark WebSocket/REST 客戶端、多模態附件上傳與 IPC 通道
+    dot/           OpenAI Dot (Orbit/TBO) 客戶端、safeStorage 加密憑證庫、SSE 串流與 IPC 通道
+  preload/         透過 contextBridge 提供給介面的型別安全 API (window.bothub)
+  shared/          主行程與介面共用的 IPC 協定與型別定義
+  renderer/        React + Tailwind CSS + Zustand 介面
+    components/    側邊欄、聊天區、右側平台檢視面板、全螢幕管理中心、GrokBotMark 角色引擎
+    store/         Zustand 全域 Bot 狀態、串流訊息彙整與本機持久化
 ```
 
 ## 協定與介面文件

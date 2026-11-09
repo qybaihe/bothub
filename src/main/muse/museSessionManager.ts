@@ -7,6 +7,7 @@ import {
   MuseNativeRegistry,
   museTransportMode,
   streamChat,
+  MUSE_STREAM_SUPERSEDED,
   selectOptionWidget,
   parseAgentStatus,
   parseOptionWidgets,
@@ -613,7 +614,9 @@ export class MuseSessionManager {
     const ids = new Map<string, string>()
     let last = ''
     let lastId = ''
-    this.activeStreams.get(accountId)?.abort()
+    // A follow-up only stops listening to the previous turn locally; it must
+    // not cancel that turn on the server (the user did not press Stop).
+    this.activeStreams.get(accountId)?.abort(MUSE_STREAM_SUPERSEDED)
     const ctrl = new AbortController()
     this.activeStreams.set(accountId, ctrl)
     try {

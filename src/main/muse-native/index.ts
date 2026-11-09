@@ -14,6 +14,7 @@ export { MuseGatewayError, MuseNativeGateway } from './gateway'
 export {
   MuseChatChannel,
   streamChat,
+  MUSE_STREAM_SUPERSEDED,
   selectOptionWidget,
   MUSE_CHAT_CAPABILITIES,
   MUSE_BUSY_ACTIVITY,

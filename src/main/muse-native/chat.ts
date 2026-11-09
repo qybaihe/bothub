@@ -16,6 +16,9 @@ import { randomUUID } from 'node:crypto'
 import type { MuseNativeGateway, SubscriptionHandle } from './gateway'
 
 /** Client capabilities the web client advertises (`delta_stream` enables text deltas). */
+/** Abort reason for a turn replaced by a newer send: stop locally, keep it running server-side. */
+export const MUSE_STREAM_SUPERSEDED = "superseded"
+
 export const MUSE_CHAT_CAPABILITIES = [
   'hotel_results',
   'chat_cancel',
@@ -1218,7 +1221,9 @@ export async function streamChat(
   channel.on('event', onEvent)
   channel.on('ended', onEnded)
   const onAbort = (): void => {
-    void gw.request('chat.cancel', sessionId ? { session_id: sessionId } : {}).catch(() => undefined)
+    if (opts.signal?.reason !== MUSE_STREAM_SUPERSEDED) {
+      void gw.request('chat.cancel', sessionId ? { session_id: sessionId } : {}).catch(() => undefined)
+    }
     settle()
   }
   opts.signal?.addEventListener('abort', onAbort, { once: true })

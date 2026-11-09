@@ -1,6 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createId } from '@shared/id'
-import { parseMuseBatch, type MuseAutoLoginFailure, type MuseBatchParseError } from '@shared/museBatch'
+import {
+  parseMuseBatch,
+  retryDelayMs,
+  shouldAutoRetry,
+  type MuseAutoLoginFailure,
+  type MuseAutoLoginResult,
+  type MuseBatchParseError
+} from '@shared/museBatch'
 import { CheckCircle2, Circle, FileUp, Loader2, ShieldAlert, XCircle } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { getBridge } from '@/lib/bridge'
@@ -18,7 +25,7 @@ interface Row {
   botId: string
   accountId: string
   state: RowState
-  reason?: MuseAutoLoginFailure | 'unavailable'
+  reason?: MuseAutoLoginFailure | 'unavailable' | 'window-closed'
   attempts: number
 }
 
@@ -32,6 +39,8 @@ const REASON: Record<string, string> = {
   'needs-human': 'Meta asks for a human check',
   cancelled: 'Cancelled',
   timeout: 'Timed out',
+  error: 'Unexpected error',
+  'window-closed': 'Login window was closed',
   unavailable: 'Needs the BotHub desktop app'
 }
 
@@ -62,7 +71,9 @@ function StateIcon({ state }: { state: RowState }) {
 }
 
 /** Paste or load `email | inbox_url` lines; each becomes its own Muse bot via email one-time-code login. */
-export function MuseBatchImport({ onDone }: { onDone: () => void }) {
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+
+export function MuseBatchImport({ onDone, onBusyChange }: { onDone: () => void; onBusyChange?: (busy: boolean) => void }) {
   const t = useT()
   const addBot = useBotStore((s) => s.addBot)
   const [text, setText] = useState('')
@@ -94,14 +105,23 @@ export function MuseBatchImport({ onDone }: { onDone: () => void }) {
   }
 
   // A manual checkpoint finished in the shown window → keep that account as a bot.
+  // Closing that window instead makes the row retryable rather than stuck.
   useEffect(() => {
     if (!muse?.onEvent) return
     return muse.onEvent((event) => {
-      if (event.type !== 'login' || !event.signedIn) return
+      if (event.type !== 'login') return
       const row = rowsRef.current.find((r) => r.accountId === event.accountId && r.state === 'needs-human')
-      if (row) adopt(row)
+      if (!row) return
+      if (event.signedIn) adopt(row)
+      else if (event.windowClosed) {
+        void muse.cancelLogin(row.accountId).catch(() => {})
+        patch(row.id, { state: 'failed', reason: 'window-closed' })
+      }
     })
   }, [muse])
+
+  const busy = running || rows.some((r) => r.state === 'running' || r.state === 'needs-human')
+  useEffect(() => onBusyChange?.(busy), [busy, onBusyChange])
 
   // Leaving the dialog drops half-made sessions (never ones already adopted).
   useEffect(
@@ -114,21 +134,38 @@ export function MuseBatchImport({ onDone }: { onDone: () => void }) {
     []
   )
 
-  const runOne = async (row: Row) => {
-    if (!muse?.autoLogin) return patch(row.id, { state: 'failed', reason: 'unavailable' })
+  /** One clean login attempt with a fresh account id (and so a fresh partition). */
+  const attemptOnce = async (row: Row): Promise<{ res: MuseAutoLoginResult; accountId: string; botId: string }> => {
     const accountId = createId('acc')
     const botId = createId('bot')
-    patch(row.id, { state: 'running', accountId, botId, attempts: row.attempts + 1, reason: undefined })
-    // Auto-assign 1 unused proxy from the proxy pool to this account before login starts!
-    if (muse.assignProxyPool) {
+    const attempts = (rowsRef.current.find((r) => r.id === row.id)?.attempts ?? row.attempts) + 1
+    patch(row.id, { state: 'running', accountId, botId, attempts })
+    // Give this account its own pool proxy. Rows still in flight are not in
+    // the store yet, so list them too or the pool frees and re-hands out
+    // their proxies (two concurrent logins on one IP).
+    if (muse?.assignProxyPool) {
       const existingMuseIds = Object.values(useBotStore.getState().accounts)
         .filter((a) => a.platformId === 'meta-muse')
         .map((a) => a.id)
-      await muse.assignProxyPool([...existingMuseIds, accountId]).catch(() => undefined)
+      const inFlight = rowsRef.current
+        .filter((r) => r.accountId && (r.state === 'running' || r.state === 'needs-human'))
+        .map((r) => r.accountId)
+      await muse.assignProxyPool([...new Set([...existingMuseIds, ...inFlight, accountId])]).catch(() => undefined)
     }
-    const current = { ...row, accountId, botId }
+    if (stopRef.current) return { res: { ok: false, reason: 'cancelled' }, accountId, botId }
     try {
-      const res = await muse.autoLogin({ botId, accountId, email: row.email, inboxUrl: row.inboxUrl })
+      const res = await muse!.autoLogin({ botId, accountId, email: row.email, inboxUrl: row.inboxUrl })
+      return { res, accountId, botId }
+    } catch {
+      return { res: { ok: false, reason: 'error' }, accountId, botId }
+    }
+  }
+
+  const runOne = async (row: Row) => {
+    if (!muse?.autoLogin) return patch(row.id, { state: 'failed', reason: 'unavailable' })
+    for (;;) {
+      const { res, accountId, botId } = await attemptOnce(row)
+      const current = { ...row, accountId, botId }
       if (res.ok) return adopt(current)
       if (stopRef.current || res.reason === 'cancelled') {
         void muse.cancelLogin(accountId).catch(() => {})
@@ -136,10 +173,13 @@ export function MuseBatchImport({ onDone }: { onDone: () => void }) {
       }
       if (res.reason === 'needs-human' && res.canShow) return patch(row.id, { state: 'needs-human', reason: res.reason })
       void muse.cancelLogin(accountId).catch(() => {})
-      patch(row.id, { state: 'failed', reason: res.reason ?? 'timeout' })
-    } catch {
-      void muse.cancelLogin(accountId).catch(() => {})
-      patch(row.id, { state: 'failed', reason: 'timeout' })
+      const attempts = rowsRef.current.find((r) => r.id === row.id)?.attempts ?? 1
+      const reason = res.reason ?? 'timeout'
+      if (!shouldAutoRetry(reason, attempts)) return patch(row.id, { state: 'failed', reason })
+      // Transient failure: show why, back off, then try again from scratch.
+      patch(row.id, { reason })
+      await wait(retryDelayMs(attempts))
+      if (stopRef.current) return patch(row.id, { state: 'cancelled', reason: 'cancelled' })
     }
   }
 
@@ -186,7 +226,8 @@ export function MuseBatchImport({ onDone }: { onDone: () => void }) {
     for (const r of rowsRef.current) {
       if (row ? r.id === row.id : r.state === 'failed' || r.state === 'cancelled') {
         if (r.state === 'needs-human') void muse?.cancelLogin(r.accountId).catch(() => {})
-        patch(r.id, { state: 'waiting', reason: undefined })
+        // A manual retry gets a fresh set of automatic attempts.
+        patch(r.id, { state: 'waiting', reason: undefined, attempts: 0 })
       }
     }
     if (!running) void drain()
@@ -305,7 +346,7 @@ export function MuseBatchImport({ onDone }: { onDone: () => void }) {
                 {t('Open window')}
               </Button>
             )}
-            {(row.state === 'failed' || row.state === 'cancelled') && (
+            {(row.state === 'failed' || row.state === 'cancelled' || row.state === 'needs-human') && (
               <Button size="sm" onClick={() => retry(row)}>
                 {t('Retry')}
               </Button>

@@ -305,6 +305,10 @@ export const ZH: Record<string, string> = {
   'Code was rejected': '验证码被拒绝',
   'Meta asks for a human check': 'Meta 要求人机验证',
   'Timed out': '超时',
+  'Unexpected error': '意外错误',
+  'Login window was closed': '登录窗口被关闭',
+  'Batch import is still running. Leaving cancels the unfinished accounts. Leave anyway?':
+    '批量导入还在进行，离开会取消未完成的账号。确定离开吗？',
   'Needs the BotHub desktop app': '需要 BotHub 桌面应用',
   'Stop generating': '停止生成',
   'Voice options': '语音选项',

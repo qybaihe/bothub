@@ -60,11 +60,17 @@ function AddBotFlow({ open, onClose }: { open: boolean; onClose: () => void }) {
   const created = useRef(false)
   const [template, setTemplate] = useState<BotTemplate>(BLANK_TEMPLATE)
   const [batch, setBatch] = useState(false)
+  const [batchBusy, setBatchBusy] = useState(false)
   const { phase } = login
   const t = useT()
   const locale = usePrefsStore((s) => s.locale)
 
+  // Leaving a running batch cancels every unfinished row, so ask first.
+  const confirmLeaveBatch = () =>
+    !batch || !batchBusy || window.confirm(t('Batch import is still running. Leaving cancels the unfinished accounts. Leave anyway?'))
+
   const close = () => {
+    if (!confirmLeaveBatch()) return
     // Leaving before "Done" (Esc, scrim, close button) drops the session.
     login.discard()
     onClose()
@@ -103,7 +109,7 @@ function AddBotFlow({ open, onClose }: { open: boolean; onClose: () => void }) {
       className={batch ? 'w-[min(92vw,520px)]' : 'w-[min(92vw,420px)]'}
       headerStart={
         batch ? (
-          <IconButton label={t('Back')} size="sm" onClick={() => setBatch(false)} className="-ml-1">
+          <IconButton label={t('Back')} size="sm" onClick={() => confirmLeaveBatch() && setBatch(false)} className="-ml-1">
             <ChevronLeft />
           </IconButton>
         ) : phase.kind === 'waiting' ? (
@@ -131,6 +137,7 @@ function AddBotFlow({ open, onClose }: { open: boolean; onClose: () => void }) {
           {batch && (
             <MuseBatchImport
               key="batch"
+              onBusyChange={setBatchBusy}
               onDone={() => {
                 created.current = true
                 onClose()

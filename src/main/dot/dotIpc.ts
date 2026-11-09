@@ -45,6 +45,7 @@ import {
   streamDotNativeTurn
 } from './dotClient'
 import { cancelDotLogin, onDotLoginEvent, openDotLoginWindow } from './dotLogin'
+import { resolveDotTarget } from '@shared/dotTarget'
 
 function ownerWindow(event: IpcMainInvokeEvent): BrowserWindow | undefined {
   return BrowserWindow.fromWebContents(event.sender) ?? undefined
@@ -169,6 +170,8 @@ export async function runDotRpc(req: DotRpcRequest): Promise<DotRpcResponse> {
       }
       case 'sendMessage': {
         const acc = getStoredDotAccount(req.accountId)
+        // After a profile switch the renderer can still name the old dot/room.
+        const target = resolveDotTarget(req, acc)
         const mode = req.mode ?? acc?.mode ?? 'dot'
         if (req.botId) {
           patchStoredDotAccount(req.accountId, { botId: req.botId })
@@ -222,8 +225,8 @@ export async function runDotRpc(req: DotRpcRequest): Promise<DotRpcResponse> {
         // Default: Calpico Room + Celsius WS mode (`mode === 'dot'`)
         const result = await sendAndWatchDotRoomReply(req.accountId, {
           botId: req.botId,
-          dotId: req.dotId,
-          roomId: req.roomId,
+          dotId: target.dotId,
+          roomId: target.roomId,
           text: req.text,
           onActivity: (code, text, busy) => {
             broadcast({
@@ -241,7 +244,7 @@ export async function runDotRpc(req: DotRpcRequest): Promise<DotRpcResponse> {
               type: 'stream',
               accountId: req.accountId,
               conversationId: req.botId ?? acc?.botId,
-              dotId: req.dotId ?? acc?.activeDotId,
+              dotId: target.dotId ?? acc?.activeDotId,
               messageId: msgId,
               text: msg.text,
               done,

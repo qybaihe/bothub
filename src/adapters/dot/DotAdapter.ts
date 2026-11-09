@@ -303,6 +303,8 @@ export class DotAdapter implements PlatformAdapter {
         accountId: message.accountId,
         op: 'sendMessage',
         botId: message.conversationId,
+        // The main process resolves the active profile's room; the cached ids
+        // and the chat sessionId go stale after a profile switch.
         dotId: this.activeDotIds.get(message.accountId),
         roomId: message.sessionId || this.activeRoomIds.get(message.accountId),
         text: message.text,

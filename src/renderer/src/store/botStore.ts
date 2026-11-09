@@ -830,6 +830,36 @@ export const useBotStore = create<BotHubState>()(
       const host = list.find((m) => m.id === messageId)
       const widget = host?.widgets?.find((w) => w.widgetId === widgetId)
       if (!host || !widget) return
+      const adapter = adapterRegistry.get(bot.platformId) as {
+        selectOptionWidget?: (a: {
+          accountId: string
+          conversationId: string
+          hostMessageId: string
+          widget: NonNullable<ChatMessage['widgets']>[number]
+          selectedText: string
+          optionIndex: number
+        }) => Promise<void>
+      }
+      const markChosen = (selected: string | undefined) =>
+        set((s) => ({
+          messages: {
+            ...s.messages,
+            [botId]: (s.messages[botId] ?? []).map((m) =>
+              m.id !== messageId || !m.widgets
+                ? m
+                : { ...m, widgets: m.widgets.map((w) => (w.widgetId === widgetId ? { ...w, selectedText: selected } : w)) }
+            )
+          }
+        }))
+      if (!adapter?.selectOptionWidget) {
+        // Platforms without a native option call (Grok, Hark, Dot): the chip
+        // is just a reply, so send it as a normal message. Before, the chip
+        // showed a "sent" bubble while nothing was sent at all.
+        markChosen(selectedText)
+        await get().sendMessage(botId, selectedText)
+        return
+      }
+      const optId = createId('opt')
       set((s) => {
         const msgs = s.messages[botId] ?? []
         const nextMsgs = msgs.map((m) => {
@@ -842,35 +872,31 @@ export const useBotStore = create<BotHubState>()(
           }
         })
         const userMsg: ChatMessage = {
-          id: createId('opt'),
+          id: optId,
           botId,
           accountId: bot.activeAccountId,
           role: 'user',
           text: selectedText,
           createdAt: Date.now(),
-          delivery: 'sent'
+          delivery: 'sending'
         }
         return { messages: { ...s.messages, [botId]: [...nextMsgs, userMsg] } }
       })
-      const adapter = adapterRegistry.get(bot.platformId) as {
-        selectOptionWidget?: (a: {
-          accountId: string
-          conversationId: string
-          hostMessageId: string
-          widget: NonNullable<ChatMessage['widgets']>[number]
-          selectedText: string
-          optionIndex: number
-        }) => Promise<void>
+      try {
+        await adapter.selectOptionWidget({
+          accountId: bot.activeAccountId,
+          conversationId: botId,
+          hostMessageId: messageId,
+          widget,
+          selectedText,
+          optionIndex
+        })
+        updateMessage(botId, optId, { delivery: 'sent', error: undefined })
+      } catch (error) {
+        // Unlock the chips so the user can pick again; keep the reason visible.
+        markChosen(undefined)
+        updateMessage(botId, optId, { delivery: 'failed', error: errorMessage(error) })
       }
-      if (!adapter?.selectOptionWidget) return
-      await adapter.selectOptionWidget({
-        accountId: bot.activeAccountId,
-        conversationId: botId,
-        hostMessageId: messageId,
-        widget,
-        selectedText,
-        optionIndex
-      })
     },
 
     cancelGeneration: async (botId) => {

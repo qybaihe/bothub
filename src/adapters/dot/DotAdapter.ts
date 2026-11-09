@@ -45,6 +45,8 @@ export class DotAdapter implements PlatformAdapter {
   private readonly listeners = new Set<AdapterListener>()
   private readonly activeDotIds = new Map<string, string>()
   private readonly activeRoomIds = new Map<string, string>()
+  /** Last time the stream delivered visible content per account (widgets only arrive here). */
+  private readonly streamContentAt = new Map<string, number>()
   private bridgeUnsub: Unsubscribe | null = null
 
   constructor() {
@@ -93,6 +95,7 @@ export class DotAdapter implements PlatformAdapter {
           isTyping: true
         })
         if (event.text || event.tools?.length || event.richWidgets?.length) {
+          this.streamContentAt.set(event.accountId, Date.now())
           this.emit({
             type: 'message_delta',
             messageId: event.messageId,
@@ -132,6 +135,7 @@ export class DotAdapter implements PlatformAdapter {
           event.richWidgets?.length ||
           event.media?.length
         ) {
+          this.streamContentAt.set(event.accountId, Date.now())
           this.emit({
             type: 'message',
             message: {
@@ -285,6 +289,7 @@ export class DotAdapter implements PlatformAdapter {
 
   async sendMessage(message: OutgoingMessage): Promise<SendReceipt> {
     this.bindBridgeEvents()
+    const sendStartedAt = Date.now()
     this.setStatus(message.accountId, 'busy')
     this.emit({
       type: 'typing',
@@ -391,6 +396,7 @@ export class DotAdapter implements PlatformAdapter {
 
       this.setStatus(message.accountId, 'online')
       const gotReply =
+        (this.streamContentAt.get(message.accountId) ?? 0) >= sendStartedAt ||
         (Array.isArray(res?.replies) &&
           res.replies.some((r) => (r.text ?? r.content ?? '').trim() || r.media?.length)) ||
         Boolean((res?.reply?.text ?? res?.reply?.content ?? '').trim() || res?.reply?.tools?.length || res?.reply?.media?.length)

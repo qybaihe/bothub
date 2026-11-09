@@ -3,6 +3,8 @@ import { chmodSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSy
 import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 import WebSocket from 'ws'
+import { proxyFetch, proxyWsAgent } from '../proxyTransport'
+import { requireValidProxyUrl } from '../proxyUrl'
 import type {
   DotAuthStatus,
   MuseMediaPartView,
@@ -423,7 +425,7 @@ export function upsertDotCredentials(
     displayName,
     planType,
     expiresAtMs: decoded.expiresAtMs || prev?.expiresAtMs,
-    proxyUrl: input.proxyUrl?.trim() || prev?.proxyUrl,
+    proxyUrl: requireValidProxyUrl(input.proxyUrl) ?? prev?.proxyUrl,
     activeDotId: prev?.activeDotId,
     roomId: prev?.roomId,
     threadId: prev?.threadId,
@@ -440,9 +442,10 @@ export function upsertDotCredentials(
 
 async function exchangeDotRefreshToken(
   refreshToken: string,
-  clientId?: string
+  clientId?: string,
+  proxyUrl?: string
 ): Promise<{ accessToken: string; refreshToken: string }> {
-  const res = await fetch(DOT_OAUTH_TOKEN_URL, {
+  const res = await proxyFetch(proxyUrl, DOT_OAUTH_TOKEN_URL, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -499,7 +502,7 @@ export async function importDotCredentialsFromRaw(
 
   // Case 0: Only refreshToken was provided in extra (or rawInput is empty)
   if (!trimmed && extraRt) {
-    const exchanged = await exchangeDotRefreshToken(extraRt)
+    const exchanged = await exchangeDotRefreshToken(extraRt, undefined, extra?.proxyUrl)
     return upsertDotCredentials(accountId, {
       accessToken: exchanged.accessToken,
       refreshToken: exchanged.refreshToken,
@@ -515,7 +518,7 @@ export async function importDotCredentialsFromRaw(
     const decoded = decodeChatGptJwt(at)
     if (rt && decoded.expiresAtMs && decoded.expiresAtMs < Date.now() + 60_000) {
       try {
-        const exchanged = await exchangeDotRefreshToken(rt, decoded.clientId)
+        const exchanged = await exchangeDotRefreshToken(rt, decoded.clientId, extra?.proxyUrl)
         at = exchanged.accessToken
         rt = exchanged.refreshToken
       } catch {
@@ -548,7 +551,7 @@ export async function importDotCredentialsFromRaw(
     // Otherwise treat single-line non-JSON string as an OAuth refresh_token (e.g. rt_...)
     const rtCandidate = trimmed.replace(/^Bearer\s+/i, '').trim()
     if (rtCandidate.length >= 16 && !/\s/.test(rtCandidate)) {
-      const exchanged = await exchangeDotRefreshToken(rtCandidate)
+      const exchanged = await exchangeDotRefreshToken(rtCandidate, undefined, extra?.proxyUrl)
       return upsertDotCredentials(accountId, {
         accessToken: exchanged.accessToken,
         refreshToken: exchanged.refreshToken,
@@ -615,7 +618,7 @@ export async function importDotCredentialsFromRaw(
   const isExpired = Boolean(decoded.expiresAtMs && decoded.expiresAtMs < Date.now() + 60_000)
 
   if ((!accessToken || isExpired) && refreshToken) {
-    const exchanged = await exchangeDotRefreshToken(refreshToken, clientId || decoded.clientId)
+    const exchanged = await exchangeDotRefreshToken(refreshToken, clientId || decoded.clientId, extra?.proxyUrl)
     accessToken = exchanged.accessToken
     refreshToken = exchanged.refreshToken
   }
@@ -670,7 +673,7 @@ export async function refreshDotAccessToken(accountId: string): Promise<DotStore
     throw new DotApiError(401, 'No refresh_token available for Dot account')
   }
 
-  const exchanged = await exchangeDotRefreshToken(acc.refreshToken, acc.clientId)
+  const exchanged = await exchangeDotRefreshToken(acc.refreshToken, acc.clientId, acc.proxyUrl)
 
   return upsertDotCredentials(accountId, {
     accessToken: exchanged.accessToken,
@@ -833,7 +836,7 @@ export async function callDotApi<T = unknown>(
       headers['Content-Type'] = 'application/json'
       bodyPayload = JSON.stringify(opts.body)
     }
-    return fetch(url.toString(), {
+    return proxyFetch(cred.proxyUrl, url.toString(), {
       method,
       headers,
       body: bodyPayload,
@@ -1376,7 +1379,7 @@ export async function downloadDotFile(
 
   const fetchUrl = async (u: string): Promise<Response> => {
     const isChatgptApi = u.startsWith(DOT_ORIGIN)
-    return fetch(u, {
+    return proxyFetch(acc.proxyUrl, u, {
       headers: {
         ...(isChatgptApi
           ? {
@@ -1470,7 +1473,7 @@ export async function triggerRoomLivePush(accountId: string, roomId: string): Pr
 
   try {
     const acc = await ensureValidDotAccount(accountId)
-    const res = await fetch(`${DOT_API_BASE}/messaging/rooms/${encodeURIComponent(roomId)}/live`, {
+    const res = await proxyFetch(acc.proxyUrl, `${DOT_API_BASE}/messaging/rooms/${encodeURIComponent(roomId)}/live`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${acc.accessToken}`,
@@ -1843,6 +1846,7 @@ export async function ensureCelsiusWatcher(accountId: string, roomId?: string): 
     celsiusWatchers.set(accountId, st)
 
     const ws = new WebSocket(info.websocket_url, {
+      agent: proxyWsAgent(getStoredDotAccount(accountId)?.proxyUrl),
       headers: {
         Origin: DOT_ORIGIN,
         'User-Agent': CHROME_UA
@@ -2223,6 +2227,7 @@ async function withAppServerWs<T>(
       DOT_APP_SERVER_WS_URL,
       ['codex-app-server', 'codex-client.browser', `openai-bearer.${acc.accessToken}`],
       {
+        agent: proxyWsAgent(acc.proxyUrl),
         headers: {
           Origin: DOT_ORIGIN,
           'User-Agent': CHROME_UA

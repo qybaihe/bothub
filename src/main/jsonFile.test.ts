@@ -1,4 +1,4 @@
-import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -33,5 +33,11 @@ describe('jsonFile', () => {
     const p = join(dir, 'store.json')
     writeJsonAtomic(p, [1, 2])
     expect(readJsonFile(p, {}, isObject)).toEqual({})
+  })
+  it('keeps a file it cannot read right now (not corrupt)', () => {
+    const p = join(dir, 'store.json')
+    mkdirSync(p) // EISDIR stands in for a locked file
+    expect(readJsonFile(p, { empty: true }, isObject)).toEqual({ empty: true })
+    expect(readdirSync(dir)).toEqual(['store.json'])
   })
 })

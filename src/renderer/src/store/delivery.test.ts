@@ -2,9 +2,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { BotAccount, ChatMessage } from '@/types'
 import {
   clearNoReplyFlag,
+  createSafeStorage,
   INTERRUPTED_SEND_TEXT,
   sanitizePersisted,
   SendTimeoutError,
+  toPersistedMessages,
   withTimeout
 } from './delivery'
 
@@ -63,6 +65,38 @@ describe('sanitizePersisted', () => {
   it('returns the same object when nothing needs fixing', () => {
     const state = { messages: { b: [msg({ delivery: 'sent' })] }, accounts: {} }
     expect(sanitizePersisted(state)).toBe(state)
+  })
+})
+
+describe('toPersistedMessages', () => {
+  it('drops attachment bytes and keeps only the newest messages', () => {
+    const list = Array.from({ length: 5 }, (_, i) =>
+      msg({ id: String(i), attachments: [{ id: 'f', name: 'a.png', size: 9, mimeType: 'image/png', dataBase64: 'AAAA' }] })
+    )
+    const out = toPersistedMessages({ b: list }, 3)
+    expect(out.b!.map((m) => m.id)).toEqual(['2', '3', '4'])
+    expect(out.b![0]!.attachments![0]).toEqual({ id: 'f', name: 'a.png', size: 9, mimeType: 'image/png' })
+    // The in-memory message is untouched.
+    expect(list[4]!.attachments![0]!.dataBase64).toBe('AAAA')
+  })
+})
+
+describe('createSafeStorage', () => {
+  it('swallows quota errors and reports them', () => {
+    const onError = vi.fn()
+    const storage = createSafeStorage(
+      () => ({
+        getItem: () => 'x',
+        setItem: () => {
+          throw new Error('QuotaExceededError')
+        },
+        removeItem: () => undefined
+      }),
+      onError
+    )
+    expect(() => storage.setItem('k', 'v')).not.toThrow()
+    expect(onError).toHaveBeenCalledTimes(1)
+    expect(storage.getItem('k')).toBe('x')
   })
 })
 

@@ -89,6 +89,64 @@ export function sanitizePersisted<
   return { ...state, messages, accounts }
 }
 
+/** Most recent messages kept on disk per bot; older ones reload from the platform. */
+export const PERSISTED_MESSAGES_PER_BOT = 400
+
+/**
+ * What goes to localStorage: no attachment bytes (a single 5 MB image used
+ * to blow the ~5 MB quota, making every later save throw) and only the
+ * newest messages per bot.
+ */
+export function toPersistedMessages(
+  messages: Record<string, ChatMessage[]>,
+  maxPerBot = PERSISTED_MESSAGES_PER_BOT
+): Record<string, ChatMessage[]> {
+  const out: Record<string, ChatMessage[]> = {}
+  for (const [botId, list] of Object.entries(messages)) {
+    const recent = list.length > maxPerBot ? list.slice(-maxPerBot) : list
+    out[botId] = recent.map((m) =>
+      m.attachments?.some((a) => a.dataBase64)
+        ? { ...m, attachments: m.attachments.map(({ dataBase64: _bytes, ...rest }) => rest) }
+        : m
+    )
+  }
+  return out
+}
+
+/**
+ * localStorage that never throws out of zustand's `set()`. A quota error
+ * there used to abort sendMessage before the message was delivered.
+ */
+export function createSafeStorage(
+  backing: () => Pick<Storage, 'getItem' | 'setItem' | 'removeItem'> | undefined,
+  onError: (error: unknown) => void = () => undefined
+): Pick<Storage, 'getItem' | 'setItem' | 'removeItem'> {
+  return {
+    getItem: (name) => {
+      try {
+        return backing()?.getItem(name) ?? null
+      } catch (error) {
+        onError(error)
+        return null
+      }
+    },
+    setItem: (name, value) => {
+      try {
+        backing()?.setItem(name, value)
+      } catch (error) {
+        onError(error)
+      }
+    },
+    removeItem: (name) => {
+      try {
+        backing()?.removeItem(name)
+      } catch (error) {
+        onError(error)
+      }
+    }
+  }
+}
+
 /**
  * A bot reply arrived: the newest user message still flagged `no-reply`
  * did get an answer after all.

@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { createJSONStorage, persist } from 'zustand/middleware'
 import { getPlatform } from '@adapters/platforms'
 import { adapterRegistry } from '@adapters/registry'
 import { AdapterError, type AttachmentMeta, type ConnectionStatus, type IncomingMessage, type PlatformId } from '@adapters/types'
@@ -8,11 +8,25 @@ import { createSeed } from '@/data/seed'
 import type { AccountDraft, Bot, BotAccount, BotGroup, ChatMessage, NewBotInput } from '@/types'
 import {
   clearNoReplyFlag,
+  createSafeStorage,
   sanitizePersisted,
   SEND_HARD_TIMEOUT_MS,
   SendTimeoutError,
+  toPersistedMessages,
   withTimeout
 } from './delivery'
+
+let warnedStorage = false
+const workspaceStorage = createJSONStorage(() =>
+  createSafeStorage(
+    () => (typeof localStorage === 'undefined' ? undefined : localStorage),
+    (error) => {
+      if (warnedStorage) return
+      warnedStorage = true
+      console.warn('[bothub] could not save workspace:', error instanceof Error ? error.name : 'error')
+    }
+  )
+)
 
 const NO_REPLY_TEXT = '已送达，但没有收到回复'
 
@@ -1511,6 +1525,7 @@ export const useBotStore = create<BotHubState>()(
   },
   {
     name: 'bothub-workspace-v1',
+    storage: workspaceStorage,
     // Nothing is in flight after a restart; drop stale `sending`/`pending`.
     merge: (persisted, current) => ({
       ...current,
@@ -1520,7 +1535,7 @@ export const useBotStore = create<BotHubState>()(
       groups: state.groups,
       bots: state.bots,
       accounts: state.accounts,
-      messages: state.messages,
+      messages: toPersistedMessages(state.messages),
       selectedBotId: state.selectedBotId,
       collapsedGroups: state.collapsedGroups,
       infoPanelOpen: state.infoPanelOpen,

@@ -7,13 +7,14 @@
  *
  * Default output: docs/assets/bothub-{light,dark}.webp (via `cwebp`, falls
  * back to .png when cwebp is missing). Uses a fresh browser profile; nothing
- * touches the app's real userData and no platform is contacted.
+ * touches the app's real userData and no platform is contacted: the only
+ * bridge is a stub that answers the Grok Bot inspector from GROK_MOCK.
  */
 import { spawn, spawnSync } from 'node:child_process'
 import { rmSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { resolve } from 'node:path'
-import { buildWorkspace } from './fixtures.mjs'
+import { buildWorkspace, GROK_MOCK } from './fixtures.mjs'
 
 const args = process.argv.slice(2)
 const dark = args.includes('--dark')
@@ -51,12 +52,25 @@ await new Promise((ok, fail) => {
 try {
   const browser = await chromium.launch()
   const page = await browser.newPage({
-    viewport: { width: 1512, height: 1000 },
+    viewport: { width: 1512, height: 1080 },
     deviceScaleFactor: 2,
     colorScheme: dark ? 'dark' : 'light',
     locale: 'zh-CN'
   })
   const workspace = buildWorkspace()
+  page.on('pageerror', (err) => console.warn('[page]', err.message))
+  await page.addInitScript((mock) => {
+    // Minimal preload stand-in: only the Grok Bot RPC, answered from fixtures.
+    window.electron = {
+      platform: 'web',
+      grok: {
+        rpc: async (req) =>
+          req.op === 'call' && mock[req.method]
+            ? { ok: true, status: 200, data: mock[req.method] }
+            : { ok: false, status: 503, message: 'screenshot mock' }
+      }
+    }
+  }, GROK_MOCK)
   await page.addInitScript(
     ([ws, theme]) => {
       if (sessionStorage.getItem('seeded')) return
@@ -73,15 +87,15 @@ try {
     const { useBotStore } = await import('/src/store/botStore.ts')
     const st = useBotStore.getState()
     const accounts = Object.fromEntries(
-      Object.entries(st.accounts).map(([id, a], i) => [
+      Object.entries(st.accounts).map(([id, a]) => [
         id,
-        { ...a, status: i % 7 === 3 ? 'offline' : 'online', statusDetail: undefined, pending: false }
+        { ...a, status: 'online', statusDetail: undefined, pending: false }
       ])
     )
     useBotStore.setState({ accounts })
   })
   await page.waitForTimeout(1500) // avatars settle, fonts load
-  await page.mouse.move(1511, 999)
+  await page.mouse.move(1511, 1079)
   await page.screenshot({ path: png })
   await browser.close()
   if (png !== out) {

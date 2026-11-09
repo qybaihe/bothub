@@ -1,8 +1,3 @@
-<p align="center">
-  <img src="docs/assets/bothub-demo.gif" alt="BotHub demo: switching bots, sending a message and the streamed reply, then the inspector (sample data)" width="100%">
-</p>
-<p align="center"><sub>Demo with fictional sample data: switch bots, send a message and watch the reply stream in, then check the bot's scheduled tasks and memories.</sub></p>
-
 <div align="center">
 
 # BotHub
@@ -19,22 +14,20 @@
 
 **English** · [简体中文](./README.zh-CN.md) · [繁體中文](./README.zh-TW.md) · [日本語](./README.ja.md)
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/bothub-dark.webp">
+  <img src="docs/assets/bothub-light.webp" alt="BotHub: many Muse, Dot, Hark and Grok Bot bots in the sidebar and a conversation open (sample data)" width="100%">
+</picture>
+
 </div>
+
+<p align="center"><sub>Screenshot with fictional sample data: bots on Muse, Dot, Hark and Grok Bot, grouped in the sidebar.</sub></p>
 
 ---
 
 ## Overview
 
 **BotHub** is a desktop hub for macOS and Windows built with Electron, React, TypeScript, and Tailwind CSS that unifies multiple personal AI agent platforms into a single workspace. Each **Bot** pairs a supported agent platform with an isolated account session (`partition`), allowing you to run, inspect, and orchestrate dozens of personal AI agents side by side without browser tab sprawl or session collisions.
-
-<div align="center">
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/bothub-dark.webp">
-  <img src="docs/assets/bothub-light.webp" alt="BotHub: many Muse, Dot, Hark and Grok Bot bots in the sidebar and a conversation open (sample data)" width="100%">
-</picture>
-</div>
-
-<p align="center"><sub>Screenshot with fictional sample data: bots on Muse, Dot, Hark and Grok Bot, grouped in the sidebar.</sub></p>
 
 ## Supported Platforms
 

@@ -1,8 +1,3 @@
-<p align="center">
-  <img src="docs/assets/bothub-demo.gif" alt="BotHub デモ：Bot の切り替え、メッセージ送信とストリーミング返信、詳細パネル（サンプルデータ）" width="100%">
-</p>
-<p align="center"><sub>架空のサンプルデータによるデモ：Bot を切り替えてメッセージを送信し、ストリーミングで届く返信を確認したあと、Bot の定期タスクとメモリーを表示します。</sub></p>
-
 <div align="center">
 
 # BotHub
@@ -19,22 +14,20 @@
 
 [English](./README.md) · [简体中文](./README.zh-CN.md) · [繁體中文](./README.zh-TW.md) · **日本語**
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/bothub-dark.webp">
+  <img src="docs/assets/bothub-light.webp" alt="BotHub：サイドバーに並ぶ Muse・Dot・Hark・Grok Bot の Bot と会話画面（サンプルデータ）" width="100%">
+</picture>
+
 </div>
+
+<p align="center"><sub>架空のサンプルデータによるスクリーンショット：Muse・Dot・Hark・Grok Bot の Bot をグループごとに表示。</sub></p>
 
 ---
 
 ## 概要
 
 **BotHub** は、Electron、React、TypeScript、Tailwind CSS で構築された macOS / Windows 向けのパーソナル AI エージェント統合ワークスペースです。複数の AI エージェントプラットフォーム（**Meta Muse**、**Grok Bot**、**Hark**、**Dot**）を単一のデスクトップアプリに統合し、各 **Bot** を独立したアカウントセッション（`partition`）に紐付けることで、ブラウザタブの乱立やセッション干渉なしに多数の AI エージェントを並行運用・管理できます。
-
-<div align="center">
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/bothub-dark.webp">
-  <img src="docs/assets/bothub-light.webp" alt="BotHub：サイドバーに並ぶ Muse・Dot・Hark・Grok Bot の Bot と会話画面（サンプルデータ）" width="100%">
-</picture>
-</div>
-
-<p align="center"><sub>架空のサンプルデータによるスクリーンショット：Muse・Dot・Hark・Grok Bot の Bot をグループごとに表示。</sub></p>
 
 ## 対応プラットフォーム
 

@@ -1,8 +1,3 @@
-<p align="center">
-  <img src="docs/assets/bothub-demo.gif" alt="BotHub 示範：切換 Bot、傳送訊息與串流回覆、查看詳細資訊面板（範例資料）" width="100%">
-</p>
-<p align="center"><sub>示範使用虛構的範例資料：切換 Bot、傳送訊息並即時看到回覆，再查看 Bot 的排程任務與記憶。</sub></p>
-
 <div align="center">
 
 # BotHub
@@ -19,22 +14,20 @@
 
 [English](./README.md) · [简体中文](./README.zh-CN.md) · **繁體中文** · [日本語](./README.ja.md)
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/bothub-dark.webp">
+  <img src="docs/assets/bothub-light.webp" alt="BotHub：側邊欄中的多個 Muse、Dot、Hark、Grok Bot 機器人與一段對話（範例資料）" width="100%">
+</picture>
+
 </div>
+
+<p align="center"><sub>截圖使用虛構的範例資料：側邊欄依群組列出 Muse、Dot、Hark、Grok Bot 上的多個 Bot。</sub></p>
 
 ---
 
 ## 專案簡介
 
 **BotHub** 是一款基於 Electron、React、TypeScript 與 Tailwind CSS 建構的 macOS / Windows 桌面端 AI 智慧體中樞。它將多個個人 AI Agent 平台（**Meta Muse**、**Grok Bot**、**Hark**、**Dot**）聚合在統一的原生介面中；每個 **Bot** 綁定獨立隔離的帳號工作階段（`partition`），支援同平台多帳號並行在線、即時串流對話、雲端電腦/工具呼叫檢視以及集中式管理中心。
-
-<div align="center">
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/bothub-dark.webp">
-  <img src="docs/assets/bothub-light.webp" alt="BotHub：側邊欄中的多個 Muse、Dot、Hark、Grok Bot 機器人與一段對話（範例資料）" width="100%">
-</picture>
-</div>
-
-<p align="center"><sub>截圖使用虛構的範例資料：側邊欄依群組列出 Muse、Dot、Hark、Grok Bot 上的多個 Bot。</sub></p>
 
 ## 已接入平台一覽
 

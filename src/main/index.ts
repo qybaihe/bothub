@@ -8,6 +8,29 @@ import { registerHarkIpc } from './hark/harkIpc'
 import { registerDotIpc } from './dot/dotIpc'
 
 const isMac = process.platform === 'darwin'
+let mainWindow: BrowserWindow | null = null
+let quitting = false
+
+// Two instances share userData and race on every JSON store and on
+// Chromium's profile; hand the second launch over to the first.
+const gotLock = app.requestSingleInstanceLock()
+if (!gotLock) {
+  app.quit()
+} else {
+  app.on('second-instance', () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return
+    if (mainWindow.isMinimized()) mainWindow.restore()
+    mainWindow.show()
+    mainWindow.focus()
+  })
+}
+
+// A stray rejection in a timer or IPC handler should be visible in logs,
+// not silently swallowed. Only the error name/message is logged.
+process.on('unhandledRejection', (reason) => {
+  const text = reason instanceof Error ? `${reason.name}: ${reason.message}` : typeof reason
+  console.error('[bothub] unhandled rejection:', text.slice(0, 300))
+})
 
 function createMainWindow(): BrowserWindow {
   const win = new BrowserWindow({
@@ -34,6 +57,19 @@ function createMainWindow(): BrowserWindow {
 
   win.once('ready-to-show', () => win.show())
 
+  // macOS: the red button hides the window instead of destroying it. A
+  // re-created window used to start a second Muse session manager while the
+  // old one kept its timers and gateways running (one leak per reopen).
+  win.on('close', (event) => {
+    if (isMac && !quitting) {
+      event.preventDefault()
+      win.hide()
+    }
+  })
+  win.on('closed', () => {
+    if (mainWindow === win) mainWindow = null
+  })
+
   // Never open new Electron windows from the renderer; hand http(s) links to the OS.
   win.webContents.setWindowOpenHandler(({ url }) => {
     if (/^https?:\/\//.test(url)) void shell.openExternal(url)
@@ -54,18 +90,24 @@ function createMainWindow(): BrowserWindow {
   return win
 }
 
+app.on('before-quit', () => {
+  quitting = true
+})
+
 app.whenReady().then(() => {
+  if (!gotLock) return
   registerWebViewIpc()
   registerMuseIpc()
   registerUpdaterIpc()
   registerGrokIpc()
   registerHarkIpc()
   registerDotIpc()
-  createMainWindow()
+  mainWindow = createMainWindow()
   startAutoUpdater()
 
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createMainWindow()
+    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.show()
+    else mainWindow = createMainWindow()
   })
 })
 

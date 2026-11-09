@@ -29,6 +29,12 @@ function DeliveryState({ message, onRetry }: Pick<MessageBubbleProps, 'message' 
           <Clock3 className="size-3" aria-hidden /> Sending
         </span>
       )
+    case 'accepted':
+      return (
+        <span className="inline-flex items-center gap-1">
+          <Loader2 className="size-3 animate-spin" aria-hidden /> 已送达 · 回复中
+        </span>
+      )
     case 'failed':
       return (
         <span className="inline-flex items-center gap-1.5 text-status-error-ink">
@@ -1221,7 +1227,7 @@ export const MessageBubble = memo(function MessageBubble({
         <div
           className={cn(
             'mt-1 flex h-5 items-center gap-2 px-1.5 text-[11px] text-ink-muted transition-opacity duration-150',
-            message.delivery === 'failed' || message.delivery === 'sending' || message.delivery === 'no-reply'
+            message.delivery === 'failed' || message.delivery === 'sending' || message.delivery === 'accepted' || message.delivery === 'no-reply'
               ? 'opacity-100'
               : 'opacity-0 group-hover/msg:opacity-100 group-focus-within/msg:opacity-100'
           )}

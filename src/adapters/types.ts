@@ -57,6 +57,12 @@ export interface OutgoingMessage {
   sessionId?: string
   text: string
   attachments?: AttachmentMeta[]
+  /**
+   * Called once the platform has taken the message (before the reply).
+   * After this a failure must not be reported as "not sent": a blind retry
+   * would post the message twice.
+   */
+  onAccepted?: () => void
 }
 
 export interface SendReceipt {

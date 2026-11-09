@@ -2,6 +2,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { BotAccount, ChatMessage } from '@/types'
 import {
   clearNoReplyFlag,
+  createInFlightSet,
+  deliveryAfterError,
+  INTERRUPTED_REPLY_TEXT,
   createSafeStorage,
   INTERRUPTED_SEND_TEXT,
   sanitizePersisted,
@@ -113,5 +116,34 @@ describe('clearNoReplyFlag', () => {
   it('leaves older flags alone when the latest user message is fine', () => {
     const list = [msg({ id: '1', delivery: 'no-reply' }), msg({ id: '2', delivery: 'sent' }), msg({ id: '3', role: 'bot' })]
     expect(clearNoReplyFlag(list)).toBe(list)
+  })
+})
+
+describe('accepted delivery', () => {
+  const msg = (delivery: ChatMessage['delivery']): ChatMessage =>
+    ({ id: 'm1', botId: 'b', accountId: 'a', role: 'user', text: 'hi', createdAt: 1, delivery }) as ChatMessage
+
+  it('never reports an accepted message as failed', () => {
+    expect(deliveryAfterError(true, 'other', 'socket closed').delivery).toBe('no-reply')
+    expect(deliveryAfterError(true, 'timeout', 't').delivery).toBe('no-reply')
+    expect(deliveryAfterError(false, 'other', 'boom')).toEqual({ delivery: 'failed', error: 'boom' })
+    expect(deliveryAfterError(false, 'no-reply', 'x')).toEqual({ delivery: 'no-reply', error: 'x' })
+  })
+
+  it('lets only one delivery per message run', () => {
+    const set = createInFlightSet()
+    expect(set.enter('m1')).toBe(true)
+    expect(set.enter('m1')).toBe(false)
+    set.leave('m1')
+    expect(set.enter('m1')).toBe(true)
+  })
+
+  it('turns an accepted message into no-reply after a restart', () => {
+    const out = sanitizePersisted({ messages: { b: [msg('accepted')] } })
+    expect(out.messages!.b![0]).toMatchObject({ delivery: 'no-reply', error: INTERRUPTED_REPLY_TEXT })
+  })
+
+  it('marks an accepted message sent when the reply lands', () => {
+    expect(clearNoReplyFlag([msg('accepted')])[0]!.delivery).toBe('sent')
   })
 })

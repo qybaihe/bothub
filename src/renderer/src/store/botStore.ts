@@ -6,15 +6,7 @@ import { AdapterError, type AttachmentMeta, type ConnectionStatus, type Incoming
 import { createId } from '@shared/id'
 import { createSeed } from '@/data/seed'
 import type { AccountDraft, Bot, BotAccount, BotGroup, ChatMessage, NewBotInput } from '@/types'
-import {
-  clearNoReplyFlag,
-  createSafeStorage,
-  sanitizePersisted,
-  SEND_HARD_TIMEOUT_MS,
-  SendTimeoutError,
-  toPersistedMessages,
-  withTimeout
-} from './delivery'
+import { clearNoReplyFlag, createSafeStorage, sanitizePersisted, SEND_HARD_TIMEOUT_MS, SendTimeoutError, toPersistedMessages, withTimeout, deliveryAfterError, createInFlightSet } from './delivery'
 
 let warnedStorage = false
 const workspaceStorage = createJSONStorage(() =>
@@ -297,8 +289,19 @@ export const useBotStore = create<BotHubState>()(
       return { accounts: { ...state.accounts, [accountId]: { ...account, ...patch } } }
     })
 
+  const inFlight = createInFlightSet()
+
   /** Hand a stored user message to the bot's platform adapter. */
   const deliver = async (botId: string, messageId: string) => {
+    if (!inFlight.enter(messageId)) return
+    try {
+      await deliverOnce(botId, messageId)
+    } finally {
+      inFlight.leave(messageId)
+    }
+  }
+
+  const deliverOnce = async (botId: string, messageId: string) => {
     const state = get()
     const bot = state.bots.find((b) => b.id === botId)
     const message = state.messages[botId]?.find((m) => m.id === messageId)
@@ -321,6 +324,14 @@ export const useBotStore = create<BotHubState>()(
       )
     }
 
+    let accepted = false
+    const onAccepted = () => {
+      if (accepted) return
+      accepted = true
+      const current = get().messages[botId]?.find((m) => m.id === messageId)
+      if (current?.delivery === 'sending') updateMessage(botId, messageId, { delivery: 'accepted', error: undefined })
+    }
+
     try {
       const receipt = await withTimeout(
         adapter.sendMessage({
@@ -328,7 +339,8 @@ export const useBotStore = create<BotHubState>()(
           accountId: message.accountId,
           sessionId: bot.activeSessionId,
           text: message.text,
-          attachments: message.attachments
+          attachments: message.attachments,
+          onAccepted
         }),
         SEND_HARD_TIMEOUT_MS,
         // The adapter answered after we gave up: show what really happened.
@@ -339,12 +351,12 @@ export const useBotStore = create<BotHubState>()(
       applyReceipt(receipt)
     } catch (error) {
       if (error instanceof AdapterError && error.code === 'no-reply') {
-        updateMessage(botId, messageId, { delivery: 'no-reply', error: error.message || NO_REPLY_TEXT })
+        updateMessage(botId, messageId, deliveryAfterError(accepted, 'no-reply', error.message || NO_REPLY_TEXT))
       } else if (error instanceof SendTimeoutError) {
-        updateMessage(botId, messageId, { delivery: 'failed', error: error.message })
+        updateMessage(botId, messageId, deliveryAfterError(accepted, 'timeout', error.message))
         get().setTyping(botId, false)
       } else {
-        updateMessage(botId, messageId, { delivery: 'failed', error: errorMessage(error) })
+        updateMessage(botId, messageId, deliveryAfterError(accepted, 'other', errorMessage(error)))
       }
     }
   }

@@ -45,6 +45,8 @@ export class DotAdapter implements PlatformAdapter {
   private readonly listeners = new Set<AdapterListener>()
   private readonly activeDotIds = new Map<string, string>()
   private readonly activeRoomIds = new Map<string, string>()
+  /** onAccepted of the send in flight: the first stream event proves the platform took it. */
+  private readonly pendingAccept = new Map<string, () => void>()
   /** Last time the stream delivered visible content per account (widgets only arrive here). */
   private readonly streamContentAt = new Map<string, number>()
   private bridgeUnsub: Unsubscribe | null = null
@@ -86,6 +88,7 @@ export class DotAdapter implements PlatformAdapter {
     }
 
     if (event.type === 'stream') {
+      this.pendingAccept.get(event.accountId)?.()
       const convId = event.conversationId ?? event.accountId
       if (!event.done) {
         this.emit({
@@ -287,10 +290,34 @@ export class DotAdapter implements PlatformAdapter {
     this.activeRoomIds.delete(accountId)
   }
 
+  /** Returns a disposer; call it when the send settles. */
+  private trackAccept(message: OutgoingMessage): () => void {
+    const cb = message.onAccepted
+    if (!cb) return () => undefined
+    const accept = () => {
+      dispose()
+      cb()
+    }
+    const dispose = () => {
+      if (this.pendingAccept.get(message.accountId) === accept) this.pendingAccept.delete(message.accountId)
+    }
+    this.pendingAccept.set(message.accountId, accept)
+    return dispose
+  }
+
   async sendMessage(message: OutgoingMessage): Promise<SendReceipt> {
     this.bindBridgeEvents()
     const sendStartedAt = Date.now()
     this.setStatus(message.accountId, 'busy')
+    const disposeAccept = this.trackAccept(message)
+    try {
+      return await this.sendTracked(message, sendStartedAt)
+    } finally {
+      disposeAccept()
+    }
+  }
+
+  private async sendTracked(message: OutgoingMessage, sendStartedAt: number): Promise<SendReceipt> {
     this.emit({
       type: 'typing',
       conversationId: message.conversationId,

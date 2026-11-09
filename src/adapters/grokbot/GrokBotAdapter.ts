@@ -353,6 +353,7 @@ export class GrokBotAdapter implements PlatformAdapter {
         sessionId,
         machineId: auth.machineId
       })
+      message.onAccepted?.()
 
       let reply = ''
       let replyMessageId = ''

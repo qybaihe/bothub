@@ -312,6 +312,7 @@ export class HarkAdapter implements PlatformAdapter {
       }
 
       accepted = true
+      message.onAccepted?.()
       if (sent?.idempotencyKey) afterIds.push(sent.idempotencyKey)
 
       const polled = (await invokeHarkRpc({

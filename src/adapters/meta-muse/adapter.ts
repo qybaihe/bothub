@@ -143,6 +143,8 @@ export class MuseAdapter implements PlatformAdapter {
   private readonly pendingApprovals = new Map<string, MuseApproval[]>()
   /** Keys `${accountId}:${conversationId}` delivered via main-process stream events. */
   private readonly streamDelivered = new Set<string>()
+  /** onAccepted of the send in flight: the first stream event proves the platform took it. */
+  private readonly pendingAccept = new Map<string, () => void>()
   private bridgeUnsub: Unsubscribe | null = null
 
   constructor() {
@@ -199,6 +201,7 @@ export class MuseAdapter implements PlatformAdapter {
         break
       }
       case 'stream': {
+        this.pendingAccept.get(event.accountId)?.()
         const widgets = event.widgets as MuseOptionWidget[] | undefined
         const tools = event.tools as import('../types').MuseToolCall[] | undefined
         const media = event.media as import('../types').MuseMediaPart[] | undefined
@@ -343,6 +346,21 @@ export class MuseAdapter implements PlatformAdapter {
     this.setStatus(accountId, 'offline')
   }
 
+  /** Returns a disposer; call it when the send settles. */
+  private trackAccept(message: OutgoingMessage): () => void {
+    const cb = message.onAccepted
+    if (!cb) return () => undefined
+    const accept = () => {
+      dispose()
+      cb()
+    }
+    const dispose = () => {
+      if (this.pendingAccept.get(message.accountId) === accept) this.pendingAccept.delete(message.accountId)
+    }
+    this.pendingAccept.set(message.accountId, accept)
+    return dispose
+  }
+
   async sendMessage(message: OutgoingMessage): Promise<SendReceipt> {
     const status = this.getStatus(message.accountId)
     if (status === 'offline' || status === 'error') {
@@ -351,6 +369,7 @@ export class MuseAdapter implements PlatformAdapter {
 
     this.bindBridgeEvents()
     this.setStatus(message.accountId, 'busy')
+    const disposeAccept = this.trackAccept(message)
     // A turn that needs a Sentinel (egress) approval blocks until the user decides,
     // so surface pending cards while waiting instead of timing out into "error".
     const approvalPoll = setInterval(() => void this.listApprovals(message.accountId).catch(() => {}), 3000)
@@ -448,6 +467,7 @@ export class MuseAdapter implements PlatformAdapter {
       throw error
     } finally {
       clearInterval(approvalPoll)
+      disposeAccept()
     }
   }
 

@@ -9,6 +9,37 @@ export const SEND_HARD_TIMEOUT_MS = 12 * 60_000
 
 export const SEND_TIMEOUT_TEXT = "发送超时，可能已经送达；重试前先确认对方是否收到"
 export const INTERRUPTED_SEND_TEXT = "应用关闭时还没确认送达，可能已经发出；重试前先确认"
+export const INTERRUPTED_REPLY_TEXT = "已送达，但应用关闭时回复还没收完"
+export const ACCEPTED_THEN_FAILED_TEXT = "已送达，但等待回复时出错；重发前先确认对方是否已回复"
+
+/**
+ * Delivery state after `sendMessage` failed. Once the platform accepted the
+ * message it is never "failed" (Retry would double-send), only "no-reply".
+ */
+export function deliveryAfterError(
+  accepted: boolean,
+  kind: "no-reply" | "timeout" | "other",
+  detail: string
+): { delivery: "failed" | "no-reply"; error: string } {
+  if (kind === "no-reply") return { delivery: "no-reply", error: detail }
+  if (accepted) return { delivery: "no-reply", error: kind === "timeout" ? ACCEPTED_THEN_FAILED_TEXT : `${ACCEPTED_THEN_FAILED_TEXT}（${detail}）` }
+  return { delivery: "failed", error: detail }
+}
+
+/** One delivery per message at a time: a double-clicked Retry must not send twice. */
+export function createInFlightSet(): { enter(id: string): boolean; leave(id: string): void } {
+  const ids = new Set<string>()
+  return {
+    enter(id) {
+      if (ids.has(id)) return false
+      ids.add(id)
+      return true
+    },
+    leave(id) {
+      ids.delete(id)
+    }
+  }
+}
 
 export class SendTimeoutError extends Error {
   constructor() {
@@ -63,6 +94,10 @@ export function sanitizePersisted<
     for (const [botId, list] of Object.entries(messages)) {
       if (!Array.isArray(list)) continue
       const fixed = list.map((m) => {
+        if (m.delivery === "accepted") {
+          changed = true
+          return { ...m, delivery: "no-reply" as const, error: INTERRUPTED_REPLY_TEXT }
+        }
         if (m.delivery !== "sending") return m
         changed = true
         return { ...m, delivery: "failed" as const, error: INTERRUPTED_SEND_TEXT }
@@ -155,7 +190,7 @@ export function clearNoReplyFlag(list: ChatMessage[]): ChatMessage[] {
   for (let i = list.length - 1; i >= 0; i--) {
     const m = list[i]!
     if (m.role !== "user") continue
-    if (m.delivery !== "no-reply") return list
+    if (m.delivery !== "no-reply" && m.delivery !== "accepted") return list
     const next = list.slice()
     next[i] = { ...m, delivery: "sent", error: undefined }
     return next

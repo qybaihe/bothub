@@ -260,9 +260,14 @@ export function registerMuseIpc(): void {
     if (!Array.isArray(accountIds)) throw new TypeError('Invalid accountIds array')
     const ids = accountIds.filter((id): id is string => typeof id === 'string')
     const mgr = managerFor(event)
-    return assignProxyPoolToAccounts(ids, async (accId) => {
-      await mgr.applyAccountProxy(accId).catch(() => undefined)
-    })
+    return assignProxyPoolToAccounts(
+      ids,
+      async (accId) => {
+        await mgr.applyAccountProxy(accId).catch(() => undefined)
+      },
+      // Logins still in flight are not in the renderer list yet; keep their proxy.
+      (accId) => [...managers.values()].some((m) => m.isLoginInFlight(accId))
+    )
   })
 
   ipcMain.handle(MUSE_CHANNELS.selectOption, async (event, request: unknown) => {

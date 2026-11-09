@@ -145,7 +145,7 @@ export function MuseBatchImport({ onDone, onBusyChange }: { onDone: () => void; 
     // their proxies (two concurrent logins on one IP).
     if (muse?.assignProxyPool) {
       const existingMuseIds = Object.values(useBotStore.getState().accounts)
-        .filter((a) => a.platformId === 'meta-muse')
+        .filter((a) => a.platformId === 'meta-muse' || a.platformId === 'hark')
         .map((a) => a.id)
       const inFlight = rowsRef.current
         .filter((r) => r.accountId && (r.state === 'running' || r.state === 'needs-human'))

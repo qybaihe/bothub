@@ -2,13 +2,17 @@
  * Per-account BotHub client egress proxy (not a Muse RPC).
  * Persist via Electron safeStorage; apply to session partition + Noise WSS agent.
  */
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
-import { dirname, join } from "node:path"
+import { join } from "node:path"
 import { app, safeStorage, session as electronSession } from "electron"
 import { HttpsProxyAgent } from "https-proxy-agent"
 import { SocksProxyAgent } from "socks-proxy-agent"
 import type { Agent } from "node:https"
 import { partitionForAccount } from "../webContentsViewManager"
+import { readJsonFile, writeJsonAtomic } from "../jsonFile"
+import { createMutex, planPoolAssignment, releasePoolSlot } from "@shared/proxyPool"
+
+/** One lock for both proxy files: every change is read-modify-write across awaits. */
+const withProxyStoreLock = createMutex()
 
 export type MuseProxyMode = "direct" | "http" | "socks5" | "socks5h"
 
@@ -31,20 +35,11 @@ function storePath(): string {
 }
 
 function readStore(): StoreFile {
-  const p = storePath()
-  if (!existsSync(p)) return {}
-  try {
-    const raw = JSON.parse(readFileSync(p, "utf8")) as unknown
-    return raw && typeof raw === "object" ? (raw as StoreFile) : {}
-  } catch {
-    return {}
-  }
+  return readJsonFile<StoreFile>(storePath(), {}, (raw) => Boolean(raw) && typeof raw === "object" && !Array.isArray(raw))
 }
 
 function writeStore(store: StoreFile): void {
-  const p = storePath()
-  mkdirSync(dirname(p), { recursive: true })
-  writeFileSync(p, JSON.stringify(store, null, 2), { encoding: "utf8", mode: 0o600 })
+  writeJsonAtomic(storePath(), store)
 }
 
 function normalize(cfg: MuseProxyConfig | null | undefined): MuseProxyConfig {
@@ -99,6 +94,10 @@ export async function getProxyView(accountId: string): Promise<MuseProxyView> {
 }
 
 export async function saveProxyConfig(accountId: string, input: MuseProxyConfig): Promise<MuseProxyView> {
+  return withProxyStoreLock(() => saveProxyConfigUnlocked(accountId, input))
+}
+
+async function saveProxyConfigUnlocked(accountId: string, input: MuseProxyConfig): Promise<MuseProxyView> {
   const next = normalize(input)
   const store = readStore()
   if (next.mode === "direct") {
@@ -130,9 +129,11 @@ export async function saveProxyConfig(accountId: string, input: MuseProxyConfig)
 }
 
 export async function clearProxyConfig(accountId: string): Promise<void> {
-  const store = readStore()
-  delete store[accountId]
-  writeStore(store)
+  await withProxyStoreLock(() => {
+    const store = readStore()
+    delete store[accountId]
+    writeStore(store)
+  })
   await applyProxyToPartition(accountId, { mode: "direct" })
 }
 
@@ -194,20 +195,11 @@ function poolStorePath(): string {
 }
 
 function readPoolStore(): StoredPoolItem[] {
-  const p = poolStorePath()
-  if (!existsSync(p)) return []
-  try {
-    const raw = JSON.parse(readFileSync(p, "utf8")) as unknown
-    return Array.isArray(raw) ? (raw as StoredPoolItem[]) : []
-  } catch {
-    return []
-  }
+  return readJsonFile<StoredPoolItem[]>(poolStorePath(), [], Array.isArray)
 }
 
 function writePoolStore(list: StoredPoolItem[]): void {
-  const p = poolStorePath()
-  mkdirSync(dirname(p), { recursive: true })
-  writeFileSync(p, JSON.stringify(list, null, 2), { encoding: "utf8", mode: 0o600 })
+  writeJsonAtomic(poolStorePath(), list)
 }
 
 /** Parse one proxy line (`socks5://u:p@h:p`, `http://h:p`, `h:p:u:p`, `h:p`). */
@@ -314,6 +306,15 @@ export async function importProxyPool(
   if (!available) {
     throw new Error("safeStorage encryption unavailable")
   }
+  const added = await withProxyStoreLock(() => importIntoPoolUnlocked(rawText, defaultMode))
+  const items = await listProxyPool()
+  return { added, total: items.length, items }
+}
+
+async function importIntoPoolUnlocked(
+  rawText: string,
+  defaultMode: Exclude<MuseProxyMode, "direct">
+): Promise<number> {
   const existing = readPoolStore()
   const existingConfigs = await Promise.all(existing.map(decryptPoolItem))
   const seenKeys = new Set(
@@ -337,18 +338,16 @@ export async function importProxyPool(
     added += 1
   }
   writePoolStore(existing)
-  const items = await listProxyPool()
-  return { added, total: items.length, items }
+  return added
 }
 
 export async function removeProxyPoolItem(id: string): Promise<MuseProxyPoolItemView[]> {
-  const list = readPoolStore().filter((x) => x.id !== id)
-  writePoolStore(list)
+  await withProxyStoreLock(() => writePoolStore(readPoolStore().filter((x) => x.id !== id)))
   return listProxyPool()
 }
 
 export async function clearProxyPool(): Promise<MuseProxyPoolItemView[]> {
-  writePoolStore([])
+  await withProxyStoreLock(() => writePoolStore([]))
   return []
 }
 
@@ -359,39 +358,36 @@ export async function clearProxyPool(): Promise<MuseProxyPoolItemView[]> {
  */
 export async function assignProxyPoolToAccounts(
   accountIds: string[],
-  onAssigned?: (accountId: string) => Promise<void>
+  onAssigned?: (accountId: string) => Promise<void>,
+  keep?: (accountId: string) => boolean
 ): Promise<{ assignedCount: number; items: MuseProxyPoolItemView[] }> {
-  const pool = readPoolStore()
-  if (pool.length === 0 || accountIds.length === 0) {
-    return { assignedCount: 0, items: await listProxyPool() }
-  }
-
-  const validAccountSet = new Set(accountIds)
-  // Release assignments for deleted accounts
-  for (const item of pool) {
-    if (item.assignedAccountId && !validAccountSet.has(item.assignedAccountId)) {
-      item.assignedAccountId = undefined
+  const configured = await withProxyStoreLock(async () => {
+    const pool = readPoolStore()
+    if (pool.length === 0 || accountIds.length === 0) return [] as string[]
+    // Pool exhausted → the account keeps its current setting (no sharing).
+    const plan = planPoolAssignment(pool, accountIds, keep)
+    const done: string[] = []
+    for (const { accountId, slot } of plan.assigned) {
+      const cfg = await decryptPoolItem(slot)
+      if (cfg && cfg.mode !== "direct") {
+        await saveProxyConfigUnlocked(accountId, cfg)
+        done.push(accountId)
+      }
     }
-  }
+    writePoolStore(plan.pool)
+    return done
+  })
+  for (const accountId of configured) await onAssigned?.(accountId)
+  return { assignedCount: configured.length, items: await listProxyPool() }
+}
 
-  let assignedCount = 0
-  for (const accountId of accountIds) {
-    // Already has a pool item assigned?
-    let item = pool.find((p) => p.assignedAccountId === accountId)
-    if (!item) {
-      // Find first unassigned proxy in pool
-      item = pool.find((p) => !p.assignedAccountId)
-    }
-    if (!item) continue
-    item.assignedAccountId = accountId
-    const cfg = await decryptPoolItem(item)
-    if (cfg && cfg.mode !== "direct") {
-      await saveProxyConfig(accountId, cfg)
-      await onAssigned?.(accountId)
-      assignedCount += 1
-    }
-  }
-
-  writePoolStore(pool)
-  return { assignedCount, items: await listProxyPool() }
+/** Give an account's pool proxy back (failed/cancelled login) and drop its config. */
+export async function releaseProxyPoolAccount(accountId: string): Promise<void> {
+  const held = await withProxyStoreLock(() => {
+    const pool = readPoolStore()
+    if (!pool.some((p) => p.assignedAccountId === accountId)) return false
+    writePoolStore(releasePoolSlot(pool, accountId))
+    return true
+  })
+  if (held) await clearProxyConfig(accountId)
 }

@@ -541,8 +541,9 @@ export const useBotStore = create<BotHubState>()(
       const accounts = get().accounts
       const bridge = electronBridge()
       if (input.platformId === 'meta-muse' && bridge?.muse?.assignProxyPool) {
+        // Hark accounts share the pool; leaving them out freed their proxies.
         const allMuseIds = Object.values(accounts)
-          .filter((a) => a.platformId === 'meta-muse')
+          .filter((a) => a.platformId === 'meta-muse' || a.platformId === 'hark')
           .map((a) => a.id)
         void bridge.muse.assignProxyPool(allMuseIds).catch(() => undefined)
       }
@@ -567,7 +568,7 @@ export const useBotStore = create<BotHubState>()(
       const bridge = electronBridge()
       if (bot.platformId === 'meta-muse' && bridge?.muse?.assignProxyPool) {
         const allMuseIds = Object.values(accounts)
-          .filter((a) => a.platformId === 'meta-muse')
+          .filter((a) => a.platformId === 'meta-muse' || a.platformId === 'hark')
           .map((a) => a.id)
         void bridge.muse.assignProxyPool(allMuseIds).catch(() => undefined)
       }

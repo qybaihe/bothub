@@ -20,7 +20,7 @@ import {
   type MuseOptionWidget
 } from '../muse-native'
 import { fetchFsRawPreview, uploadWorkspaceFile, buildWorkspaceUploadPath } from '../muse-native/fs'
-import { createProxyAgent } from './accountProxy'
+import { createProxyAgent, releaseProxyPoolAccount } from './accountProxy'
 import { fetchInviteSummary, fetchSubscription } from '../muse-native/quota'
 import {
   fetchInvite,
@@ -1576,7 +1576,14 @@ export class MuseSessionManager {
     return true
   }
 
+  /** A login window or batch auto-login is still running for this account. */
+  isLoginInFlight(accountId: string): boolean {
+    return this.autoLogins.has(accountId) || this.loginWindows.has(accountId)
+  }
+
   async cancelLogin(accountId: string): Promise<void> {
+    // Hand the pool proxy back so failed/retried batch rows don't drain the pool.
+    void releaseProxyPoolAccount(accountId).catch(() => undefined)
     this.autoLogins.get(accountId)?.abort()
     this.autoLogins.delete(accountId)
     const win = this.loginWindows.get(accountId)

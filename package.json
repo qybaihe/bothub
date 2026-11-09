@@ -17,9 +17,11 @@
     "typecheck": "npm run typecheck:node && npm run typecheck:web",
     "test": "vitest run",
     "postinstall": "install-electron",
-    "dist": "npm run build && electron-builder --mac --arm64",
-    "dist:dir": "npm run build && electron-builder --mac --arm64 --dir",
-    "release": "npm run build && electron-builder --mac --arm64 --publish always"
+    "dist": "npm run build && electron-builder --config electron-builder.config.cjs",
+    "dist:mac": "npm run build && electron-builder --config electron-builder.config.cjs --mac",
+    "dist:win": "npm run build && electron-builder --config electron-builder.config.cjs --win",
+    "dist:dir": "npm run build && electron-builder --config electron-builder.config.cjs --mac --arm64 --dir",
+    "release": "npm run build && electron-builder --config electron-builder.config.cjs --publish always"
   },
   "devDependencies": {
     "@fontsource-variable/inter": "^5.3.0",
@@ -58,51 +60,5 @@
   "homepage": "https://github.com/qybaihe/bothub",
   "bugs": {
     "url": "https://github.com/qybaihe/bothub/issues"
-  },
-  "build": {
-    "appId": "com.qybaihe.bothub",
-    "productName": "BotHub",
-    "copyright": "Copyright © 2026 BotHub contributors",
-    "directories": {
-      "output": "release",
-      "buildResources": "build"
-    },
-    "files": [
-      "out/**/*",
-      "package.json"
-    ],
-    "asar": true,
-    "mac": {
-      "category": "public.app-category.productivity",
-      "target": [
-        {
-          "target": "dmg",
-          "arch": [
-            "arm64"
-          ]
-        },
-        {
-          "target": "zip",
-          "arch": [
-            "arm64"
-          ]
-        }
-      ],
-      "identity": null,
-      "hardenedRuntime": false,
-      "gatekeeperAssess": false,
-      "artifactName": "${productName}-${version}-${arch}.${ext}"
-    },
-    "dmg": {
-      "artifactName": "${productName}-${version}-${arch}.${ext}"
-    },
-    "publish": [
-      {
-        "provider": "github",
-        "owner": "qybaihe",
-        "repo": "bothub",
-        "releaseType": "release"
-      }
-    ]
   }
 }

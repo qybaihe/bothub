@@ -26,6 +26,13 @@ export function deliveryAfterError(
   return { delivery: "failed", error: detail }
 }
 
+export const ATTACHMENTS_LOST_TEXT = "附件在重启后已不在内存中，请重新添加后再发送"
+
+/** Attachments whose bytes were not persisted cannot be re-sent after a restart. */
+export function hasLostAttachments(message: Pick<ChatMessage, "attachments">): boolean {
+  return Boolean(message.attachments?.some((a) => !a.dataBase64))
+}
+
 /** One delivery per message at a time: a double-clicked Retry must not send twice. */
 export function createInFlightSet(): { enter(id: string): boolean; leave(id: string): void } {
   const ids = new Set<string>()

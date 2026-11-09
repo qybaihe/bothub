@@ -6,7 +6,7 @@ import { AdapterError, type AttachmentMeta, type ConnectionStatus, type Incoming
 import { createId } from '@shared/id'
 import { createSeed } from '@/data/seed'
 import type { AccountDraft, Bot, BotAccount, BotGroup, ChatMessage, NewBotInput } from '@/types'
-import { clearNoReplyFlag, createSafeStorage, sanitizePersisted, SEND_HARD_TIMEOUT_MS, SendTimeoutError, toPersistedMessages, withTimeout, deliveryAfterError, createInFlightSet } from './delivery'
+import { clearNoReplyFlag, createSafeStorage, sanitizePersisted, SEND_HARD_TIMEOUT_MS, SendTimeoutError, toPersistedMessages, withTimeout, deliveryAfterError, createInFlightSet, hasLostAttachments, ATTACHMENTS_LOST_TEXT } from './delivery'
 
 let warnedStorage = false
 const workspaceStorage = createJSONStorage(() =>
@@ -658,6 +658,12 @@ export const useBotStore = create<BotHubState>()(
     },
 
     retryMessage: async (botId, messageId) => {
+      const message = get().messages[botId]?.find((m) => m.id === messageId)
+      // Retrying would silently drop the files (or send an empty message).
+      if (message && hasLostAttachments(message)) {
+        updateMessage(botId, messageId, { delivery: 'failed', error: ATTACHMENTS_LOST_TEXT })
+        return
+      }
       updateMessage(botId, messageId, { delivery: 'sending', error: undefined })
       await deliver(botId, messageId)
     },

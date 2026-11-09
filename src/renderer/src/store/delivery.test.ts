@@ -3,6 +3,7 @@ import type { BotAccount, ChatMessage } from '@/types'
 import {
   clearNoReplyFlag,
   createInFlightSet,
+  hasLostAttachments,
   deliveryAfterError,
   INTERRUPTED_REPLY_TEXT,
   createSafeStorage,
@@ -145,5 +146,13 @@ describe('accepted delivery', () => {
 
   it('marks an accepted message sent when the reply lands', () => {
     expect(clearNoReplyFlag([msg('accepted')])[0]!.delivery).toBe('sent')
+  })
+})
+
+describe('hasLostAttachments', () => {
+  it('flags attachments whose bytes were stripped on save', () => {
+    expect(hasLostAttachments({ attachments: [{ name: 'a.png', mimeType: 'image/png' } as never] })).toBe(true)
+    expect(hasLostAttachments({ attachments: [{ name: 'a.png', mimeType: 'image/png', dataBase64: 'AA==' } as never] })).toBe(false)
+    expect(hasLostAttachments({})).toBe(false)
   })
 })

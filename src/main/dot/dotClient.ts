@@ -1,9 +1,10 @@
 import { randomUUID } from 'node:crypto'
-import { chmodSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, mkdirSync, renameSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 import WebSocket from 'ws'
 import { proxyFetch, proxyWsAgent } from '../proxyTransport'
+import { readJsonFile } from '../jsonFile'
 import { requireValidProxyUrl } from '../proxyUrl'
 import type {
   DotAuthStatus,
@@ -186,7 +187,9 @@ function ensureStoreLoaded(): void {
   try {
     const file = resolveStorePath()
     if (!existsSync(file)) return
-    const parsed = JSON.parse(readFileSync(file, 'utf8')) as Record<string, unknown>
+    // Corrupt → moved aside (not silently replaced by the next save).
+    const parsed = readJsonFile<Record<string, unknown> | null>(file, null, (r) => Boolean(r) && typeof r === 'object')
+    if (!parsed) return
     const raw = (
       parsed &&
       typeof parsed === 'object' &&

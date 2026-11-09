@@ -3,7 +3,7 @@
  * account's persist partition; requests go through `session.fetch`.
  */
 import { randomUUID } from 'node:crypto'
-import { readFileSync, writeFileSync } from 'node:fs'
+import { readJsonFile, writeJsonAtomic } from '../jsonFile'
 import { join } from 'node:path'
 import { app, session as electronSession } from 'electron'
 import { MuseChatChannel } from './chat'
@@ -59,18 +59,13 @@ const DEVICE_FILE = 'muse-native-devices.json'
 /** Stable per-account device id (`node_id`), like the web client's deviceContext.local.deviceId. */
 function nodeIdFor(accountId: string): string {
   const file = join(app.getPath('userData'), DEVICE_FILE)
-  let map: Record<string, string> = {}
-  try {
-    map = JSON.parse(readFileSync(file, 'utf8')) as Record<string, string>
-  } catch {
-    /* first run */
-  }
+  const map = readJsonFile<Record<string, string>>(file, {}, (r) => Boolean(r) && typeof r === 'object' && !Array.isArray(r))
   let id = map[accountId]
   if (!id) {
     id = randomUUID()
     map[accountId] = id
     try {
-      writeFileSync(file, JSON.stringify(map, null, 2))
+      writeJsonAtomic(file, map)
     } catch (e) {
       console.warn('[muse-native] could not persist device id', e)
     }

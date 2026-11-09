@@ -3,8 +3,8 @@
  * Persisted under userData (not Keychain / sand-secrets).
  */
 import { randomUUID } from 'node:crypto'
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { dirname, join } from 'node:path'
+import { readJsonFile, writeJsonAtomic } from '../jsonFile'
+import { join } from 'node:path'
 import { app } from 'electron'
 
 type Store = Record<string, string>
@@ -14,25 +14,18 @@ function storePath(): string {
 }
 
 function readStore(): Store {
-  const path = storePath()
-  if (!existsSync(path)) return {}
-  try {
-    const raw = JSON.parse(readFileSync(path, 'utf8')) as unknown
-    if (!raw || typeof raw !== 'object') return {}
-    const out: Store = {}
-    for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
-      if (typeof v === 'string' && v.trim()) out[k] = v.trim()
-    }
-    return out
-  } catch {
-    return {}
+  // A corrupt file is moved aside instead of being overwritten (new machine
+  // ids would make Grok treat every account as a new device).
+  const raw = readJsonFile<Record<string, unknown>>(storePath(), {}, (r) => Boolean(r) && typeof r === 'object' && !Array.isArray(r))
+  const out: Store = {}
+  for (const [k, v] of Object.entries(raw)) {
+    if (typeof v === 'string' && v.trim()) out[k] = v.trim()
   }
+  return out
 }
 
 function writeStore(store: Store): void {
-  const path = storePath()
-  mkdirSync(dirname(path), { recursive: true })
-  writeFileSync(path, JSON.stringify(store, null, 2), 'utf8')
+  writeJsonAtomic(storePath(), store)
 }
 
 /** Return existing UUID for accountId or create + persist one. */

@@ -9,7 +9,8 @@ import { SocksProxyAgent } from "socks-proxy-agent"
 import type { Agent } from "node:https"
 import { partitionForAccount } from "../webContentsViewManager"
 import { readJsonFile, writeJsonAtomic } from "../jsonFile"
-import { createMutex, planPoolAssignment, releasePoolSlot } from "@shared/proxyPool"
+import { chromiumProxyRule, createMutex, planPoolAssignment, releasePoolSlot } from "@shared/proxyPool"
+import type { Session } from "electron"
 
 /** One lock for both proxy files: every change is read-modify-write across awaits. */
 const withProxyStoreLock = createMutex()
@@ -149,20 +150,40 @@ function proxyUrl(cfg: MuseProxyConfig): string | null {
   return `${scheme}://${auth}${cfg.host}:${cfg.port}`
 }
 
+/** Proxy credentials per partition session, answered from `app.on('login')`. */
+const proxyCredentials = new WeakMap<Session, { username: string; password: string }>()
+let loginHandlerInstalled = false
+
+function installProxyLoginHandler(): void {
+  if (loginHandlerInstalled) return
+  loginHandlerInstalled = true
+  app.on("login", (event, webContents, _details, authInfo, callback) => {
+    if (!authInfo.isProxy || !webContents) return
+    const creds = proxyCredentials.get(webContents.session)
+    if (!creds) return
+    event.preventDefault()
+    callback(creds.username, creds.password)
+  })
+}
+
 export async function applyProxyToPartition(accountId: string, cfg?: MuseProxyConfig): Promise<void> {
   const c = cfg ?? (await loadProxyConfig(accountId))
   const ses = electronSession.fromPartition(partitionForAccount(accountId))
-  if (c.mode === "direct") {
+  const rule = chromiumProxyRule(c)
+  if (!rule) {
+    proxyCredentials.delete(ses)
     await ses.setProxy({ mode: "direct" })
     return
   }
-  const url = proxyUrl(c)
-  if (!url) {
-    await ses.setProxy({ mode: "direct" })
-    return
+  // Chromium ignores user:pass in proxyRules; answer the 407 challenge instead
+  // (SOCKS5 username/password is not supported by Chromium at all).
+  if (c.username) {
+    proxyCredentials.set(ses, { username: c.username, password: c.password ?? "" })
+    installProxyLoginHandler()
+  } else {
+    proxyCredentials.delete(ses)
   }
-  // Electron honors proxyRules for partition fetch + WebContents login window.
-  await ses.setProxy({ proxyRules: url, proxyBypassRules: "<local>" })
+  await ses.setProxy({ proxyRules: rule, proxyBypassRules: "<local>" })
 }
 
 /** Node `ws` / HTTPS agent for Noise WSS (session.setProxy does not cover Node ws). */

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createMutex, planPoolAssignment, releasePoolSlot } from './proxyPool'
+import { chromiumProxyRule, createMutex, planPoolAssignment, releasePoolSlot } from './proxyPool'
 
 const pool = (...owners: Array<string | undefined>) => owners.map((o, i) => ({ id: `p${i}`, assignedAccountId: o }))
 
@@ -32,6 +32,15 @@ describe('planPoolAssignment', () => {
 describe('releasePoolSlot', () => {
   it('frees only that account', () => {
     expect(releasePoolSlot(pool('a', 'b'), 'a').map((s) => s.assignedAccountId)).toEqual([undefined, 'b'])
+  })
+})
+
+describe('chromiumProxyRule', () => {
+  it('never puts credentials into the rule', () => {
+    expect(chromiumProxyRule({ mode: 'http', host: 'h.test', port: 8080 })).toBe('http://h.test:8080')
+    expect(chromiumProxyRule({ mode: 'socks5h', host: 'h.test', port: 1080 })).toBe('socks5://h.test:1080')
+    expect(chromiumProxyRule({ mode: 'socks5', host: '::1', port: 1080 })).toBe('socks5://[::1]:1080')
+    expect(chromiumProxyRule({ mode: 'direct' })).toBeNull()
   })
 })
 

@@ -41,6 +41,22 @@ export function releasePoolSlot<T extends PoolSlot>(pool: readonly T[], accountI
   return pool.map((slot) => (slot.assignedAccountId === accountId ? { ...slot, assignedAccountId: undefined } : slot))
 }
 
+/**
+ * Chromium `proxyRules` entry. Chromium does not accept `user:pass@` in
+ * proxy rules nor the `socks5h` scheme (SOCKS5 already resolves DNS on the
+ * proxy there); credentials are answered from the `login` event instead.
+ */
+export function chromiumProxyRule(cfg: {
+  mode: 'direct' | 'http' | 'socks5' | 'socks5h'
+  host?: string
+  port?: number
+}): string | null {
+  if (cfg.mode === 'direct' || !cfg.host || !cfg.port) return null
+  const scheme = cfg.mode === 'socks5h' ? 'socks5' : cfg.mode
+  const host = cfg.host.includes(':') && !cfg.host.startsWith('[') ? `[${cfg.host}]` : cfg.host
+  return `${scheme}://${host}:${cfg.port}`
+}
+
 /** Serialize async read-modify-write sections (JSON stores on disk). */
 export function createMutex(): <R>(fn: () => Promise<R> | R) => Promise<R> {
   let tail: Promise<unknown> = Promise.resolve()

@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { app, BrowserWindow, ipcMain, shell } from 'electron'
 import { autoUpdater, type UpdateInfo } from 'electron-updater'
 import { UPDATE_CHANNELS, type UpdateStatusEvent } from '@shared/ipc'
+import { checkFailedMessage, interpretLatestRelease } from './updateCheck'
 
 const CHECK_INTERVAL_MS = 4 * 60 * 60 * 1000
 const GITHUB_OWNER = 'qybaihe'
@@ -88,55 +89,17 @@ async function checkViaGitHubApi(manual: boolean): Promise<void> {
       },
       signal: AbortSignal.timeout(12_000)
     })
-
-    // 404 on /releases/latest means no GitHub Release has been published yet — treat as up-to-date.
-    if (res.status === 404) {
-      if (manual) {
-        broadcast({ type: 'not-available', version: currentVersion })
-      }
-      return
+    const data = res.ok ? ((await res.json().catch(() => null)) as Parameters<typeof interpretLatestRelease>[1]) : null
+    const outcome = interpretLatestRelease(res, data, currentVersion, isNewerVersion)
+    if (outcome.type === 'available') {
+      latestVersionTag = outcome.version
+      broadcast({ type: 'available', version: outcome.version, releaseNotes: outcome.releaseNotes, manualInstall: true })
+    } else if (manual) {
+      // A failed check is not "no update": say it failed.
+      broadcast(outcome.type === 'error' ? { type: 'error', message: outcome.message } : { type: 'not-available', version: currentVersion })
     }
-
-    if (!res.ok) {
-      if (manual) {
-        broadcast({ type: 'not-available', version: currentVersion })
-      }
-      return
-    }
-
-    const data = (await res.json()) as {
-      tag_name?: string
-      name?: string
-      body?: string
-      draft?: boolean
-      prerelease?: boolean
-    }
-    if (data.draft || data.prerelease) {
-      if (manual) {
-        broadcast({ type: 'not-available', version: currentVersion })
-      }
-      return
-    }
-
-    const remoteVersion = String(data.tag_name || data.name || '').replace(/^v/i, '').trim()
-    if (remoteVersion && isNewerVersion(remoteVersion, currentVersion)) {
-      latestVersionTag = remoteVersion
-      broadcast({
-        type: 'available',
-        version: remoteVersion,
-        releaseNotes: typeof data.body === 'string' ? data.body : undefined,
-        manualInstall: true
-      })
-      return
-    }
-
-    if (manual) {
-      broadcast({ type: 'not-available', version: currentVersion })
-    }
-  } catch {
-    if (manual) {
-      broadcast({ type: 'not-available', version: currentVersion })
-    }
+  } catch (error) {
+    if (manual) broadcast({ type: 'error', message: checkFailedMessage(error) })
   }
 }
 
@@ -203,10 +166,8 @@ function configure(): void {
       return
     }
     // Missing app-update.yml / 404 latest-mac.yml / no published releases: fall back to GitHub API check
-    if (/app-update\.yml|ENOENT|404|latest-mac\.yml|No published versions|Cannot find/i.test(raw)) {
-      if (isManualCheck) {
-        broadcast({ type: 'not-available', version: app.getVersion() })
-      }
+    if (/app-update\.yml|ENOENT|404|latest-mac\.yml|latest\.yml|No published versions|Cannot find/i.test(raw)) {
+      void checkViaGitHubApi(isManualCheck)
       return
     }
     if (isManualCheck) {

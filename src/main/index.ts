@@ -63,7 +63,13 @@ function createMainWindow(): BrowserWindow {
   win.on('close', (event) => {
     if (isMac && !quitting) {
       event.preventDefault()
-      win.hide()
+      // Hiding a fullscreen window leaves an empty black Space behind.
+      if (win.isFullScreen()) {
+        win.once('leave-full-screen', () => win.hide())
+        win.setFullScreen(false)
+      } else {
+        win.hide()
+      }
     }
   })
   win.on('closed', () => {

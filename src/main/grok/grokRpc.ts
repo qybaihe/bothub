@@ -275,7 +275,11 @@ async function watchUntilReply(
       tools: toolsArr,
       media: latestMedia
     }
-  } catch {
+  } catch (error) {
+    // Our own timers end the watch by aborting; anything else (4xx/5xx,
+    // server close) with nothing collected must surface so the caller can
+    // refresh auth or fall back to polling instead of showing no reply.
+    if (!ac.signal.aborted && !latestText && !latestWidgets?.length && !latestMedia?.length) throw error
     const toolsArr = collectedTools.size > 0 ? [...collectedTools.values()] : undefined
     return {
       text: latestText,

@@ -76,23 +76,34 @@ function entryText(e: Record<string, unknown>): string {
   return typeof text === 'string' ? text.trim() : ''
 }
 
-function extractReplyText(entries: unknown, afterMessageId?: string): string {
+/**
+ * Newest assistant text in a transcript page. With `afterMessageId`, only
+ * entries newer than that user message count, and the message itself must
+ * be on the page; otherwise the previous turn's answer was returned as the
+ * reply to the new message.
+ */
+export function extractReplyText(entries: unknown, afterMessageId?: string): string {
   if (!entries || typeof entries !== 'object') return ''
   const root = entries as Record<string, unknown>
   const list = (
     Array.isArray(root['entries']) ? root['entries'] : Array.isArray(root['items']) ? root['items'] : []
   ) as Record<string, unknown>[]
+  let candidate = ''
   for (let i = list.length - 1; i >= 0; i--) {
     const e = decodeEntryBody(list[i]!)
     const id = String(e['id'] ?? e['message_id'] ?? e['messageId'] ?? e['clientNonce'] ?? '')
-    if (afterMessageId && (id === afterMessageId || String(e['clientNonce'] ?? '') === afterMessageId)) continue
+    if (afterMessageId && (id === afterMessageId || String(e['clientNonce'] ?? '') === afterMessageId)) {
+      return candidate
+    }
+    if (candidate) continue
     const role = String(e['role'] ?? '')
     const kind = String(e['kind'] ?? e['entryKind'] ?? e['type'] ?? '')
     if (/^user$/i.test(role) || /^user-attachment$/i.test(kind) || /^event$/i.test(kind)) continue
     const text = entryText(e)
     if (!text) continue
     if (/assistant|bot|message/i.test(role) || /assistant|message|send-message|bot/i.test(kind) || role === '') {
-      return text
+      if (!afterMessageId) return text
+      candidate = text
     }
   }
   return ''

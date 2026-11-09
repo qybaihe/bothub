@@ -405,8 +405,11 @@ export class HarkAdapter implements PlatformAdapter {
         }
       })
       const detail = error instanceof Error ? error.message : String(error)
-      if (accepted) {
-        // The message is on Hark already; only polling for the answer broke.
+      // A send that timed out may have landed (harkFetch never retries writes):
+      // report it as unanswered so the user does not blindly double-send.
+      const writeTimedOut = /Hark (POST|PUT|PATCH) \S+ timed out/.test(detail)
+      if (accepted || writeTimedOut) {
+        // The message is (or may be) on Hark already; only the answer is missing.
         this.setStatus(message.accountId, 'online')
         throw new AdapterError('no-reply', `Hark 已收到消息，但读取回复失败：${detail}`)
       }
